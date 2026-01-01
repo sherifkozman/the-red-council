@@ -1,0 +1,253 @@
+# ============================
+# The Red Council - .gitignore
+# ============================
+# This file defines what should NOT be committed to the public repository.
+# Organized by category for clarity.
+
+# ============================
+# Python
+# ============================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# pytest
+.pytest_cache/
+pytest_cache/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff
+.ruff_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# ============================
+# Node.js / Frontend
+# ============================
+node_modules/
+.pnpm-store/
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Build artifacts
+frontend/dist/
+*.tsbuildinfo
+
+# Turborepo
+.turbo/
+
+# ============================
+# Environment & Secrets
+# ============================
+# CRITICAL: Never commit secrets or credentials
+.env
+.env.*
+.env.local
+.env.development
+.env.test
+.env.production
+!.env.example
+
+# API keys and credentials
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.json
+service-account.json
+*-service-account*.json
+secrets/
+
+# ============================
+# IDE & Editor
+# ============================
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# JetBrains (PyCharm, WebStorm)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+\#*\#
+.\#*
+
+# ============================
+# macOS
+# ============================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ============================
+# Claude Code Local Config
+# ============================
+# Local Claude Code settings (machine-specific permissions)
+.claude/
+
+# Project-specific Claude/Gemini instructions (contain internal process details)
+CLAUDE.md
+GEMINI.md
+
+# ============================
+# Project Planning (Internal)
+# ============================
+# Internal planning docs not meant for public consumption
+plans/
+
+# Internal review reports (security audits, code reviews)
+reports/
+reviews/
+
+# Draft/scratch files
+ascii-logos.txt
+logo-hydra.txt
+*.draft.md
+*.scratch.*
+
+# Old blueprint versions (keep only latest in repo)
+red-team-in-a-box-blueprint-v0.1.md
+
+# ============================
+# Data & Database
+# ============================
+# ChromaDB local database (regenerated via seed script)
+data/chroma_db/
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Large data files
+*.csv
+*.parquet
+!tests/fixtures/**/*.csv
+
+# ============================
+# Logs & Temporary Files
+# ============================
+*.log
+logs/
+api.log
+*.tmp
+*.temp
+tmp/
+temp/
+
+# ============================
+# Testing & Quality
+# ============================
+# Test output
+test-results/
+playwright-report/
+
+# Profiling
+*.prof
+*.lprof
+
+# ============================
+# Build & Artifacts
+# ============================
+# General build directories
+*.egg-info/
+.eggs/
+
+# Documentation build
+docs/_build/
+site/
+
+# ============================
+# Security Scanning
+# ============================
+# Security tool outputs
+.bandit/
+.safety/
+security-report.json
+
+# ============================
+# Misc
+# ============================
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Archive files (if generated)
+*.tar.gz
+*.zip
+*.rar
+
+# Model files (too large for git)
+*.onnx
+*.pt
+*.pth
+*.bin
+*.safetensors

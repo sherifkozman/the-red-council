@@ -1,0 +1,25 @@
+[run]
+branch = True
+source = src
+omit =
+    src/mocks/*
+    src/ui/*
+    */tests/*
+    */test_*.py
+    */*_test.py
+    */venv/*
+    */.venv/*
+
+[report]
+fail_under = 80
+show_missing = True
+skip_covered = True
+exclude_lines =
+    pragma: no cover
+    if __name__ == "__main__":
+    def __repr__
+    raise NotImplementedError
+    if TYPE_CHECKING:
+
+[html]
+directory = htmlcov
