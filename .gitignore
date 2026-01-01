@@ -147,12 +147,12 @@ secrets/
 .Trashes
 
 # ============================
-# Claude Code Local Config
+# AI Assistant Config
 # ============================
-# Local Claude Code settings (machine-specific permissions)
+# Local AI assistant settings (machine-specific)
 .claude/
 
-# Project-specific Claude/Gemini instructions (contain internal process details)
+# Project-specific AI instructions (internal process details)
 CLAUDE.md
 GEMINI.md
 
