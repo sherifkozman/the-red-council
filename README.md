@@ -1,11 +1,19 @@
-# The Red Council
+<p align="center">
+  <img src="docs/images/logo.jpg" alt="The Red Council" width="600">
+</p>
 
-> **LLM Adversarial Security Arena** — Jailbreak → Detect → Defend → Verify
+<p align="center">
+  <strong>AI Red Team & Security — Attack. Assess. Patch.</strong>
+</p>
 
-[![Tests](https://img.shields.io/badge/tests-31%20passed-green)]()
-[![Coverage](https://img.shields.io/badge/coverage-75%25-green)]()
-[![Python](https://img.shields.io/badge/python-3.11+-blue)]()
-[![License](https://img.shields.io/badge/license-MIT-blue)]()
+<p align="center">
+  <a href="#"><img src="https://img.shields.io/badge/tests-31%20passed-green" alt="Tests"></a>
+  <a href="#"><img src="https://img.shields.io/badge/coverage-75%25-green" alt="Coverage"></a>
+  <a href="#"><img src="https://img.shields.io/badge/python-3.11+-blue" alt="Python"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
+</p>
+
+---
 
 ## What is The Red Council?
 
