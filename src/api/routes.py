@@ -5,10 +5,11 @@ import json
 import logging
 from uuid import UUID, uuid4
 from typing import Any, Dict
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import StreamingResponse
 from src.api.models import StartRunRequest, StartRunResponse, RunResponse, RunStatus
 from src.orchestrator.runner import ArenaRunner
+from src.api.security import rate_limit_dependency, verify_bearer_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -78,7 +79,10 @@ async def _execute_run(
 
 @router.post("", response_model=StartRunResponse, status_code=202)
 async def start_run(
-    request: StartRunRequest, background_tasks: BackgroundTasks
+    request: StartRunRequest, 
+    background_tasks: BackgroundTasks,
+    _: None = Depends(rate_limit_dependency),
+    token: str | None = Depends(verify_bearer_token),
 ) -> StartRunResponse:
     """
     Start a new arena run.
@@ -105,7 +109,11 @@ async def start_run(
 
 
 @router.get("/{run_id}", response_model=RunResponse)
-async def get_run_status(run_id: UUID) -> RunResponse:
+async def get_run_status(
+    run_id: UUID,
+    _: None = Depends(rate_limit_dependency),
+    token: str | None = Depends(verify_bearer_token),
+) -> RunResponse:
     """Get status of an arena run (Polling)."""
     if run_id not in _runs:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
@@ -120,7 +128,12 @@ async def get_run_status(run_id: UUID) -> RunResponse:
 
 
 @router.get("/{run_id}/stream")
-async def stream_run(run_id: UUID, request: Request) -> StreamingResponse:
+async def stream_run(
+    run_id: UUID, 
+    request: Request,
+    _: None = Depends(rate_limit_dependency),
+    token: str | None = Depends(verify_bearer_token),
+) -> StreamingResponse:
     """Stream run events (SSE)."""
     if run_id not in _runs:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")

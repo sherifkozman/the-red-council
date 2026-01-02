@@ -3,12 +3,16 @@
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from src.api.routes import router as runs_router
+from src.api.security import SecurityHeadersMiddleware
 
 app = FastAPI(
     title="The Red Council API",
     description="API for orchestrating adversarial testing campaigns.",
     version="0.1.0",
 )
+
+# Security headers middleware (runs first, wraps response)
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
