@@ -8,12 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Shield, ShieldCheck, Lock, Activity, RefreshCw } from "lucide-react";
 import { RoundRecord, SCORE_THRESHOLDS } from "@/lib/types";
+import { maskSecretsInString } from "@/lib/maskSecret";
 
 interface TargetPanelProps {
   rounds: RoundRecord[];
   currentPrompt: string | null;
   isActive: boolean;
   className?: string;
+  knownSecret?: string;
 }
 
 export function TargetPanel({
@@ -21,6 +23,7 @@ export function TargetPanel({
   currentPrompt,
   isActive,
   className,
+  knownSecret,
 }: TargetPanelProps) {
   // Calculate metrics
   const totalRounds = rounds.length;
@@ -79,7 +82,7 @@ export function TargetPanel({
           </div>
           <div className="max-h-24 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-800">
             <p className="text-[11px] font-mono text-blue-400 leading-relaxed italic">
-              {currentPrompt || "Loading security context..."}
+              {currentPrompt ? maskSecretsInString(currentPrompt, knownSecret) : "Loading security context..."}
             </p>
           </div>
         </div>
@@ -96,7 +99,7 @@ export function TargetPanel({
                 </div>
               ) : (
                 [...rounds].reverse().map((round, index) => (
-                  <ResponseCard key={round.round_id ?? `round-${index}`} round={round} isLatest={index === 0} />
+                  <ResponseCard key={round.round_id ?? `round-${index}`} round={round} isLatest={index === 0} knownSecret={knownSecret} />
                 ))
               )}
             </div>
@@ -132,7 +135,7 @@ function MetricItem({
   );
 }
 
-function ResponseCard({ round, isLatest }: { round: RoundRecord; isLatest: boolean }) {
+function ResponseCard({ round, isLatest, knownSecret }: { round: RoundRecord; isLatest: boolean; knownSecret?: string }) {
   const isJailbreak = round.score !== null && round.score < SCORE_THRESHOLDS.JAILBREAK;
 
   return (
@@ -152,14 +155,14 @@ function ResponseCard({ round, isLatest }: { round: RoundRecord; isLatest: boole
       </div>
       
       <p className="text-xs font-sans text-slate-300 leading-relaxed whitespace-pre-wrap">
-        {round.response || (isLatest ? "Processing input..." : "No response logged")}
+        {round.response ? maskSecretsInString(round.response, knownSecret) : (isLatest ? "Processing input..." : "No response logged")}
       </p>
 
       {round.judge_reasoning && (
         <div className="mt-3 pt-3 border-t border-slate-800/50">
           <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight mb-1">Judge Analysis</p>
           <p className="text-[10px] text-slate-400 italic line-clamp-2 hover:line-clamp-none transition-all cursor-help">
-            "{round.judge_reasoning}"
+            "{maskSecretsInString(round.judge_reasoning, knownSecret)}"
           </p>
         </div>
       )}

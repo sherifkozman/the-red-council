@@ -104,6 +104,7 @@ async def judge_node(state: ArenaState) -> dict:
         )
     else:
         logs = _log(logs, f"Target secure. Score: {score.score}/10.")
+        logs = _log(logs, "[SKIPPED] Defense not required.")
 
     return {
         "rounds": state.rounds,
