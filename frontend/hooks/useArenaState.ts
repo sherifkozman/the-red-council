@@ -21,7 +21,8 @@ export function useArenaState(runId: string | null) {
     setIsComplete(false);
     setError(null);
 
-    const url = `http://localhost:8000/runs/${id}/stream`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const url = `${apiUrl}/runs/${id}/stream`;
     const es = new EventSource(url);
     eventSourceRef.current = es;
 

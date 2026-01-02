@@ -49,6 +49,9 @@ async def _execute_run(
         ):
             # MED-002: Sanitize event before enqueuing
             safe_event = sanitize_event(event)
+            
+            # Update global state for polling
+            _runs[run_id]["result"] = safe_event
 
             # Enqueue event for SSE
             await queue.put(

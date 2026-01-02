@@ -1,102 +1,107 @@
 // frontend/app/arena/[runId]/page.tsx
 "use client";
 
-import React from "react";
-import { useParams } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useArenaState } from "@/hooks/useArenaState";
 import { BattleArena } from "@/components/arena/BattleArena";
-import { EventLog } from "@/components/arena/EventLog";
-import { RoundHistory } from "@/components/arena/RoundHistory";
 import { FinalOutcome } from "@/components/arena/FinalOutcome";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Terminal, Shield } from "lucide-react";
+import { AlertCircle, Shield, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { RoundProgress } from "@/components/arena/RoundProgress";
 
 export default function ArenaPage() {
+  const router = useRouter();
   const { runId } = useParams() as { runId: string };
   const { state, error, isComplete } = useArenaState(runId);
+  const [knownSecret, setKnownSecret] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    // Retrieve secret for masking
+    const stored = sessionStorage.getItem(`secret_${runId}`);
+    if (stored) {
+      setKnownSecret(stored);
+    }
+  }, [runId]);
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4 bg-slate-950" role="alert" aria-live="assertive">
+      <div className="flex items-center justify-center min-h-screen p-4 bg-slate-950" role="alert">
         <Card className="max-w-md w-full p-8 border-red-500/20 bg-slate-900 text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-white mb-2">Connection Error</h1>
+          <h2 className="text-xl font-bold text-white mb-2">Tactical Link Failure</h2>
           <p className="text-slate-400 text-sm mb-6">{error}</p>
-          <a href="/" className="text-blue-400 hover:text-blue-300 font-bold text-xs uppercase tracking-widest underline">
+          <Button 
+            onClick={() => router.push("/")}
+            className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold"
+          >
             Return to Command Center
-          </a>
+          </Button>
         </Card>
       </div>
     );
   }
 
   if (!state) {
-    return (
-      <div className="flex flex-col h-screen bg-slate-950 p-6 overflow-hidden gap-6">
-        <div className="h-20 w-full mb-4">
-          <Skeleton className="h-full w-full bg-slate-900 rounded-xl" />
-        </div>
-        <div className="flex-1 grid grid-cols-2 gap-6">
-          <Skeleton className="h-full w-full bg-slate-900 rounded-xl" />
-          <Skeleton className="h-full w-full bg-slate-900 rounded-xl" />
-        </div>
-      </div>
-    );
+    return <ArenaLoadingSkeleton />;
   }
 
   return (
-    <main className="flex flex-col h-screen bg-slate-950 overflow-hidden text-slate-200">
-      {/* Header Info */}
-      <header className="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
-            <Shield className="w-5 h-5 text-white" />
+    <main className="h-screen max-h-screen bg-slate-950 text-slate-200 overflow-hidden flex flex-col">
+      {/* Header Bar */}
+      <header className="flex-shrink-0 h-14 border-b border-slate-900 bg-slate-900/50 flex items-center justify-between px-6 z-30">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md">
+            <Shield className="w-4 h-4 text-blue-500" />
+            <span className="text-xs font-black font-mono tracking-wider text-blue-400 uppercase">
+              The Red Council
+            </span>
           </div>
-          <div>
-            <h1 className="text-sm font-black font-mono tracking-tighter uppercase leading-none">The Red Council</h1>
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Adversarial Security Arena</span>
-          </div>
+          <div className="h-4 w-px bg-slate-800" />
+          <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest hidden sm:block">
+            UPLINK: <span className="text-green-500">ACTIVE</span> / ID: {runId.slice(0, 8)}...
+          </span>
         </div>
-        
+
         <div className="flex items-center gap-6">
-          <div className="hidden md:flex flex-col items-end">
-            <span className="text-[9px] font-bold text-slate-500 uppercase">Current Run ID</span>
-            <span className="text-[10px] font-mono text-blue-400">{runId}</span>
-          </div>
-          <div className="h-8 w-px bg-slate-800" />
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Uplink Active</span>
-          </div>
+          <RoundProgress 
+            currentRound={state.current_round} 
+            maxRounds={state.max_rounds} 
+          />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-all flex gap-2"
+            onClick={() => router.push("/")}
+          >
+            <XCircle className="w-4 h-4" />
+            <span className="text-[10px] font-bold uppercase">Abort</span>
+          </Button>
         </div>
       </header>
 
-      {/* Main Battle Section */}
-      <div className="flex-1 flex min-h-0 p-6 gap-6">
-        {/* Left Side: Battle Arena */}
-        <div className="flex-[3] flex flex-col min-h-0">
-          <BattleArena state={state} />
-        </div>
-
-        {/* Right Side: History & Logs */}
-        <div className="flex-[1] flex flex-col gap-6 min-w-[320px]">
-          {/* History */}
-          <div className="flex-[3] min-h-0">
-            <RoundHistory rounds={state.rounds ?? []} />
-          </div>
-
-          {/* Logs */}
-          <div className="flex-[2] min-h-0">
-            <EventLog logs={state.logs ?? []} />
-          </div>
-        </div>
+      {/* Main Battle Content */}
+      <div className="flex-1 min-h-0 relative">
+        <BattleArena state={state} knownSecret={knownSecret} />
       </div>
 
-      {/* Final Outcome Modal */}
-      {isComplete && state.state === "DONE" && (
-        <FinalOutcome state={state} />
-      )}
+      {/* Final Outcome Overlay */}
+      {isComplete && <FinalOutcome state={state} />}
     </main>
+  );
+}
+
+function ArenaLoadingSkeleton() {
+  return (
+    <div className="h-screen bg-slate-950 flex flex-col p-6 gap-6">
+      <Skeleton className="h-20 w-full bg-slate-900" />
+      <div className="flex-1 grid grid-cols-2 gap-6">
+        <Skeleton className="h-full w-full bg-slate-900" />
+        <Skeleton className="h-full w-full bg-slate-900" />
+      </div>
+      <Skeleton className="h-32 w-full bg-slate-900" />
+    </div>
   );
 }

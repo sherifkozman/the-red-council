@@ -41,7 +41,8 @@ export default function LandingPage() {
 
     try {
       const payload: StartRunRequest = { secret, system_prompt: systemPrompt };
-      const response = await fetch("http://localhost:8000/runs", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiUrl}/runs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -52,6 +53,8 @@ export default function LandingPage() {
       }
 
       const data: StartRunResponse = await response.json();
+      // Store secret for UI masking in session storage
+      sessionStorage.setItem(`secret_${data.run_id}`, secret);
       router.push(`/arena/${data.run_id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
