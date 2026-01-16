@@ -86,7 +86,7 @@ posthog==5.4.0
 proto-plus==1.27.0
 protobuf==5.29.5
 pyarrow==22.0.0
-pyasn1==0.6.1
+pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pybase64==1.4.3
 pydantic==2.12.5
