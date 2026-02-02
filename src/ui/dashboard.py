@@ -1,6 +1,7 @@
 # src/ui/dashboard.py
 
 import asyncio
+import logging
 import uuid
 
 import streamlit as st
@@ -19,6 +20,41 @@ from src.ui.components.mode_selector import (
     render_tool_registration_form,
 )
 from src.ui.providers.polling import run_arena_stream
+from src.agents.agent_judge import AgentJudge, AgentJudgeConfig
+from src.agents.judge import JudgeAgent
+from src.providers.gemini_client import GeminiClient
+
+
+async def run_agent_evaluation():
+    """Run OWASP evaluation on captured agent events."""
+    events = st.session_state.get(AGENT_EVENTS_KEY, [])
+    if not events:
+        st.warning("No events to evaluate.")
+        return
+
+    # Initialize components
+    try:
+        # Using defaults for GeminiClient - relies on env vars or default project
+        client = GeminiClient()
+        judge_agent = JudgeAgent(client=client)
+        
+        # Use default configuration for now
+        # Future: Load from UI if we add configuration panel for weights
+        judge_config = AgentJudgeConfig() 
+        
+        agent_judge = AgentJudge(judge=judge_agent, config=judge_config)
+
+        with st.spinner("Running OWASP Agentic Security Evaluation..."):
+            # Passing None for context/target_secret as they are not currently tracked in UI session
+            score = await agent_judge.evaluate_agent_async(events)
+            st.session_state[AGENT_SCORE_KEY] = score
+            st.success("Evaluation complete!")
+            
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Evaluation failed: {str(e)}", exc_info=True)
+        st.error(f"Evaluation failed: {str(e)}")
+
 
 # Page Config
 st.set_page_config(
@@ -179,12 +215,14 @@ def render_agent_mode():
             st.rerun()
 
     with col2:
-        st.button(
+        if st.button(
             "Run Evaluation",
             key="run_eval_btn",
             disabled=len(events) == 0,
             help="Run OWASP evaluation on captured events",
-        )
+        ):
+            asyncio.run(run_agent_evaluation())
+            st.rerun()
 
     with col3:
         st.button(
