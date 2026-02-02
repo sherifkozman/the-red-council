@@ -1,10 +1,10 @@
-import asyncio
 import inspect
 import time
 import random
 import threading
 import logging
 from collections import deque
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, List, Optional, TypeVar, Dict, Union, Awaitable
 from uuid import uuid4, UUID
@@ -19,10 +19,25 @@ from src.core.agent_schemas import (
     DivergenceEvent,
     MemoryAccessOperation,
 )
+from src.agents.errors import ToolInterceptionError
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+@dataclass
+class ToolRegistration:
+    func: Callable[..., Any]
+    description: str
+    sensitive_args: List[str] = field(default_factory=list)
+
+@dataclass
+class ToolCallStats:
+    count: int = 0
+    avg_duration_ms: float = 0.0
+    error_rate: float = 0.0
+    total_duration_ms: float = 0.0
+    error_count: int = 0
 
 class InstrumentedAgent:
     """
@@ -59,6 +74,8 @@ class InstrumentedAgent:
         self._session_id = uuid4()
         self._lock = threading.Lock()
         self._rng = random.Random()
+        self.tool_registry: Dict[str, ToolRegistration] = {}
+        self._recording_failures = 0
         
         # Determine if wrapped agent is async
         self.is_async = (
@@ -118,6 +135,156 @@ class InstrumentedAgent:
             return s
         except Exception:
             return "<unrepresentable>"
+
+    def register_tool(
+        self,
+        name: str,
+        func: Callable[..., Any],
+        description: str,
+        sensitive_args: Optional[List[str]] = None
+    ) -> None:
+        """Register a tool for interception."""
+        if sensitive_args is None:
+            sensitive_args = []
+        with self._lock:
+            self.tool_registry[name] = ToolRegistration(
+                func=func,
+                description=description,
+                sensitive_args=sensitive_args
+            )
+
+    def intercept_tool_call(self, tool_name: str, *args: Any, **kwargs: Any) -> Any:
+        """
+        Intercept a call to a registered tool.
+        Looks up the function and executes it with monitoring.
+        """
+        if tool_name not in self.tool_registry:
+            raise ToolInterceptionError(f"Tool '{tool_name}' not registered")
+            
+        registration = self.tool_registry[tool_name]
+        return self.wrap_tool_call(tool_name, registration.func, *args, **kwargs)
+
+    def get_tool_call_stats(self) -> Dict[str, ToolCallStats]:
+        """Get usage statistics for all tools."""
+        stats: Dict[str, ToolCallStats] = {}
+        
+        with self._lock:
+            # Initialize with registered tools
+            for name in self.tool_registry:
+                stats[name] = ToolCallStats(0, 0.0, 0.0)
+            
+            # Aggregate events
+            for event in self._events:
+                if isinstance(event, ToolCallEvent):
+                    name = event.tool_name
+                    # Only track stats for registered tools to prevent unbounded growth
+                    if name not in stats:
+                        continue
+                    
+                    s = stats[name]
+                    s.count += 1
+                    s.total_duration_ms += event.duration_ms
+                    if not event.success:
+                        s.error_count += 1
+            
+            # Compute averages
+            for s in stats.values():
+                if s.count > 0:
+                    s.avg_duration_ms = s.total_duration_ms / s.count
+                    s.error_rate = s.error_count / s.count
+                    
+        return stats
+
+    def _get_masked_arguments(
+        self,
+        tool_name: str,
+        args: tuple,
+        kwargs: dict
+    ) -> Dict[str, Any]:
+        """Prepare arguments for logging, masking sensitive values."""
+        # Default representation
+        full_args = {
+            "positional": [self._safe_repr(a) for a in args],
+            "keyword": {k: self._safe_repr(v) for k, v in kwargs.items()}
+        }
+        
+        if tool_name not in self.tool_registry:
+            return full_args
+            
+        registration = self.tool_registry[tool_name]
+        if not registration.sensitive_args:
+            return full_args
+            
+        try:
+            # Bind arguments to parameter names
+            sig = inspect.signature(registration.func)
+            # Check binding to detect mismatch
+            sig.bind_partial(*args, **kwargs)
+            
+            masked_pos = []
+            masked_kw = {}
+            
+            # Mask positional args
+            params = list(sig.parameters.keys())
+            for i, arg in enumerate(args):
+                if i < len(params):
+                    param_name = params[i]
+                    if param_name in registration.sensitive_args:
+                        masked_pos.append("******")
+                    else:
+                        masked_pos.append(self._safe_repr(arg))
+                else:
+                    masked_pos.append(self._safe_repr(arg))
+            
+            # Mask keyword args
+            for k, v in kwargs.items():
+                if k in registration.sensitive_args:
+                    masked_kw[k] = "******"
+                else:
+                    masked_kw[k] = self._safe_repr(v)
+                    
+            return {
+                "positional": masked_pos,
+                "keyword": masked_kw
+            }
+
+        except Exception as e:
+            logger.warning(f"Failed to bind arguments for masking; masking all: {e}")
+            return {
+                "positional": ["******"] * len(args),
+                "keyword": {k: "******" for k in kwargs}
+            }
+
+    def _record_tool_call_event(
+        self,
+        tool_name: str,
+        start_time: float,
+        args: tuple,
+        kwargs: dict,
+        result: Any,
+        success: bool,
+        exception_type: Optional[str]
+    ) -> None:
+        """Helper to record tool call event with error handling."""
+        try:
+            if self.config.enable_tool_interception:
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                full_args = self._get_masked_arguments(tool_name, args, kwargs)
+
+                event = ToolCallEvent(
+                    session_id=self._session_id,
+                    tool_name=tool_name,
+                    arguments=full_args,
+                    result=self._safe_repr(result) if success else None,
+                    duration_ms=duration_ms,
+                    success=success,
+                    exception_type=exception_type
+                )
+                self._add_event(event)
+        except Exception as e:
+            with self._lock:
+                self._recording_failures += 1
+            logger.error(f"Failed to record tool call event (failures: {self._recording_failures}): {e}")
 
     def record_speech(
         self,
@@ -189,28 +356,15 @@ class InstrumentedAgent:
             exception_type = type(e).__name__
             raise e
         finally:
-            try:
-                if self.config.enable_tool_interception:
-                    duration_ms = (time.perf_counter() - start_time) * 1000
-                    # Capture args safely
-                    full_args = {
-                        "positional": [self._safe_repr(a) for a in args],
-                        "keyword": {k: self._safe_repr(v) for k, v in kwargs.items()}
-                    }
-                        
-                    event = ToolCallEvent(
-                        session_id=self._session_id,
-                        tool_name=tool_name,
-                        arguments=full_args,
-                        result=self._safe_repr(result) if success else None,
-                        duration_ms=duration_ms,
-                        success=success,
-                        exception_type=exception_type
-                    )
-                    self._add_event(event)
-            except Exception as e:
-                # Log error but don't fail the tool call
-                logger.error(f"Failed to record tool call event: {e}")
+            self._record_tool_call_event(
+                tool_name,
+                start_time,
+                args,
+                kwargs,
+                result,
+                success,
+                exception_type
+            )
 
     async def _wrap_async_tool_call(
         self,
@@ -232,27 +386,15 @@ class InstrumentedAgent:
             exception_type = type(e).__name__
             raise e
         finally:
-            try:
-                if self.config.enable_tool_interception:
-                    duration_ms = (time.perf_counter() - start_time) * 1000
-                    # Capture args safely
-                    full_args = {
-                        "positional": [self._safe_repr(a) for a in args],
-                        "keyword": {k: self._safe_repr(v) for k, v in kwargs.items()}
-                    }
-
-                    event = ToolCallEvent(
-                        session_id=self._session_id,
-                        tool_name=tool_name,
-                        arguments=full_args,
-                        result=self._safe_repr(result) if success else None,
-                        duration_ms=duration_ms,
-                        success=success,
-                        exception_type=exception_type
-                    )
-                    self._add_event(event)
-            except Exception as e:
-                 logger.error(f"Failed to record async tool call event: {e}")
+            self._record_tool_call_event(
+                tool_name,
+                start_time,
+                args,
+                kwargs,
+                result,
+                success,
+                exception_type
+            )
 
     def wrap_memory_access(
         self,

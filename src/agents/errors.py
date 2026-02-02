@@ -53,3 +53,9 @@ class TargetLLMError(AgentError):
     """Errors in Target LLM."""
 
     pass
+
+
+class ToolInterceptionError(AgentError):
+    """Errors during tool interception."""
+
+    pass

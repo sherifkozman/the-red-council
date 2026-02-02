@@ -19,6 +19,7 @@ from src.core.agent_schemas import (
     MemoryAccessOperation,
 )
 from src.agents.instrumented import InstrumentedAgent
+from src.agents.errors import ToolInterceptionError
 
 # Mock Agent
 class MockAgent:
@@ -46,18 +47,11 @@ def test_initialization(instrumented_agent, config):
     assert instrumented_agent.is_async is False
 
 def test_invalid_max_events():
-    config = AgentInstrumentationConfig(max_events=10) # Valid config obj
-    # But we want to test passing a config that might be invalid if modified or if we bypassed validation
-    # Actually Pydantic enforces types. But logic in __init__ checks value.
-    # We can create a config with 0 via hack or just modify it?
-    # Pydantic model has gt=0. So we can't create invalid config easily via Pydantic.
-    # But let's try to pass a modified config if it was mutable?
-    # Or just construct with invalid value?
-    
-    # Wait, AgentInstrumentationConfig defines max_events: int = Field(1000, gt=0)
-    # So we can't create a config with <= 0 easily.
-    # So the check in __init__ is redundant but safe.
-    pass
+    # Pass a mock config that bypasses Pydantic validation
+    mock_config = Mock()
+    mock_config.max_events = 0
+    with pytest.raises(ValueError):
+        InstrumentedAgent(MockAgent(), "test", mock_config)
 
 @pytest.mark.asyncio
 async def test_async_initialization(config):
@@ -104,9 +98,7 @@ def test_wrap_sync_tool_call(instrumented_agent):
     assert isinstance(event, ToolCallEvent)
     assert event.tool_name == "add"
     assert event.success is True
-    # Check result stringification
     assert event.result == "5"
-    # Check arguments structure
     assert event.arguments["positional"] == ["2", "3"]
 
 def test_wrap_sync_tool_call_args_kwargs(instrumented_agent):
@@ -177,7 +169,6 @@ def test_property_filtering(instrumented_agent):
     assert len(instrumented_agent.divergences) == 0
 
 def test_max_events_limit(config):
-    # Create new config to avoid side effects
     cfg = AgentInstrumentationConfig(max_events=5)
     agent = InstrumentedAgent(MockAgent(), "test", cfg)
     
@@ -185,15 +176,10 @@ def test_max_events_limit(config):
         agent.record_speech(f"msg {i}")
         
     assert len(agent.events) == 5
-    # Should have kept the last 5 (5, 6, 7, 8, 9)
     assert agent.events[0].content == "msg 5"
     assert agent.events[-1].content == "msg 9"
 
 def test_sampling_rate(config):
-    # Set seed for reproducibility if needed, but implementation uses internal RNG
-    # So we can't easily deterministic test unless we mock random.Random
-    # But we can test 0.0 and 1.0
-    
     config.sampling_rate = 0.0 # Never record
     agent = InstrumentedAgent(MockAgent(), "test", config)
     agent.record_speech("test")
@@ -206,16 +192,13 @@ def test_sampling_rate(config):
 
 def test_get_events_since(instrumented_agent):
     instrumented_agent.record_speech("msg1")
-    # Wait to ensure timestamp diff
     time.sleep(0.01)
     
     events = instrumented_agent.events
     assert len(events) == 1
-    
     t1 = events[0].timestamp
     
     instrumented_agent.record_speech("msg2")
-    
     since_first = instrumented_agent.get_events_since(t1)
     assert len(since_first) == 1
     assert since_first[0].content == "msg2"
@@ -224,8 +207,6 @@ def test_context_manager(instrumented_agent):
     with instrumented_agent as agent:
         agent.record_speech("test")
         assert len(agent.events) == 1
-    
-    # Events should be preserved for post-mortem analysis
     assert len(instrumented_agent.events) == 1
 
 def test_detect_divergence_stub(instrumented_agent):
@@ -268,15 +249,107 @@ def test_concurrent_recording(config):
     assert len(agent.events) == 100
 
 def test_safe_repr(instrumented_agent):
-    # Test long string truncation
     long_str = "a" * 2000
     truncated = instrumented_agent._safe_repr(long_str)
-    assert len(truncated) <= 1003 # 1000 + "..."
+    assert len(truncated) <= 1003
     assert truncated.endswith("...")
     
-    # Test circular reference (should be handled by str() usually, but safe_repr handles exceptions)
     class BadObj:
         def __str__(self):
             raise ValueError("Boom")
-            
     assert instrumented_agent._safe_repr(BadObj()) == "<unrepresentable>"
+
+# --- New tests for TRC-004 ---
+
+def test_register_tool(instrumented_agent):
+    def my_tool(x): return x
+    instrumented_agent.register_tool("my_tool", my_tool, "My tool", ["x"])
+    assert "my_tool" in instrumented_agent.tool_registry
+    assert instrumented_agent.tool_registry["my_tool"].func == my_tool
+    assert instrumented_agent.tool_registry["my_tool"].sensitive_args == ["x"]
+
+def test_intercept_tool_call(instrumented_agent):
+    def login(username, password):
+        return "token"
+        
+    instrumented_agent.register_tool("login", login, "Login tool", sensitive_args=["password"])
+    
+    result = instrumented_agent.intercept_tool_call("login", username="admin", password="secret_password")
+    
+    assert result == "token"
+    assert len(instrumented_agent.events) == 1
+    event = instrumented_agent.events[0]
+    
+    # Check masking in keyword args
+    assert event.arguments["keyword"]["username"] == "admin"
+    assert event.arguments["keyword"]["password"] == "******"
+
+def test_intercept_tool_call_positional_masking(instrumented_agent):
+    def connect(host, key):
+        return True
+        
+    instrumented_agent.register_tool("connect", connect, "Connect", sensitive_args=["key"])
+    
+    # We can test intercept_tool_call directly now that it supports *args
+    instrumented_agent.intercept_tool_call("connect", "localhost", "secret_key")
+    
+    event = instrumented_agent.events[0]
+    assert event.arguments["positional"][0] == "localhost"
+    assert event.arguments["positional"][1] == "******"
+
+def test_intercept_tool_call_unregistered(instrumented_agent):
+    with pytest.raises(ToolInterceptionError, match="not registered"):
+        instrumented_agent.intercept_tool_call("unknown_tool")
+
+def test_get_tool_call_stats(instrumented_agent):
+    def tool_a(): time.sleep(0.01)
+    def tool_b(): raise ValueError("Fail")
+    
+    instrumented_agent.register_tool("tool_a", tool_a, "A")
+    instrumented_agent.register_tool("tool_b", tool_b, "B")
+    
+    instrumented_agent.intercept_tool_call("tool_a")
+    instrumented_agent.intercept_tool_call("tool_a")
+    
+    with pytest.raises(ValueError):
+        instrumented_agent.intercept_tool_call("tool_b")
+        
+    stats = instrumented_agent.get_tool_call_stats()
+    
+    assert stats["tool_a"].count == 2
+    assert stats["tool_a"].error_count == 0
+    assert stats["tool_a"].avg_duration_ms > 0
+    
+    assert stats["tool_b"].count == 1
+    assert stats["tool_b"].error_count == 1
+    assert stats["tool_b"].error_rate == 1.0
+
+def test_masking_mixed_args(instrumented_agent):
+    def api_call(endpoint, token, retries=3):
+        pass
+        
+    instrumented_agent.register_tool("api", api_call, "API", sensitive_args=["token"])
+    
+    instrumented_agent.wrap_tool_call("api", api_call, "https://api.com", token="s3cr3t", retries=5)
+    
+    event = instrumented_agent.events[0]
+    assert event.arguments["positional"][0] == "https://api.com"
+    assert event.arguments["keyword"]["token"] == "******"
+    assert event.arguments["keyword"]["retries"] == "5"
+
+def test_tool_logging_failure(instrumented_agent):
+    # Test that tool execution continues even if logging fails
+    with patch.object(instrumented_agent, '_add_event', side_effect=Exception("LogFail")):
+        result = instrumented_agent.wrap_tool_call("tool", lambda: "ok")
+        assert result == "ok"
+
+def test_masking_exception(instrumented_agent):
+    def tool(x): pass
+    instrumented_agent.register_tool("tool", tool, "desc", ["x"])
+    
+    # If signature binding fails, we should still get logged args (unmasked)
+    with patch("inspect.signature", side_effect=Exception("SigFail")):
+        instrumented_agent.wrap_tool_call("tool", tool, "secret")
+        event = instrumented_agent.events[0]
+        # Should fall back to MASKING ALL
+        assert event.arguments["positional"][0] == "******"
