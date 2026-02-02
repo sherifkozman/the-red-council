@@ -25,7 +25,9 @@ def mock_session_state():
 @patch("src.ui.components.remote_agent_config.render_remote_agent_config")
 @patch("src.ui.components.attack_selector.render_attack_selector")
 @patch("src.ui.components.campaign_runner.render_campaign_runner")
+@patch("src.ui.components.event_stream.render_event_stream")
 def test_generate_report_button(
+    mock_render_event_stream,
     mock_render_campaign,
     mock_render_attack,
     mock_render_remote,
@@ -50,8 +52,8 @@ def test_generate_report_button(
     mock_st.button.side_effect = [False, False, True]
     mock_col = MagicMock()
     mock_st.columns.return_value = [mock_col, mock_col, mock_col]
-    # 8 tabs including Campaign
-    mock_st.tabs.return_value = [MagicMock() for _ in range(8)]
+    # 9 tabs including Event Stream
+    mock_st.tabs.return_value = [MagicMock() for _ in range(9)]
 
     # Setup Generator
     mock_gen_instance = MockGenerator.return_value
@@ -90,7 +92,9 @@ def test_generate_report_button(
 @patch("src.ui.components.remote_agent_config.render_remote_agent_config")
 @patch("src.ui.components.attack_selector.render_attack_selector")
 @patch("src.ui.components.campaign_runner.render_campaign_runner")
+@patch("src.ui.components.event_stream.render_event_stream")
 def test_generate_report_error(
+    mock_render_event_stream,
     mock_render_campaign,
     mock_render_attack,
     mock_render_remote,
@@ -115,8 +119,8 @@ def test_generate_report_error(
     mock_st.button.side_effect = [False, False, True]
     mock_col = MagicMock()
     mock_st.columns.return_value = [mock_col, mock_col, mock_col]
-    # 8 tabs including Campaign
-    mock_st.tabs.return_value = [MagicMock() for _ in range(8)]
+    # 9 tabs including Event Stream
+    mock_st.tabs.return_value = [MagicMock() for _ in range(9)]
 
     mock_gen_instance = MockGenerator.return_value
     mock_gen_instance.generate.side_effect = Exception("Gen error")

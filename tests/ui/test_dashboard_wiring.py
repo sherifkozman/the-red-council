@@ -19,6 +19,7 @@ sys.modules["src.ui.components.sdk_connection"] = MagicMock()  # Mock SDK connec
 sys.modules["src.ui.components.remote_agent_config"] = MagicMock()  # Mock remote config
 sys.modules["src.ui.components.attack_selector"] = MagicMock()  # Mock attack selector
 sys.modules["src.ui.components.campaign_runner"] = MagicMock()  # Mock campaign runner
+sys.modules["src.ui.components.event_stream"] = MagicMock()  # Mock event stream
 
 from src.ui.dashboard import (  # noqa: E402
     AGENT_EVENTS_KEY,
@@ -119,8 +120,9 @@ async def test_run_agent_evaluation_failure(mock_session_state):
 
 def test_render_agent_mode(mock_session_state):
     """Test rendering of agent mode UI and button interactions."""
-    # Setup tabs return value (mocking st.tabs) - 8 tabs including Campaign
+    # Setup tabs return value (mocking st.tabs) - 9 tabs including Event Stream
     mock_st.tabs.return_value = [
+        MagicMock(),
         MagicMock(),
         MagicMock(),
         MagicMock(),
@@ -184,8 +186,8 @@ def test_render_agent_mode_with_events(mock_session_state):
     mock_session_state[AGENT_EVENTS_KEY] = mock_events
     mock_session_state[AGENT_SCORE_KEY] = MagicMock()
 
-    # Setup tabs - 8 tabs including Campaign
-    tabs = [MagicMock() for _ in range(8)]
+    # Setup tabs - 9 tabs including Event Stream
+    tabs = [MagicMock() for _ in range(9)]
     mock_st.tabs.return_value = tabs
     for t in tabs:
         t.__enter__.return_value = t
@@ -239,8 +241,8 @@ def test_clear_events(mock_session_state):
 
     mock_st.button.side_effect = button_side_effect
 
-    # Mock tabs/columns - 8 tabs including Campaign
-    mock_st.tabs.return_value = [MagicMock()] * 8
+    # Mock tabs/columns - 9 tabs including Event Stream
+    mock_st.tabs.return_value = [MagicMock()] * 9
     mock_st.columns.return_value = [MagicMock()] * 3
 
     with (

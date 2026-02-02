@@ -973,7 +973,7 @@
       ],
       "priority": 8,
       "phaseId": 7,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-036", "TRC-017"],
       "notes": "Streamlit has limited real-time capabilities. Use st.experimental_rerun with polling or streamlit-server-state for shared state.",
       "files": ["src/ui/components/event_stream.py", "src/ui/providers/polling.py", "src/ui/dashboard.py"]

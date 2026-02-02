@@ -132,3 +132,39 @@
   - **Session Correlation**: Never use literal "default" as session_id; always generate unique IDs for proper event correlation.
   - **Tab Count Updates**: When adding tabs, update ALL tests that mock `st.tabs()` return value count.
 ---
+
+## 2026-02-02 - TRC-040
+- Implemented `src/ui/components/event_stream.py` for real-time event streaming display.
+- Extended `src/ui/providers/polling.py` with event polling functions.
+- Added "Event Stream" tab (9th tab) to Agent Testing mode in `src/ui/dashboard.py`.
+- Features implemented:
+  - EventStreamState dataclass with events, paused, auto_scroll, rate_timestamps
+  - ConnectionStatus enum: CONNECTED, DISCONNECTED, CONNECTING, ERROR
+  - Real-time event rate calculation (events/second)
+  - Connection status indicator based on last update time
+  - Pause/Resume streaming toggle (events skipped while paused)
+  - Auto-scroll option for following new events
+  - New event indicator/badge with mark-as-read
+  - Clear events control
+  - Event type icons and expandable detail cards
+  - poll_events_from_api for API polling
+  - check_session_exists for session validation
+  - Session ID validation to prevent path traversal
+- Created `tests/ui/test_event_stream.py` with 44 tests.
+- Created `tests/ui/test_polling.py` with 20 tests.
+- Updated `tests/ui/test_dashboard_wiring.py` and `tests/ui/test_dashboard_report.py` for 9-tab layout.
+- Reviews completed: code review, silent failure hunt, security audit.
+- Security fixes applied:
+  - Added session_id validation with regex pattern to prevent path traversal
+  - Fixed UI message from "buffered" to "skipped" (events are dropped, not stored)
+  - Fixed unsafe fallback serialization (using `hasattr(event, "keys")` instead of `__iter__`)
+  - Added rate_timestamps trimming when paused to prevent memory growth
+  - Removed redundant `pass` in EventPollingError
+- **Learnings for future iterations:**
+  - **Buffer Semantics**: When "buffering" events, actually store them or document that they're dropped. UI text must match behavior.
+  - **Path Traversal**: Always validate path parameters with regex before URL interpolation.
+  - **Serialization Fallbacks**: Use `hasattr(obj, "keys")` for dict-like objects, not `__iter__` (strings are iterable!).
+  - **Memory Growth**: Trim lists in ALL code paths, not just the primary path.
+  - **Tab Count Updates**: When adding tabs, update ALL tests that mock `st.tabs()` return value count.
+  - **Rate Calculation**: Handle burst scenarios (multiple events at same timestamp) gracefully.
+---

@@ -167,7 +167,7 @@ def render_agent_mode():
     score = st.session_state.get(AGENT_SCORE_KEY)
 
     # Tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(
         [
             "Timeline",
             "Tool Chain",
@@ -177,6 +177,7 @@ def render_agent_mode():
             "Remote Agent",
             "Attack Templates",
             "Campaign",
+            "Event Stream",
         ]
     )
 
@@ -259,6 +260,12 @@ def render_agent_mode():
         from src.ui.components.campaign_runner import render_campaign_runner
 
         render_campaign_runner()
+
+    with tab9:
+        # Event Stream tab for real-time SDK events
+        from src.ui.components.event_stream import render_event_stream
+
+        render_event_stream()
 
     # Agent testing actions
     st.divider()
