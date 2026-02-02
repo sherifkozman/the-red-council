@@ -930,7 +930,7 @@
       ],
       "priority": 6,
       "phaseId": 7,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-010", "TRC-011", "TRC-012", "TRC-013"],
       "notes": "AgentAttackKnowledgeBase provides get_attacks_for_owasp() and get_attacks_by_capability() methods. 27+ templates available.",
       "files": ["src/ui/components/attack_selector.py", "src/ui/dashboard.py"]
