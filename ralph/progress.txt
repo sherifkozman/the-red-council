@@ -223,3 +223,27 @@ Stopped at iteration 1 by EXIT
   - **XSS in UI**: Use st.code() for raw payloads/evidence to prevent XSS and Markdown injection.
   - **Test Mocking**: Use side_effect for capturing expander labels in tests.
 ---
+
+## 2026-02-02 - TRC-017
+- Verified and tested agent behavior timeline visualization in `src/ui/components/agent_timeline.py`.
+- Implementation already existed; added comprehensive tests and verified all acceptance criteria.
+- Features:
+  - `render_agent_timeline(events: List[AgentEvent])` renders chronological timeline
+  - Event type filtering via st.multiselect (tool_call, memory_access, speech, action, divergence)
+  - Pagination for >50 events via st.number_input
+  - Relative timestamps from session start (HH:MM:SS or +Nd HH:MM:SS for multi-day)
+  - Color coding by event type via TIMELINE_CSS
+  - Divergence events auto-expanded with warning icon
+  - st.expander for each event with full details
+  - JSON export with st.download_button (10MB size limit)
+  - DoS protection: MAX_EVENTS_LIMIT=5000, result truncation to 1000 chars
+  - XSS protection: st.text() for user content, st.code() for tool results, no dynamic unsafe_allow_html
+- 11 tests with 83% coverage on source file.
+- Reviews completed: council code-review, council security audit.
+- **Learnings for future iterations:**
+  - **unsafe_allow_html**: Only use for static CSS constants, never for dynamic content.
+  - **Content Rendering**: Use st.text() for untrusted strings (no HTML), st.code() for payloads.
+  - **Markdown Escaping**: Escape brackets in st.expander labels to prevent injection.
+  - **Export Size Limits**: Always cap export size to prevent memory exhaustion.
+  - **Error Messages**: Show generic errors to users, log details server-side.
+---

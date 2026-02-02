@@ -407,7 +407,7 @@
       ],
       "priority": 17,
       "phaseId": 5,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-007"],
       "notes": "Visual OWASP coverage for dashboard. Streamlit has limited hover support - use expanders instead.",
       "files": ["src/ui/components/owasp_coverage.py", "tests/ui/test_owasp_coverage.py"]
@@ -430,7 +430,7 @@
       ],
       "priority": 18,
       "phaseId": 5,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-002"],
       "notes": "Timeline view for understanding attack flow",
       "files": ["src/ui/components/agent_timeline.py", "tests/ui/test_agent_timeline.py"]
@@ -501,7 +501,7 @@
       ],
       "priority": 21,
       "phaseId": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-003", "TRC-004", "TRC-005"],
       "notes": "LangChain is the most common agent framework. langchain is optional dependency.",
       "files": ["src/integrations/__init__.py", "src/integrations/langchain_adapter.py", "tests/integrations/test_langchain.py"]
@@ -524,7 +524,7 @@
       ],
       "priority": 22,
       "phaseId": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-003", "TRC-004", "TRC-005"],
       "notes": "LangGraph for stateful agent workflows. langgraph is optional dependency.",
       "files": ["src/integrations/langgraph_adapter.py", "tests/integrations/test_langgraph.py"]
@@ -549,7 +549,7 @@
       ],
       "priority": 23,
       "phaseId": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-003", "TRC-004", "TRC-005"],
       "notes": "MCP is emerging protocol for agent tools. mcp is optional dependency.",
       "files": ["src/integrations/mcp_adapter.py", "tests/integrations/test_mcp.py"]
