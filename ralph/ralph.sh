@@ -168,21 +168,23 @@ classify_error() {
   local output="$1"
   local exit_code="$2"
 
-  if echo "$output" | grep -qi "rate.limit\|429\|too.many.requests\|overloaded\|capacity\|quota"; then
+  # Use 2>/dev/null to suppress broken pipe errors from large outputs
+  if echo "$output" | grep -qi "rate.limit\|429\|too.many.requests\|overloaded\|capacity\|quota" 2>/dev/null; then
     echo "RATE_LIMIT"
-  elif echo "$output" | grep -qi "authentication\|unauthorized\|401\|403\|invalid.api.key\|API_KEY"; then
+  elif echo "$output" | grep -qi "authentication\|unauthorized\|401\|403\|invalid.api.key\|API_KEY" 2>/dev/null; then
     echo "AUTH_FAILURE"
   elif [[ $exit_code -eq 124 ]]; then
     echo "TIMEOUT"
-  elif echo "$output" | grep -q "RALPH_SIGNAL_ALL_STORIES_COMPLETE"; then
+  elif echo "$output" | grep -qE "^[[:space:]]*RALPH_SIGNAL_ALL_STORIES_COMPLETE[[:space:]]*$" 2>/dev/null; then
+    # Must be on its own line - not just mentioned in discussion
     echo "ALL_COMPLETE"
-  elif echo "$output" | grep -qi "passes.*true\|story.*complete\|committed\|feat:"; then
+  elif echo "$output" | grep -qi "passes.*true\|story.*complete\|committed\|feat:" 2>/dev/null; then
     echo "ITERATION_SUCCESS"
-  elif echo "$output" | grep -qi "connection.refused\|network.error\|ECONNREFUSED\|ETIMEDOUT\|socket.hang.up"; then
+  elif echo "$output" | grep -qi "connection.refused\|network.error\|ECONNREFUSED\|ETIMEDOUT\|socket.hang.up" 2>/dev/null; then
     echo "NETWORK_ERROR"
-  elif echo "$output" | grep -qi "context.length\|token.limit\|conversation.too.long\|turn.limit"; then
+  elif echo "$output" | grep -qi "context.length\|token.limit\|conversation.too.long\|turn.limit" 2>/dev/null; then
     echo "CONTEXT_EXHAUSTED"
-  elif echo "$output" | grep -qi "internal.server.error\|500\|502\|503\|504"; then
+  elif echo "$output" | grep -qi "internal.server.error\|500\|502\|503\|504" 2>/dev/null; then
     echo "SERVER_ERROR"
   elif [[ $exit_code -eq 0 ]]; then
     echo "SUCCESS"
@@ -638,8 +640,9 @@ main() {
     local output=""
     output=$(run_iteration "$i") || true
 
-    # Check for completion signal
-    if echo "$output" | grep -q "RALPH_SIGNAL_ALL_STORIES_COMPLETE"; then
+    # Check for completion signal (must be on its own line, not just mentioned in discussion)
+    # Use grep -E with anchors to ensure it's the actual signal, not just text about it
+    if echo "$output" | grep -qE "^[[:space:]]*RALPH_SIGNAL_ALL_STORIES_COMPLETE[[:space:]]*$" 2>/dev/null; then
       echo ""
       echo "╔════════════════════════════════════════════════════════════════════╗"
       echo "║ RALPH COMPLETED ALL TASKS!                                         ║"
