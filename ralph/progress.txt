@@ -128,3 +128,98 @@
   - **Jinja2 Security**: Autoescaping is good for HTML, but for Markdown or other formats, explicit sanitization filters are safer for untrusted input.
   - **ReDoS in Parsers**: When parsing structured text with regex (like recommendations), always cap the input length to avoid catastrophic backtracking.
   - **Template Loading**: Use `pathlib.Path(__file__).parent` for robust relative path resolution in library code.
+## INTERRUPTED - Sun Feb  1 20:47:01 PST 2026
+Stopped at iteration 1 by SIGINT
+
+## INTERRUPTED - Sun Feb  1 20:47:01 PST 2026
+Stopped at iteration 1 by EXIT
+
+## 2026-02-02 - TRC-020
+- Implemented `LangChainAgentWrapper` and `RedCouncilCallbackHandler` in `src/integrations/langchain_adapter.py`.
+- Created `src/integrations/__init__.py` package for framework integrations.
+- LangChainAgentWrapper extends InstrumentedAgent for LangChain compatibility.
+- RedCouncilCallbackHandler captures on_tool_start/end/error, on_agent_action/finish events.
+- Automatic memory monitoring via agent.memory if present (with fallback).
+- Support for both sync (invoke_sync) and async (invoke) execution.
+- Factory method `from_agent_executor` for easy wrapping.
+- 42 tests with 89% coverage on new code.
+- Reviews completed: ruff linting, council code-review, council security audit.
+- **Learnings for future iterations:**
+  - **Observer Pattern**: When building adapters, prefer observing (callbacks) over modifying behavior.
+  - **Optional Dependencies**: Use mock objects for testing without requiring framework installation.
+  - **Memory Fallback**: When primary method fails (load_memory_variables), continue to fallback (chat_memory).
+  - **Type Safety**: Pydantic mypy plugin needed for proper type checking of default-valued fields.
+---
+
+## 2026-02-02 - TRC-021
+- Implemented `LangGraphAgentWrapper` in `src/integrations/langgraph_adapter.py`.
+- Updated `src/integrations/__init__.py` to export LangGraphAgentWrapper.
+- LangGraphAgentWrapper extends InstrumentedAgent for LangGraph StateGraph/CompiledGraph.
+- Features:
+  - Accepts StateGraph or CompiledGraph with interface validation
+  - Node execution interception via wrap_node() method
+  - State monitoring as memory access events
+  - State transitions recorded as ActionRecords
+  - Factory method from_state_graph() for easy creation
+  - Support for sync/async invoke, stream, and astream methods
+  - Sensitive state keys automatically redacted (password, secret, api_key, token, credential)
+  - add_node() for convenience when building graphs
+  - compile() passthrough for StateGraph
+  - Statistics via get_node_execution_stats() and get_state_history()
+- 44 tests with 81% coverage on new code.
+- Reviews completed: ruff linting, council code-review, council security audit.
+- **Learnings for future iterations:**
+  - **Graph Interface Detection**: Check for both StateGraph (add_node/compile) and CompiledGraph (invoke/stream) interfaces.
+  - **Async Generator Wrapping**: Use `async for` pattern for astream, fallback to sync stream if astream unavailable.
+  - **State Sensitive Keys**: Define patterns at module level and check lowercase keys for detection.
+  - **Mock Patterns**: Create MockStateGraph/MockCompiledGraph classes that mimic real behavior for tests.
+  - **Avoid Double Wrapping**: Track wrapped nodes in a set and warn if re-wrapping attempted.
+---
+
+## 2026-02-02 - TRC-022
+- Implemented `MCPAgentWrapper` in `src/integrations/mcp_adapter.py`.
+- Updated `src/integrations/__init__.py` to export MCPAgentWrapper.
+- MCPAgentWrapper extends InstrumentedAgent for MCP (Model Context Protocol) clients.
+- Features:
+  - Tool call interception via client instrumentation (call_tool, list_tools)
+  - Resource access monitoring (read_resource, list_resources)
+  - Prompt tracking as memory operations (get_prompt, list_prompts)
+  - from_stdio_server() factory for MCP-over-stdio transport
+  - from_http_server() factory for MCP-over-HTTP transport
+  - _StdioMCPClient for subprocess-based JSON-RPC communication
+  - _HttpMCPClient for HTTP-based JSON-RPC communication (aiohttp/httpx)
+  - Async context manager support for resource cleanup
+  - Caching for tools/resources/prompts metadata
+  - Support for clients with call_tool, request, or invoke methods
+  - Safe content representation with truncation
+- 85 tests with 82.68% coverage on new code.
+- Reviews completed: ruff linting, council code-review, council security audit.
+- **Learnings for future iterations:**
+  - **Interface Detection**: Check for multiple API styles (call_tool vs request vs invoke).
+  - **JSON-RPC Handling**: Properly parse error responses with code/message fields.
+  - **Process Lifecycle**: Terminate then kill subprocess with timeout for graceful shutdown.
+  - **HTTP Client Fallback**: Support both aiohttp and httpx for flexibility.
+  - **Resource vs Memory**: Resource reads map naturally to memory access events.
+---
+
+## 2026-02-02 - TRC-016
+- Implemented OWASP coverage visualization component in `src/ui/components/owasp_coverage.py`.
+- Created `src/ui/components/__init__.py` and `tests/ui/__init__.py` packages.
+- Features:
+  - render_owasp_coverage(score: AgentJudgeScore) renders 10-cell grid for ASI01-ASI10
+  - Color coding: green (passed), red (detected/high severity), yellow (warning/low severity), gray (not tested)
+  - st.expander for detailed view of each OWASP category
+  - Severity and evidence summary in expander view
+  - Robust validation of score structure and violation data
+  - Orphan detection for invalid/unknown OWASP categories
+  - Fallback to text-based list if grid rendering fails
+  - XSS protection via html.escape() and st.code() for evidence
+- 7 tests with 87% coverage on new code.
+- Reviews completed: ruff linting, council code-review, council security audit.
+- **Learnings for future iterations:**
+  - **Streamlit Context Managers**: st.expander requires context manager usage for proper content scoping.
+  - **Color Coding Severity**: Use severity thresholds to distinguish warnings from critical detections.
+  - **Orphan Handling**: Track violations with invalid categories separately and show error.
+  - **XSS in UI**: Use st.code() for raw payloads/evidence to prevent XSS and Markdown injection.
+  - **Test Mocking**: Use side_effect for capturing expander labels in tests.
+---
