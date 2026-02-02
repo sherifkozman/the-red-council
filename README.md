@@ -72,9 +72,92 @@ cd frontend && pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) to start your first campaign.
 
+## Agent Security Testing (v0.5.0)
+
+The Red Council v0.5.0 extends beyond pure LLM testing to support **AI Agent Security Testing** using the **OWASP Agentic Top 10** vulnerability framework.
+
+### Agent Testing Features
+
+- **InstrumentedAgent SDK**: Wrap any agent to capture tool calls, memory access, and actions
+- **OWASP Agentic Top 10**: Test for all 10 agent-specific vulnerabilities (ASI01-ASI10)
+- **Framework Integrations**: Native support for LangChain, LangGraph, and MCP protocol
+- **Security Reports**: Detailed vulnerability findings with remediation guidance
+
+### Quick Example
+
+```python
+from src.agents.instrumented import InstrumentedAgent
+from src.core.agent_schemas import AgentInstrumentationConfig
+from src.agents.agent_judge import AgentJudge, AgentJudgeConfig
+
+# 1. Configure instrumentation
+config = AgentInstrumentationConfig(
+    enable_tool_interception=True,
+    enable_memory_monitoring=True,
+    divergence_threshold=0.5,
+)
+
+# 2. Wrap your agent
+instrumented = InstrumentedAgent(my_agent, "test-agent", config)
+
+# 3. Run your agent (events are automatically captured)
+with instrumented:
+    result = instrumented.wrap_tool_call("search", search_func, query="test")
+
+# 4. Evaluate for security vulnerabilities
+judge = AgentJudge()
+score = judge.evaluate_agent(instrumented.events)
+
+print(f"Risk Score: {score.overall_agent_risk}/10")
+for violation in score.owasp_violations:
+    if violation.detected:
+        print(f"  {violation.owasp_category}: {violation.evidence}")
+```
+
+### Framework Integrations
+
+```python
+# LangChain
+from src.integrations import LangChainAgentWrapper
+wrapped = LangChainAgentWrapper.from_agent_executor(my_executor, config)
+
+# LangGraph
+from src.integrations import LangGraphAgentWrapper
+wrapped = LangGraphAgentWrapper.from_state_graph(my_graph, config)
+
+# MCP Protocol
+from src.integrations import MCPAgentWrapper
+wrapped = await MCPAgentWrapper.from_stdio_server(["python", "server.py"], config)
+```
+
+### API Endpoints
+
+Agent testing is available via REST API:
+
+```bash
+# Create a testing session
+curl -X POST http://localhost:8000/api/v1/agent/session \
+  -H "Content-Type: application/json" \
+  -d '{"context": "Agent under test"}'
+
+# Submit events
+curl -X POST http://localhost:8000/api/v1/agent/session/{session_id}/events \
+  -H "Content-Type: application/json" \
+  -d '{"events": [{"event_type": "tool_call", "tool_name": "search", ...}]}'
+
+# Run evaluation
+curl -X POST http://localhost:8000/api/v1/agent/session/{session_id}/evaluate
+
+# Get security report
+curl http://localhost:8000/api/v1/agent/session/{session_id}/report
+```
+
+See [Agent Testing Guide](docs/agent-testing-guide.md) for comprehensive documentation.
+
 ## Documentation
 
 - [Quickstart Guide](docs/quickstart.md)
+- [Agent Testing Guide](docs/agent-testing-guide.md) *(New in v0.5.0)*
 - [Architecture & Design](docs/architecture.md)
 - [API Reference](docs/api-reference.md)
 - [Configuration Guide](docs/configuration.md)
