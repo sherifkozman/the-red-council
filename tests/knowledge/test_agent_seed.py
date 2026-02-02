@@ -87,11 +87,11 @@ class TestAgentSeedData:
     def test_retrieve_seeded_by_owasp(self, kb):
         """Verify we can retrieve seeded attacks by OWASP category."""
         seed_agent_attacks(kb)
-        
+    
         # Verify ASI01
         expected_asi01 = [t for t in AGENT_ATTACK_TEMPLATES 
                           if OWASPAgenticRisk.ASI01_EXCESSIVE_AGENCY in t.target_owasp]
-        asi01_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI01_EXCESSIVE_AGENCY)
+        asi01_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI01_EXCESSIVE_AGENCY, k=100)
         
         assert len(asi01_attacks) == len(expected_asi01)
         assert {a.id for a in asi01_attacks} == {t.id for t in expected_asi01}
@@ -99,7 +99,7 @@ class TestAgentSeedData:
         # Verify ASI02
         expected_asi02 = [t for t in AGENT_ATTACK_TEMPLATES 
                           if OWASPAgenticRisk.ASI02_INADEQUATE_HUMAN_OVERSIGHT in t.target_owasp]
-        asi02_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI02_INADEQUATE_HUMAN_OVERSIGHT)
+        asi02_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI02_INADEQUATE_HUMAN_OVERSIGHT, k=100)
         
         assert len(asi02_attacks) == len(expected_asi02)
         assert {a.id for a in asi02_attacks} == {t.id for t in expected_asi02}
@@ -107,7 +107,7 @@ class TestAgentSeedData:
         # Verify ASI04
         expected_asi04 = [t for t in AGENT_ATTACK_TEMPLATES 
                           if OWASPAgenticRisk.ASI04_INDIRECT_PROMPT_INJECTION in t.target_owasp]
-        asi04_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI04_INDIRECT_PROMPT_INJECTION)
+        asi04_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI04_INDIRECT_PROMPT_INJECTION, k=100)
         
         assert len(asi04_attacks) == len(expected_asi04)
         assert {a.id for a in asi04_attacks} == {t.id for t in expected_asi04}
@@ -115,7 +115,7 @@ class TestAgentSeedData:
         # Verify ASI05
         expected_asi05 = [t for t in AGENT_ATTACK_TEMPLATES 
                           if OWASPAgenticRisk.ASI05_IMPROPER_AUTHORIZATION in t.target_owasp]
-        asi05_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI05_IMPROPER_AUTHORIZATION)
+        asi05_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI05_IMPROPER_AUTHORIZATION, k=100)
         
         assert len(asi05_attacks) == len(expected_asi05)
         assert {a.id for a in asi05_attacks} == {t.id for t in expected_asi05}
@@ -123,10 +123,42 @@ class TestAgentSeedData:
         # Verify ASI06
         expected_asi06 = [t for t in AGENT_ATTACK_TEMPLATES 
                           if OWASPAgenticRisk.ASI06_DATA_DISCLOSURE in t.target_owasp]
-        asi06_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI06_DATA_DISCLOSURE)
+        asi06_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI06_DATA_DISCLOSURE, k=100)
         
         assert len(asi06_attacks) == len(expected_asi06)
         assert {a.id for a in asi06_attacks} == {t.id for t in expected_asi06}
+
+        # Verify ASI07
+        expected_asi07 = [t for t in AGENT_ATTACK_TEMPLATES 
+                          if OWASPAgenticRisk.ASI07_INSECURE_MEMORY in t.target_owasp]
+        asi07_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI07_INSECURE_MEMORY, k=100)
+        
+        assert len(asi07_attacks) == len(expected_asi07)
+        assert {a.id for a in asi07_attacks} == {t.id for t in expected_asi07}
+
+        # Verify ASI08
+        expected_asi08 = [t for t in AGENT_ATTACK_TEMPLATES 
+                          if OWASPAgenticRisk.ASI08_GOAL_MISALIGNMENT in t.target_owasp]
+        asi08_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI08_GOAL_MISALIGNMENT, k=100)
+        
+        assert len(asi08_attacks) == len(expected_asi08)
+        assert {a.id for a in asi08_attacks} == {t.id for t in expected_asi08}
+
+        # Verify ASI09
+        expected_asi09 = [t for t in AGENT_ATTACK_TEMPLATES 
+                          if OWASPAgenticRisk.ASI09_WEAK_GUARDRAILS in t.target_owasp]
+        asi09_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI09_WEAK_GUARDRAILS, k=100)
+        
+        assert len(asi09_attacks) == len(expected_asi09)
+        assert {a.id for a in asi09_attacks} == {t.id for t in expected_asi09}
+
+        # Verify ASI10
+        expected_asi10 = [t for t in AGENT_ATTACK_TEMPLATES 
+                          if OWASPAgenticRisk.ASI10_OVER_TRUST_IN_LLMS in t.target_owasp]
+        asi10_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI10_OVER_TRUST_IN_LLMS, k=100)
+        
+        assert len(asi10_attacks) == len(expected_asi10)
+        assert {a.id for a in asi10_attacks} == {t.id for t in expected_asi10}
 
     def test_multi_category_owasp_retrieval(self, kb):
         """Verify templates with multiple OWASP tags are retrievable by all of them."""
@@ -138,8 +170,9 @@ class TestAgentSeedData:
             pytest.skip("No multi-tag templates defined yet")
             
         target = multi_tag_templates[0]
+        # Ensure we test all tags
         for risk in target.target_owasp:
-            retrieved = kb.get_attacks_for_owasp(risk)
+            retrieved = kb.get_attacks_for_owasp(risk, k=100)
             ids = {a.id for a in retrieved}
             assert target.id in ids, f"Template {target.id} not found when searching for {risk}"
 
@@ -163,3 +196,60 @@ class TestAgentSeedData:
         """Ensure all template IDs in the source file are unique."""
         ids = [t.id for t in AGENT_ATTACK_TEMPLATES]
         assert len(ids) == len(set(ids)), "Duplicate template IDs detected in source data"
+
+    def test_seed_validation_failure(self, kb, monkeypatch):
+        """Verify seeding fails if a template is invalid."""
+        from src.knowledge.agent_seed_data import validate_template, AgentAttackTemplate
+        from src.core.schemas import AttackType, Technique
+        
+        invalid_template = AgentAttackTemplate(
+            id="INVALID-ID", # Wrong format
+            prompt_template="", # Empty
+            attack_type=AttackType.DIRECT,
+            technique=Technique.ROLE_PLAY,
+            target_owasp=[], # Empty, might pass Pydantic but fail my check
+            expected_agent_behavior="Fail",
+            source="test",
+            target_goal="Test Goal" # Required by Pydantic
+        )
+        
+        with pytest.raises(ValueError, match="Invalid template ID format"):
+            validate_template(invalid_template)
+
+    def test_seed_production_block(self, kb, monkeypatch):
+        """Verify seeding is blocked in production without explicit flags."""
+        monkeypatch.setenv("RC_ENV", "production")
+        
+        # 1. Blocked by default
+        with pytest.raises(RuntimeError, match="Seeding blocked in environment"):
+            seed_agent_attacks(kb)
+            
+        # 2. Blocked if allow_production=True but no env var
+        with pytest.raises(RuntimeError, match="Production seeding requires RC_ALLOW_PRODUCTION_SEEDING=1"):
+            seed_agent_attacks(kb, allow_production=True)
+            
+        # 3. Allowed with both
+        monkeypatch.setenv("RC_ALLOW_PRODUCTION_SEEDING", "1")
+        result = seed_agent_attacks(kb, allow_production=True)
+        assert result.added == len(AGENT_ATTACK_TEMPLATES)
+
+    def test_seed_failure(self, kb, monkeypatch):
+        """Verify seeding handles and reports failures."""
+        # Mock kb.add to raise exception for one template
+        original_add = kb.add
+        
+        def mock_add(template):
+            if template.id == AGENT_ATTACK_TEMPLATES[0].id:
+                raise ValueError("Simulated failure")
+            original_add(template)
+            
+        monkeypatch.setattr(kb, "add", mock_add)
+        
+        # Should raise RuntimeError because of failure
+        with pytest.raises(RuntimeError, match="Seeding failed for 1 templates"):
+            seed_agent_attacks(kb)
+        
+        # Verify others were added (partial success)
+        # We expect len-1 to be added
+        assert kb.collection.count() == len(AGENT_ATTACK_TEMPLATES) - 1
+

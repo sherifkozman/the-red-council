@@ -334,7 +334,7 @@
       ],
       "priority": 14,
       "phaseId": 3,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-010"],
       "notes": "Complete the attack template library. Minimum 12 templates in this story, 27+ total.",
       "files": ["src/knowledge/agent_seed_data.py", "tests/knowledge/test_agent_seed.py"]
