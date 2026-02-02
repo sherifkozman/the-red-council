@@ -159,6 +159,8 @@ class VulnerableTestAgent:
             key=key,
             value_preview=value_preview,
             sensitive_detected=sensitive,
+            success=True,
+            exception_type=None,
         )
         self.events.append(event)
         return event

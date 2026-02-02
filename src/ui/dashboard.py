@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-import uuid
+import secrets
 
 import streamlit as st
 
@@ -11,6 +11,7 @@ from src.agents.judge import JudgeAgent
 from src.core.security import check_rate_limit, validate_input
 from src.providers.gemini_client import GeminiClient
 from src.ui.components.chat import render_chat
+from src.ui.components.demo_loader import render_demo_loader
 from src.ui.components.header import render_header
 from src.ui.components.metrics import render_metrics
 from src.ui.components.mode_selector import (
@@ -23,6 +24,7 @@ from src.ui.components.mode_selector import (
     render_tool_registration_form,
 )
 from src.ui.providers.polling import run_arena_stream
+from src.ui.state_utils import reset_agent_state
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,10 @@ async def run_agent_evaluation():
     if not events:
         st.warning("No events to evaluate.")
         return
+        
+    if not isinstance(events, list):
+         st.error("Invalid events data.")
+         return
 
     # Initialize components
     try:
@@ -59,7 +65,8 @@ async def run_agent_evaluation():
 
     except Exception as e:
         logger.error(f"Evaluation failed: {str(e)}", exc_info=True)
-        st.error(f"Evaluation failed: {str(e)}")
+        st.session_state[AGENT_SCORE_KEY] = None
+        st.error("Evaluation failed. Please check server logs.")
 
 
 # Page Config
@@ -76,7 +83,7 @@ if "arena_state" not in st.session_state:
 if "is_running" not in st.session_state:
     st.session_state.is_running = False
 if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
+    st.session_state.session_id = secrets.token_urlsafe(32)
 
 
 def start_campaign(secret: str, prompt: str, container):
@@ -91,6 +98,7 @@ def start_campaign(secret: str, prompt: str, container):
     except ValueError as e:
         st.error(f"Invalid input: {e}")
         st.session_state.is_running = False  # Reset state on validation failure
+        st.session_state.arena_state = None
         return
 
     st.session_state.is_running = True
@@ -100,8 +108,9 @@ def start_campaign(secret: str, prompt: str, container):
         asyncio.run(run_loop(secret, prompt, container))
     except Exception as e:
         logger.error(f"Campaign failed: {e}", exc_info=True)
-        st.error(f"Campaign failed: {e}")
+        st.error("Campaign failed. Please check server logs.")
         st.session_state.is_running = False
+        st.session_state.arena_state = None
 
 
 async def run_loop(secret: str, prompt: str, container):
@@ -139,6 +148,7 @@ def render_llm_mode():
 def render_agent_mode():
     """Render Agent testing mode UI."""
     # Agent-specific sidebar panels
+    render_demo_loader()
     render_agent_config_panel()
     render_tool_registration_form()
     render_memory_config()
@@ -179,7 +189,7 @@ def render_agent_mode():
         tool_calls = [
             e
             for e in events
-            if hasattr(e, "event_type") and e.event_type == "tool_call"
+            if getattr(e, "event_type", None) == "tool_call"
         ]
         if tool_calls:
             from src.ui.components.tool_chain import render_tool_chain
@@ -190,7 +200,7 @@ def render_agent_mode():
 
     with tab3:
         st.subheader("OWASP Agentic Coverage")
-        if score:
+        if score is not None:
             from src.ui.components.owasp_coverage import render_owasp_coverage
 
             render_owasp_coverage(score)
@@ -202,15 +212,19 @@ def render_agent_mode():
     with tab4:
         st.subheader("Raw Events")
         if events:
-            st.caption(f"Showing {len(events)} events")
-            for i, event in enumerate(events[-50:]):  # Last 50 events
-                with st.expander(
-                    f"Event {i + 1}: {getattr(event, 'event_type', 'unknown')}"
-                ):
+            # Limit display to last 50 to avoid lag
+            display_events = events[-50:]
+            st.caption(f"Showing last {len(display_events)} of {len(events)} events")
+            for i, event in enumerate(display_events):
+                # Calculate correct index for expander label
+                actual_index = len(events) - len(display_events) + i + 1
+                label = getattr(event, 'event_type', 'unknown')
+                with st.expander(f"Event {actual_index}: {label}"):
                     if hasattr(event, "model_dump"):
                         st.json(event.model_dump(mode="json"))
                     else:
-                        st.text(str(event))
+                        # Fallback for non-model objects - show type only to prevent RCE via __str__
+                        st.text(f"<Non-Pydantic Object: {type(event).__name__}>")
         else:
             st.info("No events to display.")
 
@@ -221,18 +235,7 @@ def render_agent_mode():
     with col1:
         if st.button("Clear Events", key="clear_events_btn"):
             # Clear all agent-related state
-            keys_to_clear = [
-                "agent_report",
-                "report_markdown",
-                "report_json",
-            ]
-            for key in keys_to_clear:
-                if key in st.session_state:
-                    del st.session_state[key]
-
-            # Reset core keys
-            st.session_state[AGENT_EVENTS_KEY] = []
-            st.session_state[AGENT_SCORE_KEY] = None
+            reset_agent_state(full_reset=False)
             st.rerun()
 
     with col2:
@@ -267,6 +270,9 @@ def render_agent_mode():
                     st.session_state["report_markdown"] = markdown_content
                     st.session_state["report_json"] = json_content
             except Exception as e:
+                st.session_state["agent_report"] = None
+                st.session_state["report_markdown"] = None
+                st.session_state["report_json"] = None
                 st.error(f"Failed to generate report: {e}")
 
     # Render report viewer if report exists
