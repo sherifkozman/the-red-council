@@ -1,0 +1,122 @@
+# Agent Security Assessment Report
+
+**Generated**: {{ generated_at }}
+**Report ID**: {{ report_id }}
+**Overall Risk Score**: {{ risk_score }}/10.0
+
+## Executive Summary
+{{ summary | sanitize }}
+
+## OWASP Agentic Top 10 Coverage
+
+| Category | Tested | Violation Detected |
+|----------|--------|-------------------|
+{% for risk in owasp_coverage_list %}
+| {{ risk.code }} - {{ risk.name }} | {{ risk.tested }} | {{ risk.status }} |
+{% endfor %}
+
+## Vulnerability Findings
+{% if vulnerability_findings %}
+{% for finding in vulnerability_findings %}
+{% if finding.detected %}
+### {{ finding.owasp_category.value }}: {{ finding.owasp_category.name }}
+- **Severity**: {{ finding.severity }}/10
+- **Evidence**: {{ finding.evidence | sanitize }}
+- **Recommendation**: {{ finding.recommendation | sanitize }}
+{% endif %}
+{% endfor %}
+{% else %}
+No vulnerabilities detected.
+{% endif %}
+
+## Tool Analysis
+{% if tool_analysis %}
+- **Total Calls**: {{ tool_analysis.call_count }}
+- **Unique Tools**: {{ tool_analysis.unique_tools | join(', ') | sanitize if tool_analysis.unique_tools else 'None' }}
+{% if tool_analysis.abuse_detected %}
+- **Tool Abuse Detected**
+{% endif %}
+{% if tool_analysis.suspicious_patterns %}
+- **Suspicious Patterns**: {{ tool_analysis.suspicious_patterns | join(', ') | sanitize }}
+{% endif %}
+{% else %}
+No tool analysis data available.
+{% endif %}
+
+## Memory Analysis
+{% if memory_analysis %}
+- **Access Count**: {{ memory_analysis.access_count }}
+{% if memory_analysis.sensitive_keys_accessed %}
+- **Sensitive Keys Accessed**: {{ memory_analysis.sensitive_keys_accessed | join(', ') | sanitize }}
+{% endif %}
+{% if memory_analysis.injection_attempts %}
+- **Injection Attempts**: {{ memory_analysis.injection_attempts | join(', ') | sanitize }}
+{% endif %}
+{% else %}
+No memory analysis data available.
+{% endif %}
+
+## Divergence Analysis (Deception Detection)
+{% if divergence_analysis %}
+- **Total Divergences**: {{ divergence_analysis.divergence_count }}
+{% if divergence_analysis.severity_distribution %}
+- **Severity Distribution**:
+{% for sev, count in divergence_analysis.severity_distribution.items() %}
+  - {{ sev | sanitize }}: {{ count }}
+{% endfor %}
+{% endif %}
+{% else %}
+No divergence analysis data available.
+{% endif %}
+
+## Recommendations
+{% if recommendations %}
+{% for rec in recommendations %}
+### [{{ rec.priority.value }}] {{ rec.category.value }}
+{{ rec.description | sanitize }}
+{% endfor %}
+{% else %}
+No recommendations.
+{% endif %}
+
+{% if hardening_plan %}
+## Hardening Plan
+{% if hardening_plan.tool_controls %}
+### Tool Controls
+{% for tc in hardening_plan.tool_controls %}
+- **{{ tc.tool_name | sanitize }}**: {{ '(Requires Approval)' if tc.requires_approval else '' }}{{ '(Limit: ' + tc.rate_limit|string + '/min)' if tc.rate_limit else '' }}
+{% endfor %}
+{% endif %}
+
+{% if hardening_plan.guardrails %}
+### Recommended Guardrails
+{% for g in hardening_plan.guardrails %}
+- **{{ g.name | sanitize }}** ({{ g.action.value }}): {{ g.message | sanitize }}
+{% endfor %}
+{% endif %}
+
+{% if hardening_plan.memory_isolation %}
+### Memory Policy
+{% set mp = hardening_plan.memory_isolation %}
+{% if mp.allowed_keys_pattern %}
+- Allowed Keys: `{{ mp.allowed_keys_pattern | sanitize }}`
+{% endif %}
+{% if mp.denied_keys_pattern %}
+- Denied Keys: `{{ mp.denied_keys_pattern | sanitize }}`
+{% endif %}
+- Max Value Size: {{ mp.max_value_size }} bytes
+- Encryption: {{ 'Required' if mp.encryption_required else 'Optional' }}
+{% endif %}
+{% endif %}
+
+{% if remediation_steps %}
+## Remediation Steps
+{% for step in remediation_steps %}
+- **{{ step.description | sanitize }}** (Effort: {{ step.effort_estimate | sanitize }})
+{% if step.code_example %}
+  ```
+  {{ step.code_example }}
+  ```
+{% endif %}
+{% endfor %}
+{% endif %}

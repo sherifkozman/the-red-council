@@ -118,26 +118,13 @@
   - **Sanitization**: Never trust simple regex for Markdown sanitization; robust libraries are better, but if custom is needed, white-listing or aggressive escaping of control chars is key.
 ---
 
-## 2026-02-02 - TRC-023
-- Implemented `AgentArenaState` extending `ArenaState` in `src/orchestrator/state.py`.
-- Added agent mode fields: `testing_mode`, `agent_config`, `agent_events`, `owasp_scores`.
-- Non-serialized `_instrumented_agent_ref` for agent wrapper reference.
-- Helper methods: `is_agent_mode()`, `add_agent_event()`, `to_serializable_dict()`, `from_arena_state()`.
-- Updated `src/orchestrator/graph.py` with mode-aware routing:
-  - `route_entry()`: Routes to 'attack' (LLM) or 'instrument' (agent).
-  - `build_agent_arena_graph()`: Standalone agent mode graph.
-  - `build_unified_arena_graph()`: Combined graph with conditional entry.
-- Created `src/orchestrator/agent_nodes.py` with agent-specific nodes:
-  - `instrument_node`: Initialize/validate agent instrumentation.
-  - `agent_attack_node`: Run attacks and capture events.
-  - `agent_judge_node`: Evaluate events with AgentJudge.
-  - `agent_done_node`: Complete session with summary.
-- Test coverage: 84% on new code, 51 tests passing.
-- Fixed Pydantic deprecation warning (ConfigDict instead of class Config).
-- Reviews completed: linting (ruff), type checking, security audit (manual).
+## 2026-02-02 - TRC-015
+- Implemented `AgentReportGenerator` in `src/reports/agent_report_generator.py`.
+- Implemented Jinja2 template `src/reports/templates/report.md.j2`.
+- Implemented security hardening for template injection (custom sanitize filter) and ReDoS (regex input truncation).
+- Achieved 92% test coverage.
+- Reviews completed: code-reviewer, security.
 - **Learnings for future iterations:**
-  - **Pydantic v2**: Use `model_config = ConfigDict(...)` instead of nested `class Config`.
-  - **Non-serialized Fields**: Use `object.__setattr__` for private fields in Pydantic models.
-  - **Graph Composition**: LangGraph supports conditional entry points via `set_conditional_entry_point()`.
-  - **Backward Compatibility**: Extend base classes instead of replacing; use `hasattr()` checks for optional fields.
-  - **Coverage Focus**: For new features, target coverage on new files specifically, not entire module.
+  - **Jinja2 Security**: Autoescaping is good for HTML, but for Markdown or other formats, explicit sanitization filters are safer for untrusted input.
+  - **ReDoS in Parsers**: When parsing structured text with regex (like recommendations), always cap the input length to avoid catastrophic backtracking.
+  - **Template Loading**: Use `pathlib.Path(__file__).parent` for robust relative path resolution in library code.

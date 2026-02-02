@@ -385,7 +385,7 @@
       ],
       "priority": 16,
       "phaseId": 4,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-009", "TRC-014"],
       "notes": "Report generator transforms scores into actionable reports",
       "files": ["src/reports/__init__.py", "src/reports/agent_report_generator.py", "src/reports/templates/report.md.j2", "tests/reports/test_agent_report_generator.py"]

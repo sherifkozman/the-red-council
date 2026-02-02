@@ -163,7 +163,7 @@ GEMINI.md
 plans/
 
 # Internal review reports (security audits, code reviews)
-reports/
+/reports/
 reviews/
 
 # Draft/scratch files
