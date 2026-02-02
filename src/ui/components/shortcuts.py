@@ -130,6 +130,29 @@ def render_keyboard_shortcuts():
             return false;
         }
 
+        // Helper to switch tabs
+        function selectNextTab(forward = true) {
+            const tabs = window.parent.document.querySelectorAll('[role="tab"], [data-baseweb="tab"]');
+            if (!tabs.length) return false;
+            let activeIndex = 0;
+            tabs.forEach((tab, idx) => {
+                if (tab.getAttribute('aria-selected') === 'true') {
+                    activeIndex = idx;
+                }
+            });
+            const nextIndex = forward
+                ? (activeIndex + 1) % tabs.length
+                : (activeIndex - 1 + tabs.length) % tabs.length;
+            tabs[nextIndex].click();
+            return true;
+        }
+
+        // Tab navigation between panels
+        if (!e.ctrlKey && !e.metaKey && e.key === 'Tab') {
+            e.preventDefault();
+            selectNextTab(!e.shiftKey);
+        }
+
         // Check for Ctrl/Cmd key combinations
         if (e.ctrlKey || e.metaKey) {
             // Ctrl+E: Run Evaluation
@@ -229,7 +252,8 @@ def render_keyboard_shortcuts():
         *   `?`: Toggle Shortcuts Panel
 
         **Navigation**
-        *   `Tab`: Move focus
+        *   `Tab`: Next panel
+        *   `Shift + Tab`: Previous panel
         *   `Esc`: Close modals
 
         _Note: Click in the main window area for shortcuts to active._
