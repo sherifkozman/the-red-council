@@ -41,7 +41,7 @@ def _apply_appearance() -> None:
         panel = "#f6f8fa"
 
     st.markdown(
-        f\"\"\"
+        f"""
         <style>
         .stApp {{
             background-color: {bg};
@@ -55,26 +55,26 @@ def _apply_appearance() -> None:
             background-color: {panel};
         }}
         </style>
-        \"\"\",
+        """,
         unsafe_allow_html=True,
     )
 
 
 def _render_command_palette() -> None:
-    \"\"\"Render command palette for quick actions.\"\"\"
+    """Render command palette for quick actions."""
     if COMMAND_PALETTE_KEY not in st.session_state:
         st.session_state[COMMAND_PALETTE_KEY] = False
 
     if not st.session_state[COMMAND_PALETTE_KEY]:
         return
 
-    with st.sidebar.expander(\"⌨️ Command Palette\", expanded=True):
+    with st.sidebar.expander("⌨️ Command Palette", expanded=True):
         action = st.selectbox(
-            \"Action\",
+            "Action",
             options=list(COMMAND_ACTIONS.keys()),
-            key=\"command_palette_action\",
+            key="command_palette_action",
         )
-        if st.button(\"Run\", key=\"command_palette_run\", use_container_width=True):
+        if st.button("Run", key="command_palette_run", use_container_width=True):
             st.session_state[COMMAND_ACTION_KEY] = action
             st.session_state[COMMAND_PALETTE_KEY] = False
             st.rerun()
@@ -91,7 +91,7 @@ def render_keyboard_shortcuts():
     trigger_action_js = ""
     if action_label:
         target = COMMAND_ACTIONS.get(action_label, action_label)
-        trigger_action_js = f\"clickButton('{target}', false);\"\n+
+        trigger_action_js = f"clickButton('{target}', false);"
     js_code = f"""
     <script>
     let shortcutLock = false;

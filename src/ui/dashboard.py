@@ -99,16 +99,16 @@ st.set_page_config(
 
 # Session State Init
 if "arena_state" not in st.session_state:
-    st.session_state.arena_state = None
+    st.session_state["arena_state"] = None
 if "is_running" not in st.session_state:
-    st.session_state.is_running = False
+    st.session_state["is_running"] = False
 if "session_id" not in st.session_state:
-    st.session_state.session_id = secrets.token_urlsafe(32)
+    st.session_state["session_id"] = secrets.token_urlsafe(32)
 
 
 def start_campaign(secret: str, prompt: str, container):
     # Security Checks
-    if not check_rate_limit(st.session_state.session_id):
+    if not check_rate_limit(st.session_state["session_id"]):
         st.error("Rate limit exceeded. Please wait.")
         return
 
@@ -117,25 +117,25 @@ def start_campaign(secret: str, prompt: str, container):
         prompt = validate_input(prompt)
     except ValueError as e:
         st.error(f"Invalid input: {e}")
-        st.session_state.is_running = False  # Reset state on validation failure
-        st.session_state.arena_state = None
+        st.session_state["is_running"] = False  # Reset state on validation failure
+        st.session_state["arena_state"] = None
         return
 
-    st.session_state.is_running = True
-    st.session_state.arena_state = None  # Reset
+    st.session_state["is_running"] = True
+    st.session_state["arena_state"] = None  # Reset
 
     try:
         safe_run_async(run_loop(secret, prompt, container))
     except Exception as e:
         logger.error(f"Campaign failed: {e}", exc_info=True)
         st.error("Campaign failed. Please check server logs.")
-        st.session_state.is_running = False
-        st.session_state.arena_state = None
+        st.session_state["is_running"] = False
+        st.session_state["arena_state"] = None
 
 
 async def run_loop(secret: str, prompt: str, container):
     async for state in run_arena_stream(secret, prompt):
-        st.session_state.arena_state = state
+        st.session_state["arena_state"] = state
 
         # Redraw Chat Area Live
         container.empty()
@@ -146,22 +146,22 @@ async def run_loop(secret: str, prompt: str, container):
                 is_running=True,
             )
 
-    st.session_state.is_running = False
+    st.session_state["is_running"] = False
     st.rerun()
 
 
 def render_llm_mode():
     """Render LLM testing mode UI."""
     # Sidebar metrics
-    render_metrics(st.session_state.arena_state)
+    render_metrics(st.session_state["arena_state"])
 
     chat_container = st.empty()
 
     with chat_container.container():
         render_chat(
-            st.session_state.arena_state,
+            st.session_state["arena_state"],
             on_start=lambda s, p: start_campaign(s, p, chat_container),
-            is_running=st.session_state.is_running,
+            is_running=st.session_state["is_running"],
         )
 
 

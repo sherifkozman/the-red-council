@@ -222,7 +222,10 @@ class TestPathBasedSeeding:
         """Test loading templates from JSONL file."""
         path = tmp_path / "agentdojo.jsonl"
         path.write_text(
-            \"\"\"\n{\"id\": \"ADOJO-TEST-1\", \"prompt\": \"Test prompt\", \"pattern_type\": \"tool_injection\", \"agent_layer\": \"tool_execution\"}\n{\"id\": \"ADOJO-TEST-2\", \"prompt\": \"Test prompt 2\", \"owasp\": [\"ASI04\"], \"requires_tool_access\": true}\n\"\"\".strip()\n        )
+            """{"id": "ADOJO-TEST-1", "prompt": "Test prompt", "pattern_type": "tool_injection", "agent_layer": "tool_execution"}
+{"id": "ADOJO-TEST-2", "prompt": "Test prompt 2", "owasp": ["ASI04"], "requires_tool_access": true}
+""".strip()
+        )
 
         templates = load_templates_from_path(AgentAttackSource.AGENTDOJO, path)
         assert len(templates) == 2
@@ -233,7 +236,16 @@ class TestPathBasedSeeding:
         """Test seeding from a path uses dataset records."""
         path = tmp_path / "asb.json"
         path.write_text(
-            \"\"\"\n[{\n  \"id\": \"ASB-TEST-1\",\n  \"prompt\": \"ASB prompt\",\n  \"pattern_type\": \"privilege_escalation\",\n  \"agent_layer\": \"tool_execution\"\n}]\n\"\"\".strip()\n        )
+            """[
+  {
+    "id": "ASB-TEST-1",
+    "prompt": "ASB prompt",
+    "pattern_type": "privilege_escalation",
+    "agent_layer": "tool_execution"
+  }
+]
+""".strip()
+        )
 
         mock_kb = MagicMock()
         mock_kb.get_by_id.return_value = None
