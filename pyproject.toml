@@ -174,8 +174,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "S105", "S106"]
+"tests/*" = ["S101", "S105", "S106", "S108"]
 "src/knowledge/agent_seed_data.py" = ["S105", "S106"]
+"src/test_agents/*" = ["S105", "S106", "S108"]
 
 [tool.mypy]
 python_version = "3.10"
