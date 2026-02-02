@@ -16,6 +16,7 @@ from typing import Any
 import streamlit as st
 
 from src.core.agent_schemas import AgentEvent
+from src.ui.providers.polling import EventPollingError, poll_events_from_api_sync
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +29,16 @@ STREAM_LAST_UPDATE_KEY = "stream_last_update"
 STREAM_EVENT_RATE_KEY = "stream_event_rate"
 STREAM_BUFFER_KEY = "stream_buffer"
 STREAM_NEW_COUNT_KEY = "stream_new_event_count"
+STREAM_OFFSET_KEY = "stream_poll_offset"
+STREAM_AUTO_REFRESH_KEY = "stream_auto_refresh"
+STREAM_LAST_POLL_KEY = "stream_last_poll_time"
 
 # Constants
 MAX_DISPLAYED_EVENTS = 200
 MAX_BUFFER_SIZE = 500
 RATE_WINDOW_SECONDS = 5.0
 CONNECTION_TIMEOUT_SECONDS = 30.0
+POLL_INTERVAL_SECONDS = 1.0
 
 
 class ConnectionStatus(str, Enum):
@@ -58,6 +63,9 @@ class EventStreamState:
     new_event_count: int = 0
     connection_status: ConnectionStatus = ConnectionStatus.DISCONNECTED
     rate_timestamps: list[float] = field(default_factory=list)
+    poll_offset: int = 0
+    auto_refresh: bool = True
+    last_poll_time: float = 0.0
 
 
 def get_stream_state() -> EventStreamState:
@@ -268,6 +276,13 @@ def toggle_auto_scroll() -> None:
     save_stream_state(state)
 
 
+def toggle_auto_refresh() -> None:
+    """Toggle auto-refresh setting."""
+    state = get_stream_state()
+    state.auto_refresh = not state.auto_refresh
+    save_stream_state(state)
+
+
 def clear_new_event_indicator() -> None:
     """Clear the new event count indicator."""
     state = get_stream_state()
@@ -309,6 +324,58 @@ def get_connection_status() -> ConnectionStatus:
     """Get the current connection status."""
     state = get_stream_state()
     return _get_connection_status(state)
+
+
+def _get_active_session_id() -> str | None:
+    """Resolve the current session ID for polling."""
+    sdk_session_id = st.session_state.get("sdk_session_id")
+    if sdk_session_id:
+        return str(sdk_session_id)
+    return st.session_state.get("session_id")
+
+
+def _poll_events_if_needed(state: EventStreamState) -> None:
+    """Poll the API for new events and update stream state."""
+    session_id = _get_active_session_id()
+    if not session_id:
+        return
+
+    now = time.time()
+    if not state.auto_refresh and state.last_poll_time > 0:
+        return
+
+    if state.last_poll_time and (now - state.last_poll_time) < POLL_INTERVAL_SECONDS:
+        return
+
+    base_url = st.session_state.get("api_base_url", "http://localhost:8000")
+    auth_token = st.session_state.get("sdk_auth_token") or None
+
+    try:
+        events, total_count = poll_events_from_api_sync(
+            session_id=session_id,
+            base_url=base_url,
+            auth_token=auth_token,
+            offset=state.poll_offset,
+            limit=MAX_BUFFER_SIZE,
+        )
+        if events:
+            added = add_events_from_dicts(events)
+            state.poll_offset += len(events)
+            state.last_poll_time = now
+            state.connection_status = ConnectionStatus.CONNECTED
+            state.new_event_count += added
+        else:
+            state.last_poll_time = now
+            state.connection_status = _get_connection_status(state)
+        save_stream_state(state)
+    except EventPollingError as e:
+        logger.warning(f"Event polling error: {e}")
+        state.connection_status = ConnectionStatus.ERROR
+        save_stream_state(state)
+    except Exception as e:
+        logger.error(f"Event polling failed: {e}", exc_info=True)
+        state.connection_status = ConnectionStatus.ERROR
+        save_stream_state(state)
 
 
 def _render_connection_indicator(status: ConnectionStatus) -> None:
@@ -363,7 +430,7 @@ def _render_controls(state: EventStreamState) -> None:
     Args:
         state: Current stream state.
     """
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         if state.paused:
@@ -393,6 +460,12 @@ def _render_controls(state: EventStreamState) -> None:
             ):
                 clear_new_event_indicator()
                 st.rerun()
+
+    with col5:
+        refresh_label = "🔁 Auto Refresh" if state.auto_refresh else "⏹ Auto Refresh"
+        if st.button(refresh_label, key="stream_autorefresh_btn"):
+            toggle_auto_refresh()
+            st.rerun()
 
 
 def _render_event_list(state: EventStreamState) -> None:
@@ -482,7 +555,10 @@ def render_event_stream() -> None:
 
     state = get_stream_state()
 
-    # Update connection status
+    # Poll for new events (best-effort, sync)
+    _poll_events_if_needed(state)
+
+    # Update connection status after polling
     state.connection_status = _get_connection_status(state)
 
     # Connection indicator
@@ -510,6 +586,11 @@ def render_event_stream() -> None:
     # Event list
     _render_event_list(state)
 
+    # Optional auto-refresh (best-effort)
+    if state.auto_refresh:
+        time.sleep(POLL_INTERVAL_SECONDS)
+        st.rerun()
+
 
 # Public API for external use
 __all__ = [
@@ -531,4 +612,5 @@ __all__ = [
     "resume_stream",
     "save_stream_state",
     "toggle_auto_scroll",
+    "toggle_auto_refresh",
 ]

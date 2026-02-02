@@ -143,6 +143,67 @@ async def poll_events_from_api(
         raise EventPollingError(str(e)) from e
 
 
+def poll_events_from_api_sync(
+    session_id: str,
+    base_url: str = "http://localhost:8000",
+    auth_token: str | None = None,
+    offset: int = 0,
+    limit: int = MAX_EVENTS_PER_POLL,
+    timeout: float = DEFAULT_API_TIMEOUT_SECONDS,
+) -> tuple[list[dict[str, Any]], int]:
+    """
+    Synchronous version of poll_events_from_api for Streamlit callbacks.
+
+    Args:
+        session_id: The session ID to poll events for.
+        base_url: Base URL of the API server.
+        auth_token: Optional bearer token for authentication.
+        offset: Starting offset for pagination.
+        limit: Maximum number of events to retrieve.
+        timeout: Request timeout in seconds.
+
+    Returns:
+        Tuple of (events list, total count).
+    """
+    _validate_session_id(session_id)
+    url = f"{base_url}/api/v1/agent/session/{session_id}/events"
+
+    headers = {"Content-Type": "application/json"}
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token}"
+
+    params = {"offset": offset, "limit": limit}
+
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            response = client.get(url, headers=headers, params=params)
+
+            if response.status_code == 404:
+                logger.debug(f"Session {session_id} not found")
+                return [], 0
+
+            if response.status_code != 200:
+                error_msg = f"API returned status {response.status_code}"
+                logger.error(f"Event polling failed: {error_msg}")
+                raise EventPollingError(error_msg)
+
+            data = response.json()
+            events = data.get("events", [])
+            total_count = data.get("total_count", len(events))
+
+            return events, total_count
+
+    except httpx.TimeoutException as e:
+        logger.warning(f"Event polling timed out: {e}")
+        raise EventPollingError("Request timed out") from e
+    except httpx.ConnectError as e:
+        logger.warning(f"Event polling connection failed: {e}")
+        raise EventPollingError("Connection failed") from e
+    except Exception as e:
+        logger.error(f"Event polling failed: {e}", exc_info=True)
+        raise EventPollingError(str(e)) from e
+
+
 async def check_session_exists(
     session_id: str,
     base_url: str = "http://localhost:8000",
