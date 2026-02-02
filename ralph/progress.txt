@@ -199,3 +199,41 @@
   - **Mock Columns**: Use `side_effect` with dynamic function when `st.columns()` is called with varying specs.
   - **OWASP Coverage Mock**: Mock objects need `.value` attribute for enum keys, not string keys.
 ---
+
+## 2026-02-02 - TRC-042
+- Implemented `src/ui/components/empty_states.py` with consistent empty state displays.
+- Implemented `src/ui/components/onboarding.py` with welcome modal and progress tracking.
+- Updated `src/ui/dashboard.py` to integrate both components.
+- Features implemented:
+  - EMPTY_STATE_MESSAGES dict for Timeline, Tool Chain, OWASP Coverage, Events tabs
+  - `render_empty_state()` with state_type, callbacks, show_actions parameters
+  - Wrapper functions: `render_timeline_empty_state()`, `render_tool_chain_empty_state()`, etc.
+  - Action buttons: Load Demo, Connect SDK, Configure Remote with callbacks
+  - Documentation links to agent-testing-guide.md and API reference
+  - ChecklistItem dataclass for onboarding progress tracking
+  - QUICK_START_GUIDES dict with Demo, SDK, Remote modes
+  - `render_welcome_modal()` for first-time user mode selection
+  - `render_quick_start_guide()` with step-by-step instructions
+  - `render_progress_indicator()` sidebar expander with progress bar
+  - Progress tracking: `mark_mode_selected()`, `mark_events_captured()`, etc.
+  - `is_first_time_user()` and `should_show_quick_start()` checks
+  - `reset_onboarding()` for testing or re-onboarding
+  - `render_contextual_tooltip()` for help text
+- Created `tests/ui/test_empty_states.py` with 17 tests.
+- Created `tests/ui/test_onboarding.py` with 38 tests.
+- All 55 tests pass with comprehensive coverage.
+- Reviews completed: code-review, silent-failure-hunt, security, code-simplifier.
+- Critical fix applied:
+  - Fixed `_on_demo_click()` to actually load demo data via `load_demo_data()` instead of broken tab navigation
+  - SDK/Remote click handlers show `st.info()` guiding user to correct tab
+- Security measures:
+  - HTML escaping via `html.escape()` for all user-controllable text
+  - Type-safe mode selection using `Literal["demo", "sdk", "remote"]`
+  - Session state validation in `_get_checklist()`
+- **Learnings for future iterations:**
+  - **Streamlit Tab Navigation**: Tab selection cannot be programmatically changed via session state in Streamlit. Click handlers should perform actual actions or display guidance, not attempt tab navigation.
+  - **Callable Type Imports**: Use `from collections.abc import Callable` (not `typing`) for ruff UP035 compliance.
+  - **Type Narrowing**: Mypy prefers explicit if/elif chains over set membership for Literal type narrowing.
+  - **Empty State Consistency**: Use a single `render_empty_state()` function with configuration dict for maintainability.
+  - **Onboarding Progress**: Dataclasses work well for checklist items; centralize state keys in module constants.
+---

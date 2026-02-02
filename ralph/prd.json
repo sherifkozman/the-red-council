@@ -1015,7 +1015,7 @@
       ],
       "priority": 10,
       "phaseId": 7,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-019"],
       "notes": "Improve user onboarding with clear empty states and guidance. Reduces confusion for new users.",
       "files": ["src/ui/components/empty_states.py", "src/ui/components/onboarding.py", "src/ui/dashboard.py"]

@@ -12,6 +12,12 @@ from src.core.security import check_rate_limit, validate_input
 from src.providers.gemini_client import GeminiClient
 from src.ui.components.chat import render_chat
 from src.ui.components.demo_loader import render_demo_loader
+from src.ui.components.empty_states import (
+    render_events_empty_state,
+    render_owasp_empty_state,
+    render_timeline_empty_state,
+    render_tool_chain_empty_state,
+)
 from src.ui.components.header import render_header
 from src.ui.components.metrics import render_metrics
 from src.ui.components.mode_selector import (
@@ -22,6 +28,17 @@ from src.ui.components.mode_selector import (
     render_memory_config,
     render_mode_selector,
     render_tool_registration_form,
+)
+from src.ui.components.onboarding import (
+    get_selected_quick_start,
+    is_first_time_user,
+    mark_evaluation_run,
+    mark_events_captured,
+    mark_report_generated,
+    render_progress_indicator,
+    render_quick_start_guide,
+    render_welcome_modal,
+    should_show_quick_start,
 )
 from src.ui.providers.polling import run_arena_stream
 from src.ui.state_utils import reset_agent_state
@@ -146,6 +163,23 @@ def render_llm_mode():
         )
 
 
+def _on_demo_click() -> None:
+    """Handle demo click from empty state - loads demo data."""
+    from src.ui.components.demo_loader import load_demo_data
+
+    load_demo_data()
+
+
+def _on_sdk_click() -> None:
+    """Handle SDK click - shows info to guide user to SDK tab."""
+    st.info("Go to the 'SDK Integration' tab to connect your agent.")
+
+
+def _on_remote_click() -> None:
+    """Handle remote click - shows info to guide user to Remote tab."""
+    st.info("Go to the 'Remote Agent' tab to configure endpoint testing.")
+
+
 def render_agent_mode():
     """Render Agent testing mode UI."""
     # Agent-specific sidebar panels
@@ -154,8 +188,19 @@ def render_agent_mode():
     render_tool_registration_form()
     render_memory_config()
 
+    # Onboarding progress in sidebar
+    render_progress_indicator()
+
     # Main content area
     st.header("Agent Security Testing")
+
+    # Show quick start guide if selected from welcome modal
+    if should_show_quick_start():
+        quick_start_mode = get_selected_quick_start()
+        if quick_start_mode:
+            with st.container():
+                render_quick_start_guide(quick_start_mode)
+            st.divider()
 
     # Show current config
     config = get_agent_config()
@@ -165,6 +210,10 @@ def render_agent_mode():
     # Agent events section
     events = st.session_state.get(AGENT_EVENTS_KEY, [])
     score = st.session_state.get(AGENT_SCORE_KEY)
+
+    # Track events captured for onboarding
+    if events:
+        mark_events_captured()
 
     # Tabs for different views
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(
@@ -189,9 +238,10 @@ def render_agent_mode():
 
             render_agent_timeline(events)
         else:
-            st.info(
-                "No agent events captured yet. "
-                "Submit events via the API or connect an instrumented agent."
+            render_timeline_empty_state(
+                on_demo_click=_on_demo_click,
+                on_sdk_click=_on_sdk_click,
+                on_remote_click=_on_remote_click,
             )
 
     with tab2:
@@ -205,7 +255,11 @@ def render_agent_mode():
 
             render_tool_chain(tool_calls)
         else:
-            st.info("No tool calls captured yet.")
+            render_tool_chain_empty_state(
+                on_demo_click=_on_demo_click,
+                on_sdk_click=_on_sdk_click,
+                on_remote_click=_on_remote_click,
+            )
 
     with tab3:
         st.subheader("OWASP Agentic Coverage")
@@ -214,9 +268,7 @@ def render_agent_mode():
 
             render_owasp_coverage(score)
         else:
-            st.info(
-                "No OWASP evaluation results yet. Run agent evaluation to see coverage."
-            )
+            render_owasp_empty_state()
 
     with tab4:
         st.subheader("Raw Events")
@@ -235,7 +287,11 @@ def render_agent_mode():
                         # Fallback for non-model objects - show type only
                         st.text(f"<Non-Pydantic Object: {type(event).__name__}>")
         else:
-            st.info("No events to display.")
+            render_events_empty_state(
+                on_demo_click=_on_demo_click,
+                on_sdk_click=_on_sdk_click,
+                on_remote_click=_on_remote_click,
+            )
 
     with tab5:
         # SDK Integration tab
@@ -285,6 +341,7 @@ def render_agent_mode():
             help="Run OWASP evaluation on captured events",
         ):
             asyncio.run(run_agent_evaluation())
+            mark_evaluation_run()  # Track onboarding progress
             st.rerun()
 
     with col3:
@@ -308,6 +365,7 @@ def render_agent_mode():
                     st.session_state["agent_report"] = report
                     st.session_state["report_markdown"] = markdown_content
                     st.session_state["report_json"] = json_content
+                    mark_report_generated()  # Track onboarding progress
             except Exception as e:
                 st.session_state["agent_report"] = None
                 st.session_state["report_markdown"] = None
@@ -330,6 +388,11 @@ def main():
 
     # Mode selector in sidebar (always visible)
     current_mode = render_mode_selector()
+
+    # Show welcome modal for first-time users in agent mode
+    if current_mode == "agent" and is_first_time_user():
+        render_welcome_modal()
+        return  # Don't render rest of UI until user completes onboarding
 
     # Render mode-specific UI
     if current_mode == "agent":
