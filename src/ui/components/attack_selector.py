@@ -327,6 +327,37 @@ def _count_templates_by_owasp(templates: list[TemplatePreview]) -> dict[str, int
     return counts
 
 
+def _count_templates_by_capability_combo(
+    templates: list[TemplatePreview], filters: AttackTemplateFilters
+) -> dict[str, int]:
+    """Count templates by tool/memory capability combination.
+
+    Counts are calculated after applying OWASP filters only.
+    """
+    enabled_codes = set(filters.get_enabled_owasp_codes())
+    combos = {
+        "Tool + Memory": 0,
+        "Tool Only": 0,
+        "Memory Only": 0,
+        "No Tool/Memory": 0,
+    }
+
+    for template in templates:
+        if enabled_codes and not (set(template.owasp_codes) & enabled_codes):
+            continue
+
+        if template.requires_tool_access and template.requires_memory_access:
+            combos["Tool + Memory"] += 1
+        elif template.requires_tool_access:
+            combos["Tool Only"] += 1
+        elif template.requires_memory_access:
+            combos["Memory Only"] += 1
+        else:
+            combos["No Tool/Memory"] += 1
+
+    return combos
+
+
 def _render_owasp_filters(
     filters: AttackTemplateFilters, template_counts: dict[str, int]
 ) -> AttackTemplateFilters:
@@ -641,6 +672,12 @@ def render_attack_selector() -> None:
 
         # Capability filters
         filters = _render_capability_filters(filters)
+
+        # Capability combination counts (OWASP filters applied)
+        combo_counts = _count_templates_by_capability_combo(templates, filters)
+        st.caption("Counts by capability (OWASP filters applied):")
+        for label, count in combo_counts.items():
+            st.markdown(f"- {label}: **{count}**")
 
         # Save filters
         _save_filters(filters)

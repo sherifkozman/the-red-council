@@ -32,6 +32,7 @@ from src.ui.components.attack_selector import (
     AttackTemplateFilters,
     TemplatePreview,
     _count_templates_by_owasp,
+    _count_templates_by_capability_combo,
     _filter_templates,
     _get_filters,
     _get_selected_templates,
@@ -685,6 +686,39 @@ class TestHelperFunctions:
         # All counts should be 0
         for code in OWASP_DISPLAY_NAMES:
             assert counts[code] == 0
+
+    def test_count_templates_by_capability_combo(self) -> None:
+        """Test capability combo counts respect OWASP filters."""
+        filters = AttackTemplateFilters()
+        filters.owasp_filters = {code: False for code in OWASP_DISPLAY_NAMES}
+        filters.owasp_filters["ASI01"] = True
+
+        templates = [
+            TemplatePreview(
+                id="t1",
+                prompt_preview="p1",
+                expected_behavior="e1",
+                severity=5,
+                owasp_codes=["ASI01"],
+                requires_tool_access=True,
+                requires_memory_access=False,
+                source="src",
+            ),
+            TemplatePreview(
+                id="t2",
+                prompt_preview="p2",
+                expected_behavior="e2",
+                severity=3,
+                owasp_codes=["ASI02"],
+                requires_tool_access=False,
+                requires_memory_access=True,
+                source="src",
+            ),
+        ]
+
+        counts = _count_templates_by_capability_combo(templates, filters)
+        assert counts["Tool Only"] == 1
+        assert counts["Memory Only"] == 0
 
     def test_valid_template_id_pattern(self) -> None:
         """Test VALID_TEMPLATE_ID pattern accepts valid IDs."""
