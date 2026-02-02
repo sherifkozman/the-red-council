@@ -199,7 +199,7 @@
       ],
       "priority": 7,
       "phaseId": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-001", "TRC-002"],
       "notes": "This schema extends the existing JudgeScore for agent-specific metrics. ViolationResult is used by TRC-009.",
       "files": ["src/core/agent_schemas.py", "tests/core/test_agent_schemas.py"]
@@ -225,7 +225,7 @@
       ],
       "priority": 8,
       "phaseId": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-006", "TRC-007"],
       "notes": "AgentJudge is the core evaluator for agent security. Uses composition to wrap existing Judge.",
       "files": ["src/agents/agent_judge.py", "tests/agents/test_agent_judge.py"]
@@ -252,7 +252,7 @@
       ],
       "priority": 9,
       "phaseId": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-007", "TRC-008"],
       "notes": "Comprehensive OWASP criteria evaluation. Each check is independent and can be run selectively.",
       "files": ["src/agents/agent_judge.py", "tests/agents/test_agent_judge.py"]
@@ -274,7 +274,7 @@
         "Method: retrieve_attacks(goal: str, k: int = 5) -> List[AgentAttackTemplate] for semantic search",
         "Unit tests for collection operations including add, retrieve, filter"
       ],
-      "priority": 10,
+      "priority": 11,
       "phaseId": 3,
       "passes": false,
       "dependsOn": ["TRC-001"],
@@ -294,7 +294,7 @@
         "Function: seed_agent_attacks(kb: AgentAttackKnowledgeBase) to populate collection",
         "Integration test verifies all templates load correctly and are retrievable"
       ],
-      "priority": 11,
+      "priority": 12,
       "phaseId": 3,
       "passes": false,
       "dependsOn": ["TRC-010"],
@@ -313,7 +313,7 @@
         "Templates cover both direct and indirect attack vectors",
         "Templates reference real-world attack patterns where possible"
       ],
-      "priority": 12,
+      "priority": 13,
       "phaseId": 3,
       "passes": false,
       "dependsOn": ["TRC-010"],
@@ -332,7 +332,7 @@
         "Verify total 27-36 agent-specific templates across all categories (TRC-011 + TRC-012 + TRC-013)",
         "Each template is tagged with applicable OWASP categories (can have multiple)"
       ],
-      "priority": 13,
+      "priority": 14,
       "phaseId": 3,
       "passes": false,
       "dependsOn": ["TRC-010"],
@@ -359,7 +359,7 @@
         "Method: AgentSecurityReport.to_json() -> str for programmatic access",
         "Unit tests for report generation and serialization"
       ],
-      "priority": 14,
+      "priority": 15,
       "phaseId": 4,
       "passes": false,
       "dependsOn": ["TRC-007"],
@@ -383,7 +383,7 @@
         "Use Jinja2 template for markdown generation (store in src/reports/templates/)",
         "Unit tests with sample scores covering all OWASP categories"
       ],
-      "priority": 15,
+      "priority": 16,
       "phaseId": 4,
       "passes": false,
       "dependsOn": ["TRC-009", "TRC-014"],
@@ -405,7 +405,7 @@
         "Works in existing Streamlit dashboard without breaking changes",
         "Fallback to text-based list if grid rendering fails"
       ],
-      "priority": 16,
+      "priority": 17,
       "phaseId": 5,
       "passes": false,
       "dependsOn": ["TRC-007"],
@@ -428,7 +428,7 @@
         "Show timestamps relative to session start",
         "Export timeline as JSON button"
       ],
-      "priority": 17,
+      "priority": 18,
       "phaseId": 5,
       "passes": false,
       "dependsOn": ["TRC-002"],
@@ -452,7 +452,7 @@
         "Identify potential ASI01 violations with red border on nodes",
         "Legend explaining colors and patterns"
       ],
-      "priority": 18,
+      "priority": 19,
       "phaseId": 5,
       "passes": false,
       "dependsOn": ["TRC-002"],
@@ -475,7 +475,7 @@
         "Conditional rendering based on mode in main dashboard.py",
         "Mode persists across page refreshes via st.session_state"
       ],
-      "priority": 19,
+      "priority": 20,
       "phaseId": 5,
       "passes": false,
       "dependsOn": ["TRC-016", "TRC-017", "TRC-018"],
@@ -499,7 +499,7 @@
         "Documentation docstrings with usage examples",
         "Unit tests with mock LangChain agent (use unittest.mock, don't require langchain installed)"
       ],
-      "priority": 20,
+      "priority": 21,
       "phaseId": 6,
       "passes": false,
       "dependsOn": ["TRC-003", "TRC-004", "TRC-005"],
@@ -522,7 +522,7 @@
         "Documentation docstrings with usage examples",
         "Unit tests with mock LangGraph (use unittest.mock, don't require langgraph installed)"
       ],
-      "priority": 21,
+      "priority": 22,
       "phaseId": 6,
       "passes": false,
       "dependsOn": ["TRC-003", "TRC-004", "TRC-005"],
@@ -547,7 +547,7 @@
         "Documentation docstrings with MCP server examples",
         "Unit tests with mock MCP client (use unittest.mock, don't require mcp installed)"
       ],
-      "priority": 22,
+      "priority": 23,
       "phaseId": 6,
       "passes": false,
       "dependsOn": ["TRC-003", "TRC-004", "TRC-005"],
@@ -573,7 +573,7 @@
         "State serialization: instrumented_agent serialized as None (recreated on load)",
         "Integration tests for agent arena flow covering mode switch"
       ],
-      "priority": 23,
+      "priority": 24,
       "phaseId": 6,
       "passes": false,
       "dependsOn": ["TRC-003", "TRC-008"],
@@ -598,7 +598,7 @@
         "Fallback to rule-based hardening if LLM unavailable",
         "Unit tests for hardening generation covering all OWASP categories"
       ],
-      "priority": 24,
+      "priority": 25,
       "phaseId": 4,
       "passes": false,
       "dependsOn": ["TRC-009", "TRC-014"],
@@ -623,7 +623,7 @@
         "Rate limiting on POST endpoints (same pattern as existing routes)",
         "Unit tests for all endpoints using FastAPI TestClient"
       ],
-      "priority": 25,
+      "priority": 26,
       "phaseId": 5,
       "passes": false,
       "dependsOn": ["TRC-008", "TRC-015"],
@@ -647,7 +647,7 @@
         "Create examples/agent_testing/custom_agent.py - custom agent wrapping",
         "Update API docs (if OpenAPI/Swagger) with new endpoints"
       ],
-      "priority": 26,
+      "priority": 27,
       "phaseId": 6,
       "passes": false,
       "dependsOn": ["TRC-020", "TRC-021", "TRC-022", "TRC-025"],
@@ -670,7 +670,7 @@
         "Tests are isolated and can run in parallel",
         "Coverage for E2E tests contributes to overall 75%+ target"
       ],
-      "priority": 27,
+      "priority": 28,
       "phaseId": 6,
       "passes": false,
       "dependsOn": ["TRC-023", "TRC-025", "TRC-019"],
@@ -692,7 +692,7 @@
         "Document baseline performance in metadata.successMetrics",
         "Profile memory usage - ensure < 500MB for typical test"
       ],
-      "priority": 28,
+      "priority": 29,
       "phaseId": 6,
       "passes": false,
       "dependsOn": ["TRC-027"],
@@ -715,7 +715,7 @@
         "Document installation options in README: pip install .[langchain] etc",
         "CI tests run with all-frameworks installed"
       ],
-      "priority": 29,
+      "priority": 30,
       "phaseId": 6,
       "passes": false,
       "dependsOn": [],
@@ -737,7 +737,7 @@
         "Fails fast with clear error messages",
         "Documents integration points for Phase 3+"
       ],
-      "priority": 30,
+      "priority": 10,
       "phaseId": 2,
       "passes": false,
       "dependsOn": ["TRC-009"],
@@ -765,7 +765,7 @@
         "Integration test: Verify AgentJudge correctly identifies all 5 intentional vulnerabilities",
         "Document which OWASP categories are testable with this agent"
       ],
-      "priority": 31,
+      "priority": 32,
       "phaseId": 6,
       "passes": false,
       "dependsOn": ["TRC-003", "TRC-008"],
@@ -799,7 +799,7 @@
         "Integration test: Seed from test fixtures and verify retrieval by OWASP category",
         "Document data format requirements and download instructions in docs/agent-attack-data.md"
       ],
-      "priority": 32,
+      "priority": 33,
       "phaseId": 3,
       "passes": false,
       "dependsOn": ["TRC-010"],
