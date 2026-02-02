@@ -361,7 +361,7 @@
       ],
       "priority": 15,
       "phaseId": 4,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-007"],
       "notes": "Report and hardening plan models for comprehensive security assessment output. AgentHardeningPlan is used by TRC-024.",
       "files": ["src/core/agent_report.py", "tests/core/test_agent_report.py"]
@@ -575,7 +575,7 @@
       ],
       "priority": 24,
       "phaseId": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-003", "TRC-008"],
       "notes": "Extend orchestrator for agent mode. AgentArenaState extends ArenaState - backward compatible.",
       "files": ["src/orchestrator/state.py", "src/orchestrator/graph.py", "tests/orchestrator/test_agent_arena.py"]

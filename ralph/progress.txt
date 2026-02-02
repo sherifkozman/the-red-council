@@ -98,3 +98,46 @@
   - **Error Messages**: Never echo untrusted input (like metadata fields) back in error messages without redaction/sanitization.
   - **Refactoring**: When extracting methods (like `_deserialize_template`), verify access to module-level constants (`_OWASP_BY_VALUE`).
 ---
+
+## 2026-02-02 - TRC-014
+- Implemented `AgentSecurityReport`, `AgentHardeningPlan`, and related models in `src/core/agent_report.py`.
+- Implemented robust `sanitize_markdown` with backslash escaping and regex replacement.
+- Implemented regex validation helper for user-supplied patterns.
+- Implemented `to_markdown` and `to_json` with error handling and sanitization.
+- Addressed Critical security findings:
+  - Fixed Markdown injection vulnerability.
+  - Added Regex validation (ReDoS protection).
+  - Fixed Enum sorting in table.
+  - Added consistency validation (Risk Score vs Findings).
+- Achieved 100% pass rate on 9 tests covering serialization, validation, and security edge cases.
+- Reviews completed: code-reviewer, silent-failure-hunter, security.
+- **Learnings for future iterations:**
+  - **Backslash Escaping**: In Python regex replacement lambdas, use `chr(92)` or carefully constructed strings to avoid `SyntaxError` or incorrect escaping.
+  - **Multi-line f-strings**: Use triple quotes `f"""` for strings spanning lines, or explicit `\n` in single-quoted strings.
+  - **Tool Interactions**: Be extremely careful with string escaping when using CLI tools to edit files; verify content if syntax errors appear.
+  - **Sanitization**: Never trust simple regex for Markdown sanitization; robust libraries are better, but if custom is needed, white-listing or aggressive escaping of control chars is key.
+---
+
+## 2026-02-02 - TRC-023
+- Implemented `AgentArenaState` extending `ArenaState` in `src/orchestrator/state.py`.
+- Added agent mode fields: `testing_mode`, `agent_config`, `agent_events`, `owasp_scores`.
+- Non-serialized `_instrumented_agent_ref` for agent wrapper reference.
+- Helper methods: `is_agent_mode()`, `add_agent_event()`, `to_serializable_dict()`, `from_arena_state()`.
+- Updated `src/orchestrator/graph.py` with mode-aware routing:
+  - `route_entry()`: Routes to 'attack' (LLM) or 'instrument' (agent).
+  - `build_agent_arena_graph()`: Standalone agent mode graph.
+  - `build_unified_arena_graph()`: Combined graph with conditional entry.
+- Created `src/orchestrator/agent_nodes.py` with agent-specific nodes:
+  - `instrument_node`: Initialize/validate agent instrumentation.
+  - `agent_attack_node`: Run attacks and capture events.
+  - `agent_judge_node`: Evaluate events with AgentJudge.
+  - `agent_done_node`: Complete session with summary.
+- Test coverage: 84% on new code, 51 tests passing.
+- Fixed Pydantic deprecation warning (ConfigDict instead of class Config).
+- Reviews completed: linting (ruff), type checking, security audit (manual).
+- **Learnings for future iterations:**
+  - **Pydantic v2**: Use `model_config = ConfigDict(...)` instead of nested `class Config`.
+  - **Non-serialized Fields**: Use `object.__setattr__` for private fields in Pydantic models.
+  - **Graph Composition**: LangGraph supports conditional entry points via `set_conditional_entry_point()`.
+  - **Backward Compatibility**: Extend base classes instead of replacing; use `hasattr()` checks for optional fields.
+  - **Coverage Focus**: For new features, target coverage on new files specifically, not entire module.
