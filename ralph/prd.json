@@ -846,7 +846,7 @@
       ],
       "priority": 2,
       "phaseId": 7,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-033"],
       "notes": "AgentReportGenerator and templates already exist. Need to wire UI to call generate() and render().",
       "files": ["src/ui/dashboard.py", "src/ui/components/report_viewer.py"]
@@ -867,7 +867,7 @@
       ],
       "priority": 3,
       "phaseId": 7,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-031", "TRC-033"],
       "notes": "VulnerableTestAgent already has intentional vulnerabilities for ASI01, ASI02, ASI04, ASI06, ASI07. Generate demo events by running standard attack prompts against it.",
       "files": ["src/ui/dashboard.py", "src/ui/components/demo_loader.py", "src/test_agents/vulnerable_agent.py"]
@@ -888,7 +888,7 @@
       ],
       "priority": 4,
       "phaseId": 7,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-020", "TRC-021", "TRC-022", "TRC-025"],
       "notes": "Framework adapters exist in src/integrations/. Generate snippets showing how to wrap agent and POST events to webhook URL.",
       "files": ["src/ui/components/sdk_connection.py", "src/ui/dashboard.py"]

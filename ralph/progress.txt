@@ -11,3 +11,36 @@
   - **Linting**: Run `ruff check` frequently to catch unused imports and variables early.
   - **Coverage**: Testing UI wiring requires mocking `st.*` calls and verifying call arguments.
 ---
+
+## 2026-02-02 - TRC-035
+- Implemented `src/ui/components/demo_loader.py` with simulated attack generation using `VulnerableTestAgent`.
+- Updated `src/ui/dashboard.py` to integrate demo mode and fix several security/logic issues.
+- Created `src/ui/state_utils.py` for centralized state management.
+- Implemented robust error handling and safety checks for demo execution.
+- Added `tests/ui/test_demo_loader.py` with 100% coverage.
+- Updated `tests/ui/test_dashboard_wiring.py` to cover new error handling paths.
+- Reviews completed: code-review, silent-failure-hunt, security, simplification.
+- **Learnings for future iterations:**
+  - **Streamlit Testing**: Global module patching (`sys.modules["streamlit"] = mock`) is more reliable than local patching.
+  - **Security**: Always validate object types before display/deserialization (`str(obj)` is risky). Use `secrets.token_urlsafe` for sessions.
+  - **State Management**: Centralize state keys and reset logic to avoid duplication and inconsistencies.
+  - **Testing**: When mocking multiple buttons in one render pass, use `side_effect` to distinguish them based on label/key.
+---
+
+## 2026-02-02 - TRC-036
+- Implemented `src/ui/components/sdk_connection.py` with SDK Integration panel.
+- Added "SDK Integration" tab to Agent Testing mode in `src/ui/dashboard.py`.
+- Framework selector supports: LangChain, LangGraph, MCP, Custom.
+- Auto-generated session ID and webhook URL displayed for each session.
+- Framework-specific code snippets with Python syntax highlighting.
+- Quick start guides for each framework integration.
+- Auth token input with HTML escaping for security.
+- Created `tests/ui/test_sdk_connection.py` with 34 tests, 94% coverage.
+- Updated existing dashboard tests for 5-tab layout.
+- Reviews completed: ruff lint (all checks passed), mypy (no issues in new file).
+- **Learnings for future iterations:**
+  - **Tab Count Changes**: When adding new tabs, update ALL existing tests that mock `st.tabs()` return value count.
+  - **Module Caching**: Tests with `sys.modules` mocks can conflict when run together. Add new mocked modules early.
+  - **Type Safety**: Use explicit casts (e.g., `str()`) when returning from session_state to satisfy mypy.
+  - **Code Snippets**: Use f-strings with doubled braces `{{}}` for dict literals in generated code.
+---
