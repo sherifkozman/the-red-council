@@ -276,7 +276,7 @@ class TestAgentCampaign:
         )
 
         # Mock httpx client
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"response": "Agent response"}
 
@@ -312,11 +312,11 @@ class TestAgentCampaign:
         )
 
         # Mock responses - first succeeds, second fails
-        mock_response_ok = AsyncMock()
+        mock_response_ok = MagicMock()
         mock_response_ok.status_code = 200
         mock_response_ok.json.return_value = {"response": "OK"}
 
-        mock_response_fail = AsyncMock()
+        mock_response_fail = MagicMock()
         mock_response_fail.status_code = 500
         mock_response_fail.text = "Server error"
 
@@ -395,7 +395,7 @@ class TestAgentCampaign:
             call_count += 1
             # Set cancel flag after first attack
             campaign._cancel_flag = True
-            response = AsyncMock()
+            response = MagicMock()
             response.status_code = 200
             response.json.return_value = {"response": "OK"}
             return response
@@ -471,7 +471,7 @@ class TestAgentCampaign:
             agent_config=agent_config,
         )
 
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"response": "Agent response"}
 
@@ -504,7 +504,7 @@ class TestAgentCampaign:
         callback = MagicMock()
         campaign.on_progress(callback)
 
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"response": "OK"}
 
@@ -591,7 +591,7 @@ class TestRunCampaign:
             endpoint_url="https://test.example.com/api",
         )
 
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"response": "OK"}
 
@@ -623,7 +623,7 @@ class TestRunCampaign:
 
         callback = MagicMock()
 
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"response": "OK"}
 

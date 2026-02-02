@@ -495,6 +495,9 @@ class TestIntegration:
     def test_start_campaign_background(self) -> None:
         """Test background campaign start returns early."""
         future = asyncio.Future()
+        def _close_and_return_future(coro):
+            coro.close()
+            return future
 
         with (
             patch.object(
@@ -515,7 +518,7 @@ class TestIntegration:
             patch.object(
                 campaign_runner,
                 "safe_run_async",
-                return_value=future,
+                side_effect=_close_and_return_future,
             ),
         ):
             mock_st.session_state = {"session_id": "s1"}

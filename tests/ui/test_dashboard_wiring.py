@@ -6,6 +6,8 @@ import pytest
 # Mock streamlit before importing dashboard
 mock_st = MagicMock()
 sys.modules["streamlit"] = mock_st
+sys.modules["streamlit.components"] = MagicMock()
+sys.modules["streamlit.components.v1"] = MagicMock()
 if "src.ui.dashboard" in sys.modules:
     del sys.modules["src.ui.dashboard"]
 
@@ -49,6 +51,7 @@ def mock_session_state():
     mock_st.get = state.get  # helper
     sys.modules["src.ui.components.event_stream"] = MagicMock()
     sys.modules["src.ui.components.remote_agent_config"] = MagicMock()
+    sys.modules["src.ui.components.campaign_runner"] = MagicMock()
     return state
 
 
@@ -139,6 +142,8 @@ def test_render_agent_mode(mock_session_state):
 
     # Mock st.columns to return different lengths based on input
     def columns_side_effect(spec, **kwargs):
+        if isinstance(spec, int):
+            return [MagicMock() for _ in range(spec)]
         if isinstance(spec, list) and len(spec) == 2:
             return [MagicMock(), MagicMock()]
         return [MagicMock(), MagicMock(), MagicMock()]  # Default to 3
@@ -146,17 +151,20 @@ def test_render_agent_mode(mock_session_state):
     mock_st.columns.side_effect = columns_side_effect
 
     # Mock button to return True for Run Evaluation
-    def button_side_effect(label, key=None, disabled=False, help=None):
+    def button_side_effect(label, **_kwargs):
         if label == "Run Evaluation":
             return True
         return False
 
     mock_st.button.side_effect = button_side_effect
 
-    # Mock asyncio.run to avoid actual execution loop issues in sync test
+    def _close_coro(coro):
+        coro.close()
+
     with (
-        patch("asyncio.run") as mock_asyncio_run,
+        patch("src.ui.dashboard.safe_run_async", side_effect=_close_coro) as mock_run_async,
         patch("src.ui.dashboard.render_demo_loader"),
+        patch("src.ui.dashboard.render_session_manager"),
     ):  # Mock new component
         render_agent_mode()
 
@@ -175,7 +183,7 @@ def test_render_agent_mode(mock_session_state):
         )
 
         # Verify run_agent_evaluation was called
-        mock_asyncio_run.assert_called_once()
+        mock_run_async.assert_called_once()
 
         # Verify rerun called
         mock_st.rerun.assert_called()
@@ -189,6 +197,8 @@ def test_render_agent_mode_with_events(mock_session_state):
     ]
     mock_session_state[AGENT_EVENTS_KEY] = mock_events
     mock_session_state[AGENT_SCORE_KEY] = MagicMock()
+    mock_st.button.side_effect = None
+    mock_st.button.return_value = False
 
     # Setup tabs - 9 tabs including Event Stream
     tabs = [MagicMock() for _ in range(9)]
@@ -199,6 +209,8 @@ def test_render_agent_mode_with_events(mock_session_state):
 
     # Mock st.columns
     def columns_side_effect(spec, **kwargs):
+        if isinstance(spec, int):
+            return [MagicMock() for _ in range(spec)]
         if isinstance(spec, list) and len(spec) == 2:
             return [MagicMock(), MagicMock()]
         return [MagicMock(), MagicMock(), MagicMock()]
@@ -211,6 +223,7 @@ def test_render_agent_mode_with_events(mock_session_state):
         patch("src.ui.dashboard.render_tool_registration_form"),
         patch("src.ui.dashboard.render_memory_config"),
         patch("src.ui.dashboard.render_demo_loader"),
+        patch("src.ui.dashboard.render_session_manager"),
         patch(
             "src.ui.components.agent_timeline.render_agent_timeline"
         ) as mock_timeline,
@@ -238,7 +251,7 @@ def test_clear_events(mock_session_state):
     mock_session_state[AGENT_SCORE_KEY] = "score"
 
     # Mock button side effect
-    def button_side_effect(label, key=None, disabled=False, help=None):
+    def button_side_effect(label, **_kwargs):
         if label == "Clear Events":
             return True
         return False
@@ -247,13 +260,19 @@ def test_clear_events(mock_session_state):
 
     # Mock tabs/columns - 9 tabs including Event Stream
     mock_st.tabs.return_value = [MagicMock()] * 9
-    mock_st.columns.return_value = [MagicMock()] * 3
+    def columns_side_effect(spec, **kwargs):
+        if isinstance(spec, int):
+            return [MagicMock() for _ in range(spec)]
+        return [MagicMock(), MagicMock(), MagicMock()]
+
+    mock_st.columns.side_effect = columns_side_effect
 
     with (
         patch("src.ui.dashboard.render_agent_config_panel"),
         patch("src.ui.dashboard.render_tool_registration_form"),
         patch("src.ui.dashboard.render_memory_config"),
         patch("src.ui.dashboard.render_demo_loader"),
+        patch("src.ui.dashboard.render_session_manager"),
         patch("src.ui.components.agent_timeline.render_agent_timeline"),
         patch("src.ui.components.tool_chain.render_tool_chain"),
         patch("src.ui.components.owasp_coverage.render_owasp_coverage"),
@@ -277,6 +296,8 @@ def test_start_campaign_validation(mock_session_state):
 
     mock_session_state["session_id"] = "test_session"
     container = MagicMock()
+    def _close_coro(coro):
+        coro.close()
 
     # Mock security checks
     with (
@@ -290,9 +311,9 @@ def test_start_campaign_validation(mock_session_state):
 
         # Test success path
         mock_validate.side_effect = lambda x: x
-        with patch("asyncio.run") as mock_asyncio:
+        with patch("src.ui.dashboard.safe_run_async", side_effect=_close_coro) as mock_run_async:
             start_campaign("secret", "prompt", container)
-            mock_asyncio.assert_called()
+            mock_run_async.assert_called()
             assert mock_session_state["is_running"] is True
 
     # Test rate limit failure
@@ -307,11 +328,14 @@ def test_start_campaign_failure(mock_session_state):
 
     mock_session_state["session_id"] = "test_session"
     container = MagicMock()
+    def _raise_after_close(coro):
+        coro.close()
+        raise Exception("Async loop error")
 
     with (
         patch("src.ui.dashboard.check_rate_limit", return_value=True),
         patch("src.ui.dashboard.validate_input", side_effect=lambda x: x),
-        patch("asyncio.run", side_effect=Exception("Async loop error")),
+        patch("src.ui.dashboard.safe_run_async", side_effect=_raise_after_close),
     ):
         start_campaign("secret", "prompt", container)
 
