@@ -27,6 +27,7 @@ from src.ui.components.sdk_connection import (
     _get_or_create_session_id,
     _get_snippet_for_framework,
     _get_webhook_url,
+    _render_copy_button,
     get_current_session_id,
     get_current_webhook_url,
     render_sdk_connection,
@@ -42,9 +43,13 @@ def mock_session_state():
 @pytest.fixture
 def mock_st(mock_session_state):
     """Create mock streamlit with session state."""
-    with patch.object(sdk_connection, "st") as mock:
+    with (
+        patch.object(sdk_connection, "st") as mock,
+        patch.object(sdk_connection, "components") as mock_components,
+    ):
         mock.session_state = mock_session_state
         mock.sidebar = MagicMock()
+        sdk_connection.components = mock_components
         yield mock
 
 
@@ -319,6 +324,8 @@ def test_render_sdk_connection_shows_session_info(mock_st, mock_session_state):
     mock_st.subheader.assert_called_with("SDK Integration")
     # Verify code block is shown
     assert mock_st.code.called
+    # Verify copy button rendered
+    assert sdk_connection.components.html.called
 
 
 def test_render_sdk_connection_framework_selector(mock_st, mock_session_state):
@@ -377,6 +384,16 @@ def test_render_sdk_connection_shows_quick_start_guide(mock_st, mock_session_sta
     # Verify markdown was called with quick start content
     markdown_calls = [str(call) for call in mock_st.markdown.call_args_list]
     assert any("Quick Start Guide" in str(call) for call in markdown_calls)
+
+
+def test_render_copy_button_injects_clipboard_js(mock_st):
+    """Test copy button HTML contains clipboard JS."""
+    _render_copy_button("print('hello')", key="test_copy")
+    assert sdk_connection.components.html.called
+    args, _kwargs = sdk_connection.components.html.call_args
+    html_content = args[0]
+    assert "navigator.clipboard.writeText" in html_content
+    assert "Copy Code" in html_content
 
 
 # =============================================================================

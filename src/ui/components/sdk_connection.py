@@ -13,11 +13,14 @@ Supports:
 """
 
 import html
+import json
 import logging
+import re
 import secrets
 from typing import Literal
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 logger = logging.getLogger(__name__)
 
@@ -422,6 +425,45 @@ def _get_snippet_for_framework(
     return func(session_id, webhook_url, auth_token)
 
 
+def _render_copy_button(snippet: str, key: str = "sdk_snippet_copy") -> None:
+    """Render a copy-to-clipboard button using a lightweight HTML component."""
+    safe_key = re.sub(r"[^a-zA-Z0-9_-]", "", key) or "sdk_snippet_copy"
+    payload = json.dumps(snippet)
+    html_content = f"""
+    <div style="margin: 0.5rem 0;">
+      <button id="{safe_key}_btn" style="
+        padding: 0.35rem 0.75rem;
+        background: #0b5fff;
+        color: #ffffff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      ">Copy Code</button>
+      <span id="{safe_key}_status" style="margin-left: 0.5rem; color: #2e7d32;"></span>
+    </div>
+    <script>
+      const btn = window.parent.document.getElementById("{safe_key}_btn");
+      const status = window.parent.document.getElementById("{safe_key}_status");
+      if (btn) {{
+        btn.addEventListener("click", async () => {{
+          try {{
+            await navigator.clipboard.writeText({payload});
+            if (status) {{
+              status.textContent = "Copied!";
+              setTimeout(() => {{ status.textContent = ""; }}, 1200);
+            }}
+          }} catch (err) {{
+            if (status) {{
+              status.textContent = "Copy failed";
+            }}
+          }}
+        }});
+      }}
+    </script>
+    """
+    components.html(html_content, height=45)
+
+
 def render_sdk_connection() -> None:
     """Render the SDK Connection Panel in the Agent Testing mode.
 
@@ -505,7 +547,10 @@ def render_sdk_connection() -> None:
     # Display code with syntax highlighting
     st.code(snippet, language="python", line_numbers=True)
 
-    # Copy button - Streamlit shows copy icon on code blocks
+    # Copy button
+    _render_copy_button(snippet, key="sdk_snippet_copy")
+
+    # Copy tip
     st.caption(
         "💡 Tip: Click on the code block and use Ctrl+A then Ctrl+C "
         "to copy, or hover over the code block and click the copy icon."
