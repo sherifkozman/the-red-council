@@ -659,9 +659,9 @@ class TestEdgeCases:
         assert response.status_code == 422  # Validation error
 
     def test_invalid_uuid_format(self, client):
-        """Test invalid UUID format returns 422."""
+        """Test invalid session ID returns 404."""
         response = client.get("/api/v1/agent/session/not-a-uuid/events")
-        assert response.status_code == 422
+        assert response.status_code == 404
 
     def test_re_evaluate_failed_session(self, client, sample_tool_call_event):
         """Test that a failed session can be re-evaluated."""
