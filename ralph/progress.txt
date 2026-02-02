@@ -17,6 +17,10 @@
 - Use `random.Random` instance for thread-safe sampling (TRC-003)
 - Safely represent/truncate objects for logging with `_safe_repr` (TRC-003)
 - Explicitly separate `args` and `kwargs` in logs to avoid collision (TRC-003)
+- Use `threading.RLock` for thread-safe singletons (TRC-006)
+- Sanitize exception logs (use `type(e).__name__` instead of `e`) to prevent info leaks (TRC-006)
+- Truncate inputs before expensive operations (DoS protection) (TRC-006)
+- Fail fast on security-critical dependencies (don't fail open) (TRC-006)
 
 ---
 
@@ -76,8 +80,8 @@ Researched 20+ agent-specific attack databases equivalent to HarmBench/PyRIT/gar
 **Priority 1 (Recommended):**
 | Dataset | Count | Description |
 |---------|-------|-------------|
-| ToolEmu | 144 | Tool-use safety test cases (ICLR\'24) |
-| R-Judge | 569 | Risk scenario interactions (EMNLP\'24) |
+| ToolEmu | 144 | Tool-use safety test cases (ICLR'24) |
+| R-Judge | 569 | Risk scenario interactions (EMNLP'24) |
 | MCPTox | 45+ | Real MCP server attacks |
 | garak | 1,000+ | NVIDIA vulnerability scanner probes |
 | ToolHijacker | 50 | Tool description injection (96.7% success) |
@@ -192,3 +196,65 @@ Day 7: Tool quietly reroutes API keys to attacker
   - Tool arguments logging must handle `args`/`kwargs` collisions explicitly.
   - Truncation of large inputs/outputs is critical for logging systems to prevent DoS or log spam.
   - Tests should cover disabled flags and concurrent usage for instrumentation code.
+
+## 2026-02-02 - TRC-004
+- Implemented `tool_registry` and `ToolRegistration` in `InstrumentedAgent`
+- Implemented `intercept_tool_call` with support for `*args` and `**kwargs`
+- Implemented `_record_tool_call_event` helper to reduce duplication
+- Implemented `get_tool_call_stats` restricted to registered tools for safety
+- Implemented robust argument masking with `inspect.signature.bind_partial`
+- Added `ToolInterceptionError` and `_recording_failures` counter
+- Achieved 100% test coverage for new functionality (verified with pytest)
+- Reviews completed: code-reviewer, silent-failure-hunter, security, code-simplifier
+- **Learnings for future iterations:**
+  - `random.Random()` methods are NOT thread-safe; calls must be inside a lock if the RNG instance is shared.
+  - Silent failure swallowing in logging is dangerous; maintain a failure counter and expose it.
+  - Stats dictionaries should be bounded (e.g., restrict to registered keys) to prevent memory exhaustion attacks.
+  - Argument masking should fail CLOSED (mask all) on any binding error.
+  - Code duplication in sync/async wrappers is a common pattern; extracting a `_record` helper simplifies maintenance.
+  - `inspect.signature.bind` vs `bind_partial`: `bind_partial` is safer if you might not have all args yet, but `bind` ensures validity. Used `bind_partial` as per review.
+
+## COMPLETED - Sun Feb  1 17:39:14 PST 2026
+All stories passed after 4 iterations.
+Total duration: 2120s
+
+## 2026-02-02 - TRC-005
+- Implemented memory access monitoring in `InstrumentedAgent` with `get_memory`, `set_memory`, `delete_memory`, `list_memory_keys`
+- Implemented `MemoryBackend` protocol for external integrations
+- Implemented rigorous security hardening:
+  - Input validation: Key patterns (prevent traversal/injection)
+  - Output sanitization: Redacted sensitive values in logs
+  - Resource limits: Max keys, max recording failures
+  - Thread safety: RLock, SystemRandom
+  - Safe logging: No secrets in exception messages
+- Updated `MemoryAccessEvent` schema to track success/failure
+- Achieved 92% test coverage for `src/agents/instrumented.py`
+- Reviews completed: code-reviewer, silent-failure-hunter, security, code-simplifier
+- **Learnings for future iterations:**
+  - `reprlib.repr` adds quotes to strings; tests must expect this.
+  - Pydantic `mode='before'` validators run before model init, affecting what you see in the object vs what you passed.
+  - Security protocols (like `MemoryBackend`) should document security expectations explicitly.
+  - Exception logging with `exc_info=True` is a security risk if stack traces contain secrets (args/locals).
+  - Explicit lock management is safer than relying on GIL for complex state (like stats aggregation).
+
+## COMPLETED - Sun Feb  1 17:52:32 PST 2026
+All stories passed after 1 iterations.
+Total duration: 728s
+
+## 2026-02-02 - TRC-006
+- Implemented `DivergenceDetector` in `src/agents/divergence.py` using `sentence-transformers`
+- Implemented semantic similarity detection with bucket-based severity (LOW/MEDIUM/HIGH)
+- Implemented robust fail-fast architecture (raises RuntimeError on model failure) instead of silent failure
+- Implemented security hardening:
+  - Thread-safe singleton with `threading.RLock`
+  - Input truncation to prevent DoS (max 1000 chars)
+  - Log sanitization (hide exception details)
+  - Defensive heuristic fallback (keyword-based)
+- Achieved 95% test coverage with comprehensive mocks and integration tests
+- Reviews completed: code-reviewer, silent-failure-hunter, security, code-simplifier
+- **Learnings for future iterations:**
+  - Inverted threshold logic is a common trap: clarify if threshold is "min match" or "max divergence".
+  - Silent failures in security components (returning None on error) are high-risk; prefer fail-fast or explicit error events.
+  - `lru_cache` on instance methods caches `self`, preventing garbage collection and causing cache misses if instance changes. Use module-level or static functions for caching.
+  - `sentence-transformers` model loading is heavy and singleton is preferred, but requires thread-safety.
+  - Unbounded inputs to embedding models are a DoS vector (tokenization cost + cache exhaustion). Always truncate.

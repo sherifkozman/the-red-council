@@ -125,7 +125,7 @@
       ],
       "priority": 4,
       "phaseId": 1,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-003"],
       "notes": "Tool call interception is critical for detecting ASI01 Excessive Agency",
       "files": ["src/agents/instrumented.py", "src/agents/errors.py", "tests/agents/test_instrumented.py"]
@@ -150,7 +150,7 @@
       ],
       "priority": 5,
       "phaseId": 1,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-003"],
       "notes": "Memory monitoring detects ASI07 Insecure Long-Term Memory",
       "files": ["src/agents/instrumented.py", "tests/agents/test_instrumented.py"]
@@ -173,7 +173,7 @@
       ],
       "priority": 6,
       "phaseId": 1,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-002", "TRC-003"],
       "notes": "Divergence detection identifies agent deception (saying vs doing). Uses same embedding model as attack_kb for consistency.",
       "files": ["src/agents/divergence.py", "tests/agents/test_divergence.py"]
