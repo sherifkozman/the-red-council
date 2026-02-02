@@ -18,6 +18,7 @@ set -u
 # =============================================================================
 CLI="claude"
 GEMINI_MODEL="gemini-3-pro-preview"   # Default Gemini model
+TARGET_STORY=""                 # Specific story to work on (empty = next by priority)
 MAX_ITERATIONS=32               # Match story count
 ITERATION_TIMEOUT=2400          # 40 minutes per iteration (complex stories)
 MAX_RETRIES=5                   # Retries per iteration on transient failures
@@ -38,6 +39,10 @@ while [[ $# -gt 0 ]]; do
       GEMINI_MODEL="$2"
       shift 2
       ;;
+    --story)
+      TARGET_STORY="$2"
+      shift 2
+      ;;
     --timeout)
       ITERATION_TIMEOUT="$2"
       shift 2
@@ -56,7 +61,8 @@ Usage: ./ralph.sh [OPTIONS] [max_iterations]
 
 Options:
   --cli <cli>          AI CLI to use: claude or gemini (default: claude)
-  --model <model>      Gemini model to use (default: gemini-2.5-pro)
+  --model <model>      Gemini model to use (default: gemini-3-pro-preview)
+  --story <id>         Work on specific story only (e.g., TRC-014)
   --timeout <seconds>  Timeout per iteration in seconds (default: 2400)
   --max-retries <n>    Max retries on transient failures (default: 5)
   --cooldown <seconds> Cooldown between iterations (default: 10)
@@ -64,9 +70,14 @@ Options:
 
 Examples:
   ./ralph.sh                              # Claude, 32 iterations
-  ./ralph.sh --cli gemini                 # Gemini with gemini-2.5-pro
-  ./ralph.sh --cli gemini --model gemini-3-flash    # Gemini with specific model
+  ./ralph.sh --cli gemini                 # Gemini with gemini-3-pro-preview
+  ./ralph.sh --cli gemini --story TRC-014 # Work on specific story
   ./ralph.sh --timeout 3600 5             # 1 hour timeout, 5 iterations
+
+Parallel execution (run in separate terminals):
+  ./ralph.sh --cli gemini --story TRC-014   # Terminal 1
+  ./ralph.sh --cli gemini --story TRC-023   # Terminal 2
+  ./ralph.sh --cli gemini --story TRC-016   # Terminal 3
 
 Monitoring:
   ./ralph-monitor.sh                # Real-time progress dashboard
@@ -146,6 +157,11 @@ update_state() {
     remaining=0
   fi
 
+  local target_story_json="null"
+  if [[ -n "$TARGET_STORY" ]]; then
+    target_story_json="\"$TARGET_STORY\""
+  fi
+
   cat > "$STATE_FILE" << EOF
 {
   "status": "$status",
@@ -158,6 +174,7 @@ update_state() {
   "last_update": "$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')",
   "pid": $$,
   "cli": "$CLI",
+  "target_story": $target_story_json,
   "error": "$error_msg"
 }
 EOF
@@ -333,6 +350,21 @@ preflight_check() {
     log_warn "No venv found - tests may fail without dependencies"
   fi
 
+  # Validate target story if specified
+  if [[ -n "$TARGET_STORY" ]]; then
+    local story_exists story_passes
+    story_exists=$(jq -r --arg id "$TARGET_STORY" '.userStories[] | select(.id == $id) | .id' "$PRD_FILE" 2>/dev/null)
+    if [[ -z "$story_exists" ]]; then
+      log_error "Story $TARGET_STORY not found in PRD"
+      ((errors++))
+    else
+      story_passes=$(jq -r --arg id "$TARGET_STORY" '.userStories[] | select(.id == $id) | .passes' "$PRD_FILE" 2>/dev/null)
+      if [[ "$story_passes" == "true" ]]; then
+        log_warn "Story $TARGET_STORY is already completed (passes: true)"
+      fi
+    fi
+  fi
+
   if [[ $errors -gt 0 ]]; then
     log_error "Pre-flight check failed with $errors error(s)"
     exit 1
@@ -429,6 +461,7 @@ archive_previous_run() {
 build_command() {
   local iteration="${1:-1}"
   local continue_flag=""
+  local story_directive=""
 
   # After first iteration, try to continue previous session if it exists
   # This helps when Claude hits turn limits mid-story
@@ -436,19 +469,24 @@ build_command() {
     continue_flag="--continue"
   fi
 
+  # If a specific story is targeted, prepend directive to prompt
+  if [[ -n "$TARGET_STORY" ]]; then
+    story_directive="IMPORTANT: Work ONLY on story $TARGET_STORY. Ignore all other stories. Complete this specific story, run tests, do reviews, commit, then EXIT.\n\n"
+  fi
+
   case "$CLI" in
     claude)
       # Claude Code: pipe prompt, non-interactive, skip permissions
       # Use --continue after first iteration to resume from turn limits
       if [[ -n "$continue_flag" ]]; then
-        echo "cd '$REPO_ROOT' && cat '$PROMPT_FILE' | claude -p --dangerously-skip-permissions $continue_flag"
+        echo "cd '$REPO_ROOT' && echo -e '$story_directive' | cat - '$PROMPT_FILE' | claude -p --dangerously-skip-permissions $continue_flag"
       else
-        echo "cd '$REPO_ROOT' && cat '$PROMPT_FILE' | claude -p --dangerously-skip-permissions"
+        echo "cd '$REPO_ROOT' && echo -e '$story_directive' | cat - '$PROMPT_FILE' | claude -p --dangerously-skip-permissions"
       fi
       ;;
     gemini)
       # Gemini CLI: use --yolo for auto-approve, specify model, pipe prompt via stdin
-      echo "cd '$REPO_ROOT' && cat '$PROMPT_FILE' | gemini --yolo --model '$GEMINI_MODEL'"
+      echo "cd '$REPO_ROOT' && echo -e '$story_directive' | cat - '$PROMPT_FILE' | gemini --yolo --model '$GEMINI_MODEL'"
       ;;
   esac
 }
@@ -587,6 +625,9 @@ main() {
   if [[ "$CLI" == "gemini" ]]; then
     echo "║ Model:            $GEMINI_MODEL"
   fi
+  if [[ -n "$TARGET_STORY" ]]; then
+    echo "║ Target Story:     $TARGET_STORY (single story mode)"
+  fi
   echo "║ Max iterations:   $MAX_ITERATIONS"
   echo "║ Timeout/iter:     ${ITERATION_TIMEOUT}s ($(($ITERATION_TIMEOUT / 60)) min)"
   echo "║ Max retries:      $MAX_RETRIES"
@@ -636,6 +677,21 @@ main() {
       update_state "completed" "$i" 0
       trap - EXIT
       exit 0
+    fi
+
+    # If targeting a specific story, check if it's already complete
+    if [[ -n "$TARGET_STORY" ]]; then
+      local target_passes
+      target_passes=$(jq -r --arg id "$TARGET_STORY" '.userStories[] | select(.id == $id) | .passes' "$PRD_FILE" 2>/dev/null)
+      if [[ "$target_passes" == "true" ]]; then
+        echo ""
+        echo "╔════════════════════════════════════════════════════════════════════╗"
+        echo "║ Target story $TARGET_STORY is complete!                            ║"
+        echo "╚════════════════════════════════════════════════════════════════════╝"
+        update_state "completed" "$i" "$remaining"
+        trap - EXIT
+        exit 0
+      fi
     fi
 
     # Update state
