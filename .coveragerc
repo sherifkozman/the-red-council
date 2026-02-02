@@ -3,7 +3,6 @@ branch = True
 source = src
 omit =
     src/mocks/*
-    src/ui/*
     */tests/*
     */test_*.py
     */*_test.py
