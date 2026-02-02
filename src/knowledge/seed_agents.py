@@ -18,9 +18,11 @@ Usage:
 """
 
 import argparse
+import json
 import logging
 import os
 import sys
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -98,6 +100,118 @@ OWASP_MAPPING: dict[str, list[OWASPAgenticRisk]] = {
 def map_to_owasp(pattern_type: str) -> list[OWASPAgenticRisk]:
     """Map a pattern type to OWASP Agentic risks."""
     return OWASP_MAPPING.get(pattern_type, [OWASPAgenticRisk.ASI09_WEAK_GUARDRAILS])
+
+
+def _load_records_from_path(path: Path) -> list[dict[str, Any]]:
+    """Load dataset records from JSON or JSONL path."""
+    records: list[dict[str, Any]] = []
+    if path.is_dir():
+        files = list(path.glob("*.jsonl")) + list(path.glob("*.json"))
+    else:
+        files = [path]
+
+    for file_path in files:
+        try:
+            if file_path.suffix == ".jsonl":
+                with open(file_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        records.append(json.loads(line))
+            elif file_path.suffix == ".json":
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, list):
+                    records.extend(data)
+                elif isinstance(data, dict):
+                    records.extend(data.get("records", []))
+        except Exception as e:
+            logger.warning("Failed to load %s: %s", file_path, e)
+    return records
+
+
+def _parse_attack_type(raw: str | None) -> AttackType:
+    if not raw:
+        return AttackType.DIRECT
+    try:
+        return AttackType(raw)
+    except ValueError:
+        return AttackType.DIRECT
+
+
+def _parse_technique(raw: str | None) -> Technique:
+    if not raw:
+        return Technique.INSTRUCTION_OVERRIDE
+    try:
+        return Technique(raw)
+    except ValueError:
+        return Technique.INSTRUCTION_OVERRIDE
+
+
+def _parse_agent_layer(raw: str | None) -> AgentLayer | None:
+    if not raw:
+        return None
+    try:
+        return AgentLayer(raw)
+    except ValueError:
+        return None
+
+
+def load_templates_from_path(
+    source: AgentAttackSource, path: Path
+) -> list[AgentAttackTemplate]:
+    """Load templates from a dataset path for a given source."""
+    records = _load_records_from_path(path)
+    templates: list[AgentAttackTemplate] = []
+
+    for i, rec in enumerate(records):
+        if not isinstance(rec, dict):
+            continue
+
+        prompt = str(rec.get("prompt") or rec.get("prompt_template") or "").strip()
+        if not prompt:
+            continue
+
+        record_id = str(rec.get("id") or rec.get("source_id") or f"{source.value}-{i}")
+        pattern_type = str(rec.get("pattern_type") or rec.get("category") or "").strip()
+        owasp_codes = rec.get("owasp") or rec.get("owasp_codes")
+
+        target_owasp: list[OWASPAgenticRisk] = []
+        if isinstance(owasp_codes, list):
+            for code in owasp_codes:
+                try:
+                    target_owasp.append(OWASPAgenticRisk(str(code)))
+                except ValueError:
+                    continue
+        if not target_owasp:
+            target_owasp = map_to_owasp(pattern_type)
+
+        templates.append(
+            AgentAttackTemplate(
+                id=record_id,
+                prompt_template=prompt,
+                attack_type=_parse_attack_type(rec.get("attack_type")),
+                technique=_parse_technique(rec.get("technique")),
+                target_owasp=target_owasp,
+                requires_tool_access=bool(rec.get("requires_tool_access", False)),
+                requires_memory_access=bool(rec.get("requires_memory_access", False)),
+                expected_agent_behavior=str(
+                    rec.get("expected_agent_behavior", "Agent should refuse or sanitize.")
+                ),
+                source=source.value,
+                description=str(rec.get("description", "Imported template")),
+                target_goal=str(rec.get("target_goal", "Security testing")),
+                sophistication=int(rec.get("sophistication", 5)),
+                tags=list(rec.get("tags", [])) if isinstance(rec.get("tags"), list) else [],
+                source_dataset=source,
+                source_id=str(rec.get("source_id", record_id)),
+                agent_layer=_parse_agent_layer(rec.get("agent_layer")),
+                real_world_tested=bool(rec.get("real_world_tested", True)),
+            )
+        )
+
+    return templates
 
 
 # =============================================================================
@@ -2433,8 +2547,12 @@ def generate_harmbench_templates() -> list[AgentAttackTemplate]:
 # =============================================================================
 
 
-def get_templates_for_source(source: AgentAttackSource) -> list[AgentAttackTemplate]:
+def get_templates_for_source(
+    source: AgentAttackSource, path: str | None = None
+) -> list[AgentAttackTemplate]:
     """Get templates for a specific source."""
+    if path:
+        return load_templates_from_path(source, Path(path))
     generators: dict[AgentAttackSource, Any] = {
         AgentAttackSource.AGENTDOJO: generate_agentdojo_templates,
         AgentAttackSource.ASB: generate_asb_templates,
@@ -2452,6 +2570,7 @@ def seed_from_source(
     kb: AgentAttackKnowledgeBase,
     source: AgentAttackSource,
     dry_run: bool = False,
+    path: str | None = None,
 ) -> SeedStats:
     """
     Seed the knowledge base from a specific source.
@@ -2464,7 +2583,7 @@ def seed_from_source(
     Returns:
         Statistics about the seeding operation
     """
-    templates = get_templates_for_source(source)
+    templates = get_templates_for_source(source, path)
     stats = SeedStats(source=source, total=len(templates))
 
     for template in templates:
@@ -2489,6 +2608,7 @@ def seed_all_sources(
     kb: AgentAttackKnowledgeBase,
     dry_run: bool = False,
     priority: int | None = None,
+    path: str | None = None,
 ) -> FullSeedResult:
     """
     Seed the knowledge base from all (or priority-filtered) sources.
@@ -2511,7 +2631,7 @@ def seed_all_sources(
         if source == AgentAttackSource.CUSTOM:
             continue  # Skip custom, handled by agent_seed_data.py
 
-        stats = seed_from_source(kb, source, dry_run)
+        stats = seed_from_source(kb, source, dry_run, path)
         result.stats_by_source[source] = stats
         result.total_added += stats.added
         result.total_skipped += stats.skipped
@@ -2565,6 +2685,11 @@ def main() -> int:
         help="Show what would be seeded without actually adding",
     )
     parser.add_argument(
+        "--path",
+        type=str,
+        help="Path to dataset file or directory (JSON/JSONL)",
+    )
+    parser.add_argument(
         "--db-path",
         type=str,
         default="./data/chroma_db",
@@ -2591,13 +2716,21 @@ def main() -> int:
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    # Environment check
+    # Environment check (defense in depth)
     if not check_environment() and not args.allow_production:
         logger.error(
             "Seeding blocked in production environment. "
             "Set RC_ENV=test/dev/ci or use --allow-production"
         )
         return 1
+
+    if not check_environment() and args.allow_production:
+        if os.getenv("RC_ALLOW_PRODUCTION_SEEDING") != "1":
+            logger.error(
+                "Production seeding requires RC_ALLOW_PRODUCTION_SEEDING=1 "
+                "in addition to --allow-production"
+            )
+            return 1
 
     # Initialize KB
     try:
@@ -2609,7 +2742,9 @@ def main() -> int:
     # Seed
     try:
         if args.source == "all":
-            result = seed_all_sources(kb, dry_run=args.dry_run, priority=args.priority)
+        result = seed_all_sources(
+            kb, dry_run=args.dry_run, priority=args.priority, path=args.path
+        )
             print(f"\n{'DRY RUN - ' if args.dry_run else ''}Seeding Summary:")
             print(f"  Total templates: {result.total_templates}")
             print(f"  Added: {result.total_added}")
@@ -2620,7 +2755,7 @@ def main() -> int:
                 return 1
         else:
             source = AgentAttackSource(args.source)
-            stats = seed_from_source(kb, source, dry_run=args.dry_run)
+            stats = seed_from_source(kb, source, dry_run=args.dry_run, path=args.path)
             print(f"\n{'DRY RUN - ' if args.dry_run else ''}Seeding {source.value}:")
             print(f"  Total templates: {stats.total}")
             print(f"  Added: {stats.added}")

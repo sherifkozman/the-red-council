@@ -32,6 +32,7 @@ from src.knowledge.seed_agents import (
     generate_injecagent_templates,
     get_templates_for_source,
     map_to_owasp,
+    load_templates_from_path,
     seed_all_sources,
     seed_from_source,
 )
@@ -212,6 +213,33 @@ class TestTemplateGeneration:
         )
         ids = [t.id for t in all_templates]
         assert len(ids) == len(set(ids)), "Duplicate template IDs found"
+
+
+class TestPathBasedSeeding:
+    """Tests for path-based dataset loading."""
+
+    def test_load_templates_from_path_jsonl(self, tmp_path):
+        """Test loading templates from JSONL file."""
+        path = tmp_path / "agentdojo.jsonl"
+        path.write_text(
+            \"\"\"\n{\"id\": \"ADOJO-TEST-1\", \"prompt\": \"Test prompt\", \"pattern_type\": \"tool_injection\", \"agent_layer\": \"tool_execution\"}\n{\"id\": \"ADOJO-TEST-2\", \"prompt\": \"Test prompt 2\", \"owasp\": [\"ASI04\"], \"requires_tool_access\": true}\n\"\"\".strip()\n        )
+
+        templates = load_templates_from_path(AgentAttackSource.AGENTDOJO, path)
+        assert len(templates) == 2
+        assert templates[0].id == "ADOJO-TEST-1"
+        assert templates[0].source_dataset == AgentAttackSource.AGENTDOJO
+
+    def test_seed_from_source_with_path(self, tmp_path):
+        """Test seeding from a path uses dataset records."""
+        path = tmp_path / "asb.json"
+        path.write_text(
+            \"\"\"\n[{\n  \"id\": \"ASB-TEST-1\",\n  \"prompt\": \"ASB prompt\",\n  \"pattern_type\": \"privilege_escalation\",\n  \"agent_layer\": \"tool_execution\"\n}]\n\"\"\".strip()\n        )
+
+        mock_kb = MagicMock()
+        mock_kb.get_by_id.return_value = None
+
+        stats = seed_from_source(mock_kb, AgentAttackSource.ASB, dry_run=True, path=str(path))
+        assert stats.total == 1
 
 
 class TestGetTemplatesForSource:

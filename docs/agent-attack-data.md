@@ -129,6 +129,19 @@ python -m src.knowledge.seed_agents --source all --dry-run
 python -m src.knowledge.seed_agents --source all -v
 ```
 
+### Seeding from Local Dataset Files
+
+Seed from JSON or JSONL files using the `--path` flag:
+
+```bash
+python -m src.knowledge.seed_agents --source agentdojo --path ./data/agentdojo.jsonl
+python -m src.knowledge.seed_agents --source asb --path ./data/asb.json
+```
+
+Supported formats:
+- JSONL: one JSON object per line
+- JSON: array of objects, or `{ "records": [...] }`
+
 ### Environment Requirements
 
 Seeding is blocked by default in production environments. Set one of:
@@ -183,6 +196,32 @@ AgentAttackTemplate(
     target_goal="Tool Output Exploitation",
 )
 ```
+
+### Dataset Record Format
+
+Minimal JSON/JSONL record fields:
+
+```json
+{
+  "id": "ADOJO-001",
+  "prompt": "Attack prompt text",
+  "description": "Short description",
+  "target_goal": "Goal name",
+  "pattern_type": "tool_injection",
+  "owasp": ["ASI04"],
+  "attack_type": "direct",
+  "technique": "instruction_override",
+  "requires_tool_access": true,
+  "requires_memory_access": false,
+  "expected_agent_behavior": "Agent should refuse or sanitize.",
+  "agent_layer": "tool_execution",
+  "real_world_tested": true,
+  "sophistication": 5,
+  "tags": ["injection", "tool"]
+}
+```
+
+Fields are optional except `prompt`; missing fields are filled with safe defaults.
 
 ## Security Considerations
 
