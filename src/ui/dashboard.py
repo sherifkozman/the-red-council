@@ -10,6 +10,7 @@ from src.agents.agent_judge import AgentJudge, AgentJudgeConfig
 from src.agents.judge import JudgeAgent
 from src.core.security import check_rate_limit, validate_input
 from src.providers.gemini_client import GeminiClient
+from src.ui.async_utils import safe_run_async
 from src.ui.components.chat import render_chat
 from src.ui.components.demo_loader import render_demo_loader
 from src.ui.components.empty_states import (
@@ -124,7 +125,7 @@ def start_campaign(secret: str, prompt: str, container):
     st.session_state.arena_state = None  # Reset
 
     try:
-        asyncio.run(run_loop(secret, prompt, container))
+        safe_run_async(run_loop(secret, prompt, container))
     except Exception as e:
         logger.error(f"Campaign failed: {e}", exc_info=True)
         st.error("Campaign failed. Please check server logs.")
@@ -183,6 +184,11 @@ def _on_remote_click() -> None:
 
 def render_agent_mode():
     """Render Agent testing mode UI."""
+    from src.ui.components.shortcuts import render_keyboard_shortcuts
+    
+    # Initialize keyboard shortcuts
+    render_keyboard_shortcuts()
+
     # Agent-specific sidebar panels
     render_session_manager()
     render_demo_loader()
@@ -342,7 +348,7 @@ def render_agent_mode():
             disabled=len(events) == 0,
             help="Run OWASP evaluation on captured events",
         ):
-            asyncio.run(run_agent_evaluation())
+            safe_run_async(run_agent_evaluation())
             mark_evaluation_run()  # Track onboarding progress
             st.rerun()
 
