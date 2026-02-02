@@ -247,7 +247,7 @@ class AgentSecurityReport(BaseModel):
                 elif risk in detected_categories:
                     status = "Detected"
                 else:
-                    status = "Safe"
+                    status = "No Issues Detected"
                     
                 md.append(f"| {risk.value} - {risk.name} | {tested} | {status} |")
                 

@@ -250,7 +250,7 @@ def render_report_sections(
             elif risk in detected_categories:
                 status = "🔴 Detected"
             else:
-                status = "🟢 Safe"
+                status = "🟢 No Issues Detected"
 
             coverage_data.append(
                 {

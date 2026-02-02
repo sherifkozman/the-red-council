@@ -140,6 +140,15 @@ def test_generate_empty_events(mock_score):
     # Divergence comes from score, so it should still be present if score has it
     assert report.divergence_analysis.divergence_count == 1
 
+def test_recommendation_priority_and_category_inference(mock_score):
+    """Test recommendation priority and category inference."""
+    generator = AgentReportGenerator()
+    report = generator.generate(mock_score, [])
+    assert report.recommendations
+    rec = report.recommendations[0]
+    assert rec.category == OWASPAgenticRisk.ASI01_EXCESSIVE_AGENCY
+    assert rec.priority.value == "HIGH"
+
 def test_custom_template_dir(tmp_path):
     """Test loading template from custom directory."""
     template_file = tmp_path / "report.md.j2"
