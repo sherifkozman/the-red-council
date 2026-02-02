@@ -625,7 +625,7 @@
       ],
       "priority": 26,
       "phaseId": 5,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-008", "TRC-015"],
       "notes": "API endpoints for programmatic access. Session-based for stateful agent testing.",
       "files": ["src/api/agent_routes.py", "src/api/main.py", "tests/api/test_agent_routes.py"]

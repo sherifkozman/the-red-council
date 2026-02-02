@@ -323,3 +323,35 @@ Stopped at iteration 1 by EXIT
   - **JudgeScore Schema**: Verify required fields (leaked_secret, leaked_instructions) when creating test fixtures.
   - **Remediation Templates**: Store description, code_example, effort as tuples for consistent structure.
 ---
+
+## 2026-02-02 - TRC-025
+- Implemented API endpoints for agent testing mode in `src/api/agent_routes.py`.
+- Features:
+  - FastAPI router with prefix `/agent` (mounted at `/api/v1`)
+  - POST `/api/v1/agent/session` - Create agent testing session with optional context/target_secret
+  - POST `/api/v1/agent/session/{session_id}/events` - Submit agent events (max 100 per request)
+  - POST `/api/v1/agent/session/{session_id}/evaluate` - Trigger background evaluation
+  - GET `/api/v1/agent/session/{session_id}/events` - Retrieve events with pagination
+  - GET `/api/v1/agent/session/{session_id}/score` - Get AgentJudgeScore
+  - GET `/api/v1/agent/session/{session_id}/report` - Get AgentSecurityReport (JSON or Markdown)
+  - DELETE `/api/v1/agent/session/{session_id}` - Cleanup session
+  - GET `/api/v1/agent/session/{session_id}` - Get session info
+  - Rate limiting on all POST endpoints via `rate_limit_dependency`
+  - Bearer token authentication via `verify_bearer_token`
+  - Session eviction at MAX_SESSIONS (100) capacity with FIFO policy
+  - MAX_EVENTS_PER_SESSION (1000) limit per session
+  - Background task for evaluation using BackgroundTasks
+  - Pydantic request/response models for all endpoints
+  - Event parsing for all AgentEvent types (tool_call, memory_access, action, speech, divergence)
+  - Data sanitization for score and report responses
+- Updated `src/api/main.py` to include agent router.
+- Created `tests/api/test_agent_routes.py` with 31 tests and 92% coverage.
+- Reviews completed: council code-review, council security audit.
+- **Learnings for future iterations:**
+  - **Rate Limiter Sharing**: Reset `_rate_limiter._requests` between tests to avoid cross-test pollution.
+  - **Session State Cleanup**: Use fixture with clear() before and after each test.
+  - **Status Enum Values**: When checking error messages, use `.lower()` for case-insensitive matching.
+  - **Capacity Testing**: Test eviction logic by manipulating state directly rather than hitting API repeatedly.
+  - **Background Tasks**: TestClient doesn't complete background tasks; mock or check status later.
+  - **API Patterns**: Follow existing routes.py patterns for consistency (rate_limit, bearer_token, sanitization).
+---

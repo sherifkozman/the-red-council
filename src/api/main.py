@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from src.api.routes import router as runs_router
+from src.api.agent_routes import router as agent_router
 from src.api.security import SecurityHeadersMiddleware
 
 app = FastAPI(
@@ -17,11 +18,11 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000", 
-        "http://localhost:8000", 
+        "http://localhost:3000",
+        "http://localhost:8000",
         "http://localhost:3001",
         "http://localhost:3003",
-        "http://localhost:8001"
+        "http://localhost:8001",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -29,6 +30,7 @@ app.add_middleware(
 )
 
 app.include_router(runs_router)
+app.include_router(agent_router, prefix="/api/v1")
 
 
 @app.get("/health")
