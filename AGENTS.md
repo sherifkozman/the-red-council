@@ -21,3 +21,12 @@
 
 ### Constants
 - Define constants at the top of the module for easier maintenance and visibility.
+
+## Testing Patterns
+
+### Integration Testing
+- **Mocking Strategy**: Only mock *external* dependencies (like LLM APIs). Do NOT mock the system-under-test (e.g., don't mock `AgentJudge` when testing `AgentJudge`).
+- **Negative Testing**: Always include a "benign path" test to ensure no false positives.
+- **Error Propagation**: Explicitly test that exceptions in wrapped components (tools) are propagated correctly and recorded as failure events.
+- **Concurrency**: For async components, include a simple concurrency test (e.g., `asyncio.gather`) to catch race conditions in state recording.
+- **Secrets in Tests**: Never hardcode secrets. Use `os.getenv` or generated values. Use secure comparison (`hmac.compare_digest`) if testing auth logic, though simple equality is often sufficient for functional tests.

@@ -739,7 +739,7 @@
       ],
       "priority": 10,
       "phaseId": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-009"],
       "notes": "Early integration test catches issues before Phase 3. Run after TRC-009.",
       "files": ["tests/integration/test_phase2_smoke.py"]

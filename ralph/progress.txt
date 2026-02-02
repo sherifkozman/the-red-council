@@ -15,3 +15,23 @@
   - **Fail-Safe**: In security monitoring, a broken monitor must raise a HIGH severity alert, not fail silently.
   - **Floating Point**: Validate weights with tolerance (`abs(x-1) > 1e-6`).
   - **Heuristics**: Regex is brittle; combine with entropy or semantic analysis where possible.
+
+## 2026-02-02 - TRC-030
+- Implemented robust integration tests in `tests/integration/test_phase2_smoke.py`
+- Verified end-to-end flow: InstrumentedAgent -> Events -> AgentJudge -> Score
+- Added tests for:
+  - Attack pattern detection (ASI02, ASI06, ASI07)
+  - Benign/Safe path (No false positives)
+  - Error propagation and recording
+  - Concurrent event recording safety
+  - Memory key validation vs detection
+- Addressed security and reliability reviews:
+  - Removed hardcoded secrets (used env vars/mock)
+  - Added concurrency checks
+  - Split complex tests for clarity
+- **Learnings for future iterations:**
+  - **Testing Observers**: Test both *prevention* (if applicable) and *detection*. `InstrumentedAgent` blocks some invalid keys but observes others.
+  - **Mocking Risks**: Avoid mocking the system-under-test. Only mock external dependencies (like the base LLM judge).
+  - **Assertions**: Assert *absence* of violations in benign cases to prevent noisy detectors.
+  - **Strictness**: Avoid asserting exact floating point scores if logic changes; assert thresholds (e.g., score < 8.0).
+---
