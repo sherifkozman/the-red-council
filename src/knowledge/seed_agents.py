@@ -2742,9 +2742,9 @@ def main() -> int:
     # Seed
     try:
         if args.source == "all":
-        result = seed_all_sources(
-            kb, dry_run=args.dry_run, priority=args.priority, path=args.path
-        )
+            result = seed_all_sources(
+                kb, dry_run=args.dry_run, priority=args.priority, path=args.path
+            )
             print(f"\n{'DRY RUN - ' if args.dry_run else ''}Seeding Summary:")
             print(f"  Total templates: {result.total_templates}")
             print(f"  Added: {result.total_added}")

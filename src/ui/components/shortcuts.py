@@ -92,7 +92,7 @@ def render_keyboard_shortcuts():
     if action_label:
         target = COMMAND_ACTIONS.get(action_label, action_label)
         trigger_action_js = f"clickButton('{target}', false);"
-    js_code = f"""
+    js_code = """
     <script>
     let shortcutLock = false;
     
@@ -177,9 +177,10 @@ def render_keyboard_shortcuts():
     });
 
     // Trigger command palette action (if any)
-    {trigger_action_js}
+    __TRIGGER_ACTION__
     </script>
     """
+    js_code = js_code.replace("__TRIGGER_ACTION__", trigger_action_js)
 
     # Inject the JS (height=0 to be invisible)
     components.html(js_code, height=0, width=0)
