@@ -141,6 +141,11 @@ update_state() {
     elapsed=$(($(date +%s) - LOOP_START_TIME))
   fi
 
+  # Ensure remaining is a valid number, default to 0 if not
+  if ! [[ "$remaining" =~ ^[0-9]+$ ]]; then
+    remaining=0
+  fi
+
   cat > "$STATE_FILE" << EOF
 {
   "status": "$status",

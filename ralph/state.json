@@ -1,0 +1,13 @@
+{
+  "status": "retrying",
+  "current_iteration": 6,
+  "max_iterations": 32,
+  "remaining_stories": 19,
+  "completed_stories": 13,
+  "total_stories": 32,
+  "elapsed_seconds": 5977,
+  "last_update": "2026-02-01T19:56:48-08:00",
+  "pid": 61686,
+  "cli": "gemini",
+  "error": "Retry after RATE_LIMIT (attempt 1)"
+}
