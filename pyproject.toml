@@ -1,0 +1,189 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "the-red-council"
+version = "0.5.0"
+description = "LLM Adversarial Security Arena - Test any LLM with an HTTP endpoint"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "The Red Council Team"}
+]
+keywords = [
+    "llm",
+    "security",
+    "adversarial-testing",
+    "ai-agents",
+    "owasp",
+    "red-team"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # Core
+    "pydantic>=2.0.0,<3.0.0",
+    "pydantic-settings>=2.0.0,<3.0.0",
+    # API
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "httpx>=0.24.0",
+    # ML/Embeddings
+    "sentence-transformers>=2.0.0",
+    "chromadb>=0.4.0",
+    # Google AI
+    "google-generativeai>=0.3.0",
+    "google-genai>=1.0.0",
+    # UI
+    "streamlit>=1.20.0",
+    "streamlit-agraph>=0.0.45",
+    # Templating
+    "jinja2>=3.0.0",
+    # Utilities
+    "python-dotenv>=1.0.0",
+    "tenacity>=8.0.0",
+    "pyyaml>=6.0.0",
+    # Visualization fallback
+    "networkx>=3.0.0",
+    "matplotlib>=3.0.0",
+]
+
+[project.optional-dependencies]
+# LangChain integration
+langchain = [
+    "langchain>=0.1.0,<0.3.0",
+    "langchain-core>=0.1.0,<0.3.0",
+]
+
+# LangGraph integration
+langgraph = [
+    "langgraph>=0.0.20,<2.0.0",
+]
+
+# MCP (Model Context Protocol) integration
+mcp = [
+    "mcp>=0.1.0,<1.0.0",
+]
+
+# All framework integrations
+all-frameworks = [
+    "the-red-council[langchain,langgraph,mcp]",
+]
+
+# Development dependencies
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "pytest-benchmark>=4.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "types-pyyaml>=6.0.0",
+    "types-requests>=2.28.0",
+]
+
+# Documentation
+docs = [
+    "mkdocs>=1.4.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.20.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sherifkozman/DeepMind"
+Documentation = "https://github.com/sherifkozman/DeepMind/docs"
+Repository = "https://github.com/sherifkozman/DeepMind.git"
+Issues = "https://github.com/sherifkozman/DeepMind/issues"
+
+[project.scripts]
+red-council = "src.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.md", "*.j2", "*.yaml", "*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "benchmark: marks tests as benchmarks",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+fail_under = 80
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "S",   # flake8-bandit (security)
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "S101",  # assert usage (needed for tests)
+    "S105",  # hardcoded password (false positives in tests)
+    "S106",  # hardcoded password (false positives in tests)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106"]
+"src/knowledge/agent_seed_data.py" = ["S105", "S106"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false

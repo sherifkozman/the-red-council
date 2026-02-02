@@ -52,13 +52,41 @@ cd the-red-council
 # 2. Setup Backend
 python -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+
+# Basic installation (core functionality)
+pip install -e .
+
+# Or with framework integrations:
+pip install -e ".[langchain]"      # LangChain integration
+pip install -e ".[langgraph]"      # LangGraph integration
+pip install -e ".[mcp]"            # MCP protocol integration
+pip install -e ".[all-frameworks]" # All framework integrations
+
+# Development dependencies (for contributing)
+pip install -e ".[dev]"
+
+# Seed the knowledge base
 python -m scripts.seed_kb
 
 # 3. Setup Frontend
 cd frontend
 pnpm install
 ```
+
+### Installation Options
+
+The Red Council supports optional dependencies for framework integrations:
+
+| Extra | Install Command | Description |
+|-------|-----------------|-------------|
+| Core | `pip install -e .` | Core functionality, UI, and API |
+| langchain | `pip install -e ".[langchain]"` | LangChain agent integration |
+| langgraph | `pip install -e ".[langgraph]"` | LangGraph workflow integration |
+| mcp | `pip install -e ".[mcp]"` | MCP protocol integration |
+| all-frameworks | `pip install -e ".[all-frameworks]"` | All framework integrations |
+| dev | `pip install -e ".[dev]"` | Development tools (pytest, ruff, mypy) |
+
+**Note:** Framework extras are optional. The core package works without any framework integration installed.
 
 ### Running the Arena
 
