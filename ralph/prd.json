@@ -50,7 +50,7 @@
       ],
       "priority": 1,
       "phaseId": 1,
-      "passes": false,
+      "passes": true,
       "dependsOn": [],
       "notes": "Reference: https://owasp.org/www-project-top-10-for-large-language-model-applications/",
       "files": ["src/core/owasp_agentic.py", "tests/core/test_owasp_agentic.py"]
@@ -74,7 +74,7 @@
       ],
       "priority": 2,
       "phaseId": 1,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-001"],
       "notes": "These schemas form the observation layer for the instrumented agent. AgentEvent union and AgentInstrumentationConfig are critical for downstream stories.",
       "files": ["src/core/agent_schemas.py", "tests/core/test_agent_schemas.py"]
@@ -102,7 +102,7 @@
       ],
       "priority": 3,
       "phaseId": 1,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-002"],
       "notes": "This is the core SDK class that users will use to wrap their agents",
       "files": ["src/agents/instrumented.py", "tests/agents/test_instrumented.py"]
