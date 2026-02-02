@@ -19,6 +19,19 @@ _runs: Dict[UUID, Dict[str, Any]] = {}
 _run_queues: Dict[UUID, asyncio.Queue[Dict[str, Any]]] = {}
 
 
+def _verify_run_ownership(run_id: UUID, owner: str) -> Dict[str, Any]:
+    """Verify run exists and belongs to the requesting user."""
+    if run_id not in _runs:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    run_data = _runs[run_id]
+    if run_data.get("owner") != owner:
+        # Return 404 to avoid leaking existence of other users' runs
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    return run_data
+
+
 def sanitize_event(event: Any) -> Any:
     """Recursively remove sensitive fields like target_secret."""
     if isinstance(event, dict):
@@ -50,7 +63,7 @@ async def _execute_run(
         ):
             # MED-002: Sanitize event before enqueuing
             safe_event = sanitize_event(event)
-            
+
             # Update global state for polling
             _runs[run_id]["result"] = safe_event
 
@@ -79,20 +92,21 @@ async def _execute_run(
 
 @router.post("", response_model=StartRunResponse, status_code=202)
 async def start_run(
-    request: StartRunRequest, 
+    request: StartRunRequest,
     background_tasks: BackgroundTasks,
     _: None = Depends(rate_limit_dependency),
-    token: str | None = Depends(verify_bearer_token),
+    user_id: str = Depends(verify_bearer_token),
 ) -> StartRunResponse:
     """
     Start a new arena run.
-    NOTE: Access control is not implemented for Hackathon MVP (Known IDOR risk).
+    Runs are scoped to the authenticated user.
     """
     run_id = uuid4()
 
-    # Initialize run state
+    # Initialize run state with owner for access control
     _runs[run_id] = {
         "run_id": run_id,
+        "owner": user_id,
         "status": RunStatus.PENDING,
         "result": None,
         "error": None,
@@ -112,31 +126,28 @@ async def start_run(
 async def get_run_status(
     run_id: UUID,
     _: None = Depends(rate_limit_dependency),
-    token: str | None = Depends(verify_bearer_token),
+    user_id: str = Depends(verify_bearer_token),
 ) -> RunResponse:
-    """Get status of an arena run (Polling)."""
-    if run_id not in _runs:
-        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-    
-    run_data = _runs[run_id]
+    """Get status of an arena run (Polling). Only accessible by the run owner."""
+    run_data = _verify_run_ownership(run_id, user_id)
+
     return RunResponse(
         run_id=run_id,
         status=run_data.get("status", RunStatus.FAILED),
         result=run_data.get("result"),
-        error=run_data.get("error")
+        error=run_data.get("error"),
     )
 
 
 @router.get("/{run_id}/stream")
 async def stream_run(
-    run_id: UUID, 
+    run_id: UUID,
     request: Request,
     _: None = Depends(rate_limit_dependency),
-    token: str | None = Depends(verify_bearer_token),
+    user_id: str = Depends(verify_bearer_token),
 ) -> StreamingResponse:
-    """Stream run events (SSE)."""
-    if run_id not in _runs:
-        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    """Stream run events (SSE). Only accessible by the run owner."""
+    _verify_run_ownership(run_id, user_id)
 
     queue = _get_or_create_queue(run_id)
     start_time = asyncio.get_event_loop().time()
@@ -152,7 +163,8 @@ async def stream_run(
 
                 # Check timeout
                 if asyncio.get_event_loop().time() - start_time > MAX_DURATION:
-                    yield f"data: {json.dumps({'type': 'timeout', 'run_id': str(run_id)})}\n\n"
+                    timeout_event = {"type": "timeout", "run_id": str(run_id)}
+                    yield f"data: {json.dumps(timeout_event)}\n\n"
                     break
 
                 try:

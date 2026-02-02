@@ -176,6 +176,19 @@ def _get_session(session_id: UUID) -> Dict[str, Any]:
     return _sessions[session_id]
 
 
+def _verify_session_ownership(session_id: UUID, owner: str) -> Dict[str, Any]:
+    """Verify session exists and belongs to the requesting user."""
+    if session_id not in _sessions:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    session = _sessions[session_id]
+    if session.get("owner") != owner:
+        # Return 404 to avoid leaking existence of other users' sessions
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    return session
+
+
 def _parse_event(event_data: Dict[str, Any], session_id: UUID) -> Optional[AgentEvent]:
     """
     Parse event dictionary into typed AgentEvent.
@@ -284,10 +297,11 @@ async def _run_evaluation(session_id: UUID) -> None:
 async def create_session(
     request: CreateSessionRequest,
     _: None = Depends(rate_limit_dependency),
-    token: Optional[str] = Depends(verify_bearer_token),
+    user_id: str = Depends(verify_bearer_token),
 ) -> CreateSessionResponse:
     """
     Create a new agent testing session.
+    Sessions are scoped to the authenticated user.
 
     Returns a session_id to use for subsequent operations.
     """
@@ -296,6 +310,7 @@ async def create_session(
     session_id = uuid4()
     _sessions[session_id] = {
         "session_id": session_id,
+        "owner": user_id,
         "status": SessionStatus.ACTIVE,
         "events": [],
         "context": request.context,
@@ -316,14 +331,14 @@ async def submit_events(
     session_id: UUID,
     request: SubmitEventsRequest,
     _: None = Depends(rate_limit_dependency),
-    token: Optional[str] = Depends(verify_bearer_token),
+    user_id: str = Depends(verify_bearer_token),
 ) -> SubmitEventsResponse:
     """
-    Submit agent events to a session.
+    Submit agent events to a session. Only accessible by the session owner.
 
     Events are validated and stored for later evaluation.
     """
-    session = _get_session(session_id)
+    session = _verify_session_ownership(session_id, user_id)
 
     if session["status"] != SessionStatus.ACTIVE:
         raise HTTPException(
@@ -360,14 +375,14 @@ async def evaluate_session(
     request: EvaluateRequest,
     background_tasks: BackgroundTasks,
     _: None = Depends(rate_limit_dependency),
-    token: Optional[str] = Depends(verify_bearer_token),
+    user_id: str = Depends(verify_bearer_token),
 ) -> EvaluateResponse:
     """
-    Trigger evaluation for a session.
+    Trigger evaluation for a session. Only accessible by the session owner.
 
     Evaluation runs in the background. Poll /session/{session_id}/score for results.
     """
-    session = _get_session(session_id)
+    session = _verify_session_ownership(session_id, user_id)
 
     if session["status"] not in (SessionStatus.ACTIVE, SessionStatus.FAILED):
         raise HTTPException(
@@ -404,14 +419,15 @@ async def get_events(
     session_id: UUID,
     limit: int = 100,
     offset: int = 0,
-    token: Optional[str] = Depends(verify_bearer_token),
+    _: None = Depends(rate_limit_dependency),
+    user_id: str = Depends(verify_bearer_token),
 ) -> GetEventsResponse:
     """
-    Retrieve events for a session.
+    Retrieve events for a session. Only accessible by the session owner.
 
     Supports pagination via limit and offset parameters.
     """
-    session = _get_session(session_id)
+    session = _verify_session_ownership(session_id, user_id)
     events: List[AgentEvent] = session["events"]
 
     # Paginate
@@ -428,14 +444,15 @@ async def get_events(
 @router.get("/session/{session_id}/score", response_model=GetScoreResponse)
 async def get_score(
     session_id: UUID,
-    token: Optional[str] = Depends(verify_bearer_token),
+    _: None = Depends(rate_limit_dependency),
+    user_id: str = Depends(verify_bearer_token),
 ) -> GetScoreResponse:
     """
-    Get the evaluation score for a session.
+    Get the evaluation score for a session. Only accessible by the session owner.
 
     Returns null score if evaluation is still in progress.
     """
-    session = _get_session(session_id)
+    session = _verify_session_ownership(session_id, user_id)
 
     score_data = None
     if session["score"]:
@@ -453,14 +470,15 @@ async def get_score(
 async def get_report(
     session_id: UUID,
     format: str = "json",
-    token: Optional[str] = Depends(verify_bearer_token),
+    _: None = Depends(rate_limit_dependency),
+    user_id: str = Depends(verify_bearer_token),
 ) -> GetReportResponse:
     """
-    Get the full security report for a session.
+    Get the full security report for a session. Only accessible by the session owner.
 
     Supports format parameter: 'json' (default) or 'markdown'.
     """
-    session = _get_session(session_id)
+    session = _verify_session_ownership(session_id, user_id)
 
     report_data = None
     markdown_data = None
@@ -483,13 +501,13 @@ async def get_report(
 @router.delete("/session/{session_id}", response_model=DeleteSessionResponse)
 async def delete_session(
     session_id: UUID,
-    token: Optional[str] = Depends(verify_bearer_token),
+    _: None = Depends(rate_limit_dependency),
+    user_id: str = Depends(verify_bearer_token),
 ) -> DeleteSessionResponse:
     """
-    Delete a session and all associated data.
+    Delete a session and all associated data. Only accessible by the session owner.
     """
-    if session_id not in _sessions:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    _verify_session_ownership(session_id, user_id)
 
     del _sessions[session_id]
     logger.info(f"Deleted agent testing session: {session_id}")
@@ -500,12 +518,13 @@ async def delete_session(
 @router.get("/session/{session_id}", response_model=SessionInfoResponse)
 async def get_session_info(
     session_id: UUID,
-    token: Optional[str] = Depends(verify_bearer_token),
+    _: None = Depends(rate_limit_dependency),
+    user_id: str = Depends(verify_bearer_token),
 ) -> SessionInfoResponse:
     """
-    Get session status and summary information.
+    Get session status and summary information. Only accessible by the session owner.
     """
-    session = _get_session(session_id)
+    session = _verify_session_ownership(session_id, user_id)
 
     return SessionInfoResponse(
         session_id=session_id,
