@@ -1,16 +1,15 @@
 import json
 import logging
 import os
-import shutil
 import stat
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from glob import glob
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 import streamlit as st
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.core.agent_report import AgentSecurityReport
 from src.core.agent_schemas import (
@@ -41,19 +40,49 @@ MAX_TAGS = 20
 MAX_TAG_LEN = 30
 MAX_EVENTS_LIMIT = 10000  # Hard limit on events
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB file size limit
+DEFAULT_RETENTION_DAYS = 0  # 0 = disabled
+DEFAULT_MAX_SESSIONS = 0  # 0 = disabled
 
 class SessionMetadata(BaseModel):
     """Metadata for a saved session."""
 
     id: str
-    name: str
-    description: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
-    event_count: int = 0
+    name: str = Field(..., max_length=MAX_NAME_LEN)
+    description: Optional[str] = Field(default=None, max_length=MAX_DESC_LEN)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    event_count: int = Field(0, ge=0)
     has_score: bool = False
     has_report: bool = False
     tags: List[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def sanitize(cls, data: Any) -> Any:
+        """Sanitize untrusted metadata before instantiation."""
+        if not isinstance(data, dict):
+            raise TypeError("SessionMetadata input must be a dict")
+        clean = data.copy()
+        name = str(clean.get("name", "")).strip()[:MAX_NAME_LEN]
+        clean["name"] = name or "Untitled Session"
+        desc = clean.get("description")
+        if desc is not None:
+            clean["description"] = str(desc).strip()[:MAX_DESC_LEN]
+        tags = clean.get("tags") or []
+        if not isinstance(tags, list):
+            tags = []
+        cleaned_tags = []
+        for tag in tags[:MAX_TAGS]:
+            tag = str(tag).strip()
+            if not tag:
+                continue
+            if len(tag) > MAX_TAG_LEN:
+                continue
+            if not tag.replace("-", "").replace("_", "").isalnum():
+                continue
+            cleaned_tags.append(tag)
+        clean["tags"] = list(dict.fromkeys(cleaned_tags))
+        return clean
 
 
 class SessionManager:
@@ -62,6 +91,24 @@ class SessionManager:
     def __init__(self, session_dir: Optional[str] = None):
         self.session_dir = session_dir or SESSION_DIR
         os.makedirs(self.session_dir, exist_ok=True)
+
+    def _retention_days(self) -> int:
+        val = os.getenv("RC_SESSION_RETENTION_DAYS")
+        if not val:
+            return DEFAULT_RETENTION_DAYS
+        try:
+            return max(0, int(val))
+        except ValueError:
+            return DEFAULT_RETENTION_DAYS
+
+    def _max_sessions(self) -> int:
+        val = os.getenv("RC_MAX_SESSIONS")
+        if not val:
+            return DEFAULT_MAX_SESSIONS
+        try:
+            return max(0, int(val))
+        except ValueError:
+            return DEFAULT_MAX_SESSIONS
 
     def _get_path(self, session_id: str) -> str:
         """Get safe path for session ID."""
@@ -107,8 +154,34 @@ class SessionManager:
             except Exception as e:
                 logger.warning(f"Failed to load session metadata from {path}: {e}")
                 continue
+        sessions = sorted(sessions, key=lambda s: s.updated_at, reverse=True)
+        self._cleanup_sessions(sessions)
+        return sessions
 
-        return sorted(sessions, key=lambda s: s.updated_at, reverse=True)
+    def _cleanup_sessions(self, sessions: List[SessionMetadata]) -> None:
+        """Clean up old sessions based on retention config."""
+        retention_days = self._retention_days()
+        max_sessions = self._max_sessions()
+
+        if retention_days > 0:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+            for meta in sessions:
+                try:
+                    if meta.updated_at < cutoff:
+                        path = self._get_path(meta.id)
+                        if os.path.exists(path):
+                            os.remove(path)
+                except Exception as e:
+                    logger.warning(f"Failed retention cleanup for {meta.id}: {e}")
+
+        if max_sessions > 0 and len(sessions) > max_sessions:
+            for meta in sessions[max_sessions:]:
+                try:
+                    path = self._get_path(meta.id)
+                    if os.path.exists(path):
+                        os.remove(path)
+                except Exception as e:
+                    logger.warning(f"Failed count cleanup for {meta.id}: {e}")
 
     def save_session(
         self,
@@ -179,7 +252,7 @@ class SessionManager:
             id=session_id,
             name=name,
             description=description,
-            updated_at=datetime.now(),
+            updated_at=datetime.now(timezone.utc),
             event_count=len(events),
             has_score=score is not None,
             has_report=report is not None,
@@ -221,6 +294,48 @@ class SessionManager:
 
         return session_id
 
+    def export_current_session(self) -> str:
+        """Export current session state as JSON string without saving to disk."""
+        events = st.session_state.get(AGENT_EVENTS_KEY, [])
+        score = st.session_state.get(AGENT_SCORE_KEY)
+        report = st.session_state.get(AGENT_REPORT_KEY)
+
+        if len(events) > MAX_EVENTS_LIMIT:
+            raise ValueError(
+                f"Session too large: {len(events)} events (max {MAX_EVENTS_LIMIT})"
+            )
+
+        serialized_events = [
+            e.model_dump(mode="json") if hasattr(e, "model_dump") else e for e in events
+        ]
+
+        serialized_score = (
+            score.model_dump(mode="json") if score and hasattr(score, "model_dump") else None
+        )
+        serialized_report = (
+            report.model_dump(mode="json") if report and hasattr(report, "model_dump") else None
+        )
+
+        metadata = SessionMetadata(
+            id=st.session_state.get("active_session_id", str(uuid4())),
+            name=st.session_state.get("active_session_name", "Unsaved Session"),
+            updated_at=datetime.now(timezone.utc),
+            event_count=len(events),
+            has_score=score is not None,
+            has_report=report is not None,
+            tags=st.session_state.get("active_session_tags", []),
+        )
+
+        data = {
+            "metadata": metadata.model_dump(mode="json"),
+            "events": serialized_events,
+            "score": serialized_score,
+            "report": serialized_report,
+            "report_markdown": st.session_state.get(REPORT_MARKDOWN_KEY),
+            "report_json": st.session_state.get(REPORT_JSON_KEY),
+        }
+        return json.dumps(data, indent=2)
+
     def load_session(self, session_id: str) -> bool:
         """
         Load a session into st.session_state.
@@ -251,7 +366,14 @@ class SessionManager:
 
             # Deserialize events
             loaded_events = []
-            for event_data in data.get("events", []):
+            raw_events = data.get("events", [])
+            if not isinstance(raw_events, list):
+                st.error("Invalid session format: events must be a list")
+                return False
+            for event_data in raw_events:
+                if len(loaded_events) >= MAX_EVENTS_LIMIT:
+                    st.error("Session too large to load (event limit exceeded).")
+                    return False
                 try:
                     event = self._parse_event(event_data)
                     if event:
@@ -285,6 +407,7 @@ class SessionManager:
             # Update active session ID
             st.session_state["active_session_id"] = session_id
             st.session_state["active_session_name"] = data.get("metadata", {}).get("name")
+            st.session_state["active_session_tags"] = data.get("metadata", {}).get("tags", [])
 
             return True
 
@@ -341,6 +464,9 @@ def render_session_manager():
         st.markdown(f"**Current:** {active_name}")
         if active_id:
             st.caption(f"ID: {active_id[:8]}...")
+        active_tags = st.session_state.get("active_session_tags", [])
+        if active_tags:
+            st.caption(f"Tags: {', '.join(active_tags)}")
 
         st.divider()
 
@@ -348,6 +474,13 @@ def render_session_manager():
         st.markdown("**Save Session**")
         save_name = st.text_input("Name", value=active_name, key="session_name_input", max_chars=MAX_NAME_LEN)
         save_desc = st.text_area("Description", height=60, key="session_desc_input", max_chars=MAX_DESC_LEN)
+        tags_input = st.text_input(
+            "Tags (comma-separated)",
+            value=", ".join(st.session_state.get("active_session_tags", [])),
+            key="session_tags_input",
+            max_chars=MAX_TAG_LEN * MAX_TAGS,
+        )
+        tags = [t.strip() for t in tags_input.split(",") if t.strip()]
         
         col1, col2 = st.columns(2)
         with col1:
@@ -357,12 +490,14 @@ def render_session_manager():
                 else:
                     try:
                         new_id = manager.save_session(
-                            name=save_name, 
+                            name=save_name,
                             description=save_desc,
-                            session_id=active_id # Update existing if active, else create new
+                            tags=tags,
+                            session_id=active_id,  # Update existing if active, else create new
                         )
                         st.session_state["active_session_id"] = new_id
                         st.session_state["active_session_name"] = save_name
+                        st.session_state["active_session_tags"] = tags
                         st.success("Saved!")
                         st.rerun()
                     except ValueError as e:
@@ -377,12 +512,14 @@ def render_session_manager():
                  else:
                     try:
                         new_id = manager.save_session(
-                            name=save_name, 
+                            name=save_name,
                             description=save_desc,
-                            session_id=None # Force new ID
+                            tags=tags,
+                            session_id=None,  # Force new ID
                         )
                         st.session_state["active_session_id"] = new_id
                         st.session_state["active_session_name"] = save_name
+                        st.session_state["active_session_tags"] = tags
                         st.success("Saved as new!")
                         st.rerun()
                     except ValueError as e:
@@ -399,13 +536,26 @@ def render_session_manager():
         if not sessions:
             st.caption("No saved sessions.")
         else:
-            session_options = {s.id: f"{s.name} ({s.updated_at.strftime('%Y-%m-%d %H:%M')})" for s in sessions}
+            session_options = {
+                s.id: f"{s.name} ({s.updated_at.strftime('%Y-%m-%d %H:%M')})"
+                for s in sessions
+            }
             selected_id = st.selectbox(
                 "Select Session", 
                 options=list(session_options.keys()), 
                 format_func=lambda x: session_options[x],
                 key="session_selector"
             )
+            selected_meta = next((s for s in sessions if s.id == selected_id), None)
+            if selected_meta:
+                st.caption(
+                    f"Created: {selected_meta.created_at.strftime('%Y-%m-%d %H:%M')} | "
+                    f"Events: {selected_meta.event_count} | "
+                    f"Score: {'Yes' if selected_meta.has_score else 'No'} | "
+                    f"Report: {'Yes' if selected_meta.has_report else 'No'}"
+                )
+                if selected_meta.tags:
+                    st.caption(f"Tags: {', '.join(selected_meta.tags)}")
 
             col_load, col_del = st.columns([2, 1])
             with col_load:
@@ -416,14 +566,24 @@ def render_session_manager():
             
             with col_del:
                 if st.button("Delete", use_container_width=True, type="primary", key="del_session_btn"):
-                    # Confirm delete logic could be added here
-                    if manager.delete_session(selected_id):
-                        if active_id == selected_id:
-                            if "active_session_id" in st.session_state:
-                                del st.session_state["active_session_id"]
-                            if "active_session_name" in st.session_state:
-                                del st.session_state["active_session_name"]
-                        st.success("Deleted!")
+                    st.session_state["confirm_delete_session"] = selected_id
+            if st.session_state.get("confirm_delete_session") == selected_id:
+                st.warning("Confirm delete? This cannot be undone.")
+                c1, c2 = st.columns(2)
+                with c1:
+                    if st.button("Confirm Delete", key="confirm_delete_btn", use_container_width=True):
+                        if manager.delete_session(selected_id):
+                            if active_id == selected_id:
+                                if "active_session_id" in st.session_state:
+                                    del st.session_state["active_session_id"]
+                                if "active_session_name" in st.session_state:
+                                    del st.session_state["active_session_name"]
+                            st.session_state.pop("confirm_delete_session", None)
+                            st.success("Deleted!")
+                            st.rerun()
+                with c2:
+                    if st.button("Cancel", key="cancel_delete_btn", use_container_width=True):
+                        st.session_state.pop("confirm_delete_session", None)
                         st.rerun()
         
         # 4. Import Session
@@ -454,12 +614,15 @@ def render_session_manager():
                                 
                             data["metadata"]["id"] = new_id
                             data["metadata"]["name"] = f"Imported: {data['metadata'].get('name', 'Unknown')}"[:MAX_NAME_LEN]
-                            data["metadata"]["updated_at"] = datetime.now().isoformat()
+                            data["metadata"]["updated_at"] = datetime.now(timezone.utc).isoformat()
                             
                             # Validate events list
                             if not isinstance(data["events"], list):
                                 st.error("Invalid session format: events must be a list")
                             else:
+                                if len(data["events"]) > MAX_EVENTS_LIMIT:
+                                    st.error("Session too large to import (event limit exceeded).")
+                                    return
                                 # Save to disk using atomic write pattern
                                 path = manager._get_path(new_id)
                                 tmp_fd, tmp_path = tempfile.mkstemp(dir=manager.session_dir, suffix='.tmp')
@@ -482,11 +645,30 @@ def render_session_manager():
 
         st.divider()
         
-        # 5. New Session (Reset)
-        if st.button("New Session (Clear)", use_container_width=True, type="secondary"):
+        # 5. Export Session
+        st.markdown("**Export Session**")
+        if st.button("Export Current Session", use_container_width=True, key="export_session_btn"):
+            try:
+                export_data = manager.export_current_session()
+                st.download_button(
+                    label="Download Session JSON",
+                    data=export_data,
+                    file_name=f"session_{active_id or 'unsaved'}.json",
+                    mime="application/json",
+                    key="download_session_json",
+                )
+            except Exception as e:
+                st.error(f"Export failed: {e}")
+
+        st.divider()
+        
+        # 6. New Session (Reset)
+        if st.button("New Session (Clear)", use_container_width=True, type="secondary", key="new_session_btn"):
             reset_agent_state(full_reset=False)
             if "active_session_id" in st.session_state:
                 del st.session_state["active_session_id"]
             if "active_session_name" in st.session_state:
                 del st.session_state["active_session_name"]
+            if "active_session_tags" in st.session_state:
+                del st.session_state["active_session_tags"]
             st.rerun()

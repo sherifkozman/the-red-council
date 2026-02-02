@@ -144,6 +144,22 @@ class TestSessionManager:
             assert data["metadata"]["name"] == "New Session"
             assert data["events"] == []
 
+    def test_export_current_session(self, mock_session_dir, mock_streamlit, session_manager_module):
+        """Test exporting current session data."""
+        manager = session_manager_module.SessionManager(mock_session_dir)
+        mock_streamlit.session_state = {
+            "agent_events": [],
+            "agent_score": None,
+            "agent_report": None,
+            "active_session_id": "test-session",
+            "active_session_name": "Export Session",
+            "active_session_tags": ["tag1", "tag2"],
+        }
+        data = manager.export_current_session()
+        parsed = json.loads(data)
+        assert parsed["metadata"]["name"] == "Export Session"
+        assert parsed["metadata"]["tags"] == ["tag1", "tag2"]
+
     def test_save_session_validations(self, mock_session_dir, mock_streamlit, session_manager_module):
         """Test save session input validations."""
         manager = session_manager_module.SessionManager(mock_session_dir)
@@ -214,6 +230,7 @@ class TestSessionManager:
         assert success
         assert mock_streamlit.session_state["active_session_id"] == session_id
         assert len(mock_streamlit.session_state["agent_events"]) == 1
+        assert mock_streamlit.session_state["active_session_name"] == "Loaded Session"
 
     def test_delete_session(self, mock_session_dir, session_manager_module):
         """Test deleting a session."""
@@ -309,6 +326,34 @@ class TestSessionManager:
         assert len(sessions) > 0
         assert sessions[0].name.startswith("Imported:")
 
+    def test_import_rejects_too_many_events(self, mock_streamlit, session_manager_module, mock_session_dir):
+        """Test import rejects sessions with too many events."""
+        mock_file = MagicMock()
+        mock_file.size = 100
+        mock_file.getvalue.return_value = json.dumps({
+            "metadata": {"name": "Too Large"},
+            "events": [{}] * (session_manager_module.MAX_EVENTS_LIMIT + 1)
+        }).encode("utf-8")
+
+        mock_streamlit.file_uploader.return_value = mock_file
+        mock_streamlit.button.side_effect = lambda label, **kwargs: label == "Import"
+
+        def mock_columns(spec):
+            if isinstance(spec, int):
+                count = spec
+            else:
+                count = len(spec)
+            return [MagicMock() for _ in range(count)]
+        mock_streamlit.columns.side_effect = mock_columns
+
+        with patch.object(session_manager_module, "SESSION_DIR", mock_session_dir):
+            session_manager_module.render_session_manager()
+
+        # No file should be created
+        manager = session_manager_module.SessionManager(mock_session_dir)
+        sessions = manager.list_sessions()
+        assert sessions == []
+
     def test_render_session_manager_ui_interactions(self, mock_streamlit, session_manager_module):
         """Test UI interactions in render_session_manager."""
         # We need to patch the SessionManager class inside the imported module
@@ -336,7 +381,7 @@ class TestSessionManager:
             mock_streamlit.columns.side_effect = mock_columns
             
             # Test 1: Save Button
-            mock_streamlit.text_input.return_value = "New Name"
+            mock_streamlit.text_input.side_effect = ["New Name", "tag1,tag2"]
             mock_streamlit.button.side_effect = lambda label, **kwargs: label == "Save"
             
             # Mock active session
@@ -351,6 +396,7 @@ class TestSessionManager:
             manager.save_session.assert_called_with(
                 name="New Name",
                 description=mock_streamlit.text_area.return_value,
+                tags=["tag1", "tag2"],
                 session_id=old_id
             )
             
@@ -363,6 +409,7 @@ class TestSessionManager:
             manager.save_session.assert_called_with(
                 name="New Name",
                 description=mock_streamlit.text_area.return_value,
+                tags=["tag1", "tag2"],
                 session_id=None
             )
             
@@ -388,7 +435,12 @@ class TestSessionManager:
             mock_streamlit.selectbox.return_value = valid_id
             
             session_manager_module.render_session_manager()
-            
+
+            # Confirm delete on second render
+            manager.reset_mock()
+            mock_streamlit.button.side_effect = lambda label, **kwargs: kwargs.get("key") == "confirm_delete_btn"
+            session_manager_module.render_session_manager()
+
             manager.delete_session.assert_called_with(valid_id)
             assert "active_session_id" not in mock_streamlit.session_state
             
