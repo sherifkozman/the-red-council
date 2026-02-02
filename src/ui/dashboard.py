@@ -24,6 +24,7 @@ from src.ui.components.mode_selector import (
 )
 from src.ui.providers.polling import run_arena_stream
 
+logger = logging.getLogger(__name__)
 
 async def run_agent_evaluation():
     """Run OWASP evaluation on captured agent events."""
@@ -35,7 +36,13 @@ async def run_agent_evaluation():
     # Initialize components
     try:
         # Using defaults for GeminiClient - relies on env vars or default project
-        client = GeminiClient()
+        try:
+            client = GeminiClient()
+        except Exception as e:
+            st.error("Failed to initialize Gemini Client. Check API credentials.")
+            logger.error(f"GeminiClient init failed: {e}", exc_info=True)
+            return
+
         judge_agent = JudgeAgent(client=client)
 
         # Use default configuration for now
@@ -51,7 +58,6 @@ async def run_agent_evaluation():
             st.success("Evaluation complete!")
 
     except Exception as e:
-        logger = logging.getLogger(__name__)
         logger.error(f"Evaluation failed: {str(e)}", exc_info=True)
         st.error(f"Evaluation failed: {str(e)}")
 
@@ -84,6 +90,7 @@ def start_campaign(secret: str, prompt: str, container):
         prompt = validate_input(prompt)
     except ValueError as e:
         st.error(f"Invalid input: {e}")
+        st.session_state.is_running = False  # Reset state on validation failure
         return
 
     st.session_state.is_running = True
@@ -92,6 +99,7 @@ def start_campaign(secret: str, prompt: str, container):
     try:
         asyncio.run(run_loop(secret, prompt, container))
     except Exception as e:
+        logger.error(f"Campaign failed: {e}", exc_info=True)
         st.error(f"Campaign failed: {e}")
         st.session_state.is_running = False
 
@@ -167,9 +175,11 @@ def render_agent_mode():
 
     with tab2:
         st.subheader("Tool Call Chain")
-        # Filter for tool call events
+        # Filter for tool call events with safety check
         tool_calls = [
-            e for e in events if getattr(e, "event_type", None) == "tool_call"
+            e
+            for e in events
+            if hasattr(e, "event_type") and e.event_type == "tool_call"
         ]
         if tool_calls:
             from src.ui.components.tool_chain import render_tool_chain
@@ -210,6 +220,17 @@ def render_agent_mode():
 
     with col1:
         if st.button("Clear Events", key="clear_events_btn"):
+            # Clear all agent-related state
+            keys_to_clear = [
+                "agent_report",
+                "report_markdown",
+                "report_json",
+            ]
+            for key in keys_to_clear:
+                if key in st.session_state:
+                    del st.session_state[key]
+
+            # Reset core keys
             st.session_state[AGENT_EVENTS_KEY] = []
             st.session_state[AGENT_SCORE_KEY] = None
             st.rerun()
@@ -225,12 +246,38 @@ def render_agent_mode():
             st.rerun()
 
     with col3:
-        st.button(
+        if st.button(
             "Generate Report",
             key="gen_report_btn",
             disabled=score is None,
             help="Generate security report from evaluation",
-        )
+        ):
+            from src.reports.agent_report_generator import AgentReportGenerator
+
+            try:
+                with st.spinner("Generating report..."):
+                    generator = AgentReportGenerator()
+                    report = generator.generate(score, events)
+
+                    # Pre-render content to decouple viewer from generator
+                    markdown_content = generator.render(report)
+                    json_content = report.model_dump_json(indent=2)
+
+                    st.session_state["agent_report"] = report
+                    st.session_state["report_markdown"] = markdown_content
+                    st.session_state["report_json"] = json_content
+            except Exception as e:
+                st.error(f"Failed to generate report: {e}")
+
+    # Render report viewer if report exists
+    if "agent_report" in st.session_state and st.session_state["agent_report"]:
+        from src.ui.components.report_viewer import render_report_viewer
+
+        report = st.session_state["agent_report"]
+        md = st.session_state.get("report_markdown", "")
+        js = st.session_state.get("report_json", "{}")
+
+        render_report_viewer(md, js, str(report.id))
 
 
 def main():
