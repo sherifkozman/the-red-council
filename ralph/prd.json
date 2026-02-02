@@ -952,7 +952,7 @@
       ],
       "priority": 7,
       "phaseId": 7,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-037", "TRC-038"],
       "notes": "Orchestrates sending attack templates to remote agent endpoint, capturing responses, and converting to events for evaluation.",
       "files": ["src/ui/components/campaign_runner.py", "src/ui/dashboard.py", "src/orchestrator/agent_campaign.py"]

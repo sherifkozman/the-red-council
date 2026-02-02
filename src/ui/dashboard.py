@@ -167,7 +167,7 @@ def render_agent_mode():
     score = st.session_state.get(AGENT_SCORE_KEY)
 
     # Tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
         [
             "Timeline",
             "Tool Chain",
@@ -176,6 +176,7 @@ def render_agent_mode():
             "SDK Integration",
             "Remote Agent",
             "Attack Templates",
+            "Campaign",
         ]
     )
 
@@ -252,6 +253,12 @@ def render_agent_mode():
         from src.ui.components.attack_selector import render_attack_selector
 
         render_attack_selector()
+
+    with tab8:
+        # Campaign Runner tab
+        from src.ui.components.campaign_runner import render_campaign_runner
+
+        render_campaign_runner()
 
     # Agent testing actions
     st.divider()

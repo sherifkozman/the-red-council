@@ -98,3 +98,37 @@
   - **Coverage Measurement**: Module-level mocks (`sys.modules["streamlit"] = mock`) prevent coverage tracking; tests demonstrate functional coverage.
   - **Module Caching**: Tests may fail when run together due to mock interference; verify tests pass individually.
 ---
+
+## 2026-02-02 - TRC-039
+- Implemented `src/orchestrator/agent_campaign.py` with campaign orchestration backend.
+- Implemented `src/ui/components/campaign_runner.py` with campaign UI component.
+- Added "Campaign" tab (8th tab) to Agent Testing mode in `src/ui/dashboard.py`.
+- Features implemented:
+  - AgentCampaign class with async execution via httpx
+  - CampaignConfig, CampaignProgress, AttackResult dataclasses
+  - CampaignStatus enum: IDLE, RUNNING, PAUSED, COMPLETED, CANCELLED, FAILED
+  - Start Campaign button with prerequisites validation
+  - Progress bar and real-time status metrics
+  - Pause/Resume/Cancel controls
+  - Results summary with expandable attack details
+  - Auto-convert responses to AgentEvents (ActionRecord, SpeechRecord, ToolCallEvent)
+  - Events automatically populate Timeline and Tool Chain tabs
+  - Campaign completion notifications (success/warning/error)
+- Created `tests/orchestrator/test_agent_campaign.py` with 30 tests.
+- Created `tests/ui/test_campaign_runner.py` with 28 tests.
+- Updated `tests/ui/test_dashboard_wiring.py` and `tests/ui/test_dashboard_report.py` for 8-tab layout.
+- Reviews completed: code review, silent failure hunt, security audit, code simplification.
+- Critical fixes applied:
+  - Changed `success=True` to `success=False` when response extraction fails
+  - Added logging for invalid session_id UUID fallback
+  - Upgraded progress callback logging from warning to error with exc_info
+  - Generated unique session_id when missing instead of using "default"
+  - Added logging when non-list events are discarded from session state
+- **Learnings for future iterations:**
+  - **Async in Streamlit**: `asyncio.run()` blocks UI thread; pause/resume/cancel buttons are non-functional during execution. Future: use background threads or streamlit-server-state.
+  - **Success Semantics**: `success=True` should only be set when operation fully succeeded; extraction errors mean unknown state, not success.
+  - **UUID Handling**: Parse UUIDs properly with fallback logging; use `uuid4()` not `str(uuid4())` for Pydantic models expecting UUID type.
+  - **Timezone Awareness**: Use `datetime.now(timezone.utc)` for Pydantic models with timezone-aware datetime fields.
+  - **Session Correlation**: Never use literal "default" as session_id; always generate unique IDs for proper event correlation.
+  - **Tab Count Updates**: When adding tabs, update ALL tests that mock `st.tabs()` return value count.
+---
