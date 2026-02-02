@@ -994,7 +994,7 @@
       ],
       "priority": 9,
       "phaseId": 7,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-034"],
       "notes": "Extends basic report download with rich viewing experience. Report template already exists in src/reports/templates/report.md.j2.",
       "files": ["src/ui/components/report_viewer.py", "src/ui/pages/report.py"]

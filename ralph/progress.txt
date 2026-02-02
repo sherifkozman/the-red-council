@@ -168,3 +168,34 @@
   - **Tab Count Updates**: When adding tabs, update ALL tests that mock `st.tabs()` return value count.
   - **Rate Calculation**: Handle burst scenarios (multiple events at same timestamp) gracefully.
 ---
+
+## 2026-02-02 - TRC-041
+- Implemented `src/ui/components/report_viewer.py` with full-featured report viewing.
+- Created `src/ui/pages/report.py` for dedicated full-screen report page.
+- Created `src/ui/pages/__init__.py` package init.
+- Features implemented:
+  - ReportHistoryEntry dataclass for storing historical reports
+  - Report history management (add, get, max 20 entries)
+  - PDF generation via reportlab with SimpleDocTemplate
+  - Section-based report rendering with expanders
+  - Export options: Markdown, JSON, PDF downloads
+  - Print-friendly CSS view with browser print support
+  - Clipboard copy buttons for individual sections
+  - Historical reports list with view/compare actions
+  - Report comparison feature with risk score diff visualization
+  - Session state persistence for history and comparison selection
+- Created `tests/ui/test_report_viewer.py` with 29 tests covering all functionality.
+- Reviews completed: code review, silent failure hunt, security audit.
+- Security fixes applied:
+  - Added anchor_id sanitization in `_render_section_header` to prevent XSS
+  - Report ID sanitization via regex `[^a-zA-Z0-9_-]` for filename safety
+  - Consistent use of `sanitize_markdown()` for all user-controllable content
+  - Type validation on session state access
+- **Learnings for future iterations:**
+  - **XSS Prevention**: Always sanitize ALL parameters passed to `unsafe_allow_html=True`, not just obvious ones like titles.
+  - **Exception Scope**: Keep try-except blocks narrow around the specific operation that can fail; broad catches mask unrelated bugs.
+  - **PDF Error Feedback**: When PDF generation fails, show actual error reason to users, not just "install library" message.
+  - **UUID in Tests**: Use valid UUID format (`12345678-1234-5678-1234-567812345678`) for Pydantic model tests.
+  - **Mock Columns**: Use `side_effect` with dynamic function when `st.columns()` is called with varying specs.
+  - **OWASP Coverage Mock**: Mock objects need `.value` attribute for enum keys, not string keys.
+---
