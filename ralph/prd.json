@@ -600,7 +600,7 @@
       ],
       "priority": 25,
       "phaseId": 4,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-009", "TRC-014"],
       "notes": "Agent-specific defender for remediation. Uses AgentHardeningPlan from TRC-014.",
       "files": ["src/agents/agent_defender.py", "tests/agents/test_agent_defender.py"]

@@ -296,3 +296,30 @@ Stopped at iteration 1 by EXIT
   - **Streamlit Mocking**: Mock `st.session_state` as a dict, but be aware that attribute access patterns differ.
   - **XSS in Forms**: Use html.escape() for all user-supplied strings before storing or displaying.
 ---
+
+## 2026-02-02 - TRC-024
+- Implemented `AgentDefender` in `src/agents/agent_defender.py`.
+- Features:
+  - `AgentDefender` class with composition pattern (wraps optional GeminiClient)
+  - `generate_hardening(score: AgentJudgeScore) -> AgentHardeningPlan` sync wrapper
+  - `generate_hardening_async()` async implementation with rule-based + LLM hardening
+  - `generate_hardening_prompt(score: AgentJudgeScore) -> str` for LLM prompt generation
+  - `_generate_tool_controls()` creates rate limits based on violations and dangerous keywords
+  - `_generate_memory_policy()` creates strict/lenient policies based on memory_safety_score
+  - `_generate_guardrails()` creates GuardrailConfig for ASI04, ASI06, ASI09 violations
+  - `_generate_owasp_remediations()` maps all 10 OWASP categories to RemediationStep
+  - `_merge_recommendations()` combines rule-based and LLM recommendations
+  - Fallback to rule-based hardening if LLM unavailable or fails
+  - `AgentDefenderConfig` with customizable rate limits and max_value_size
+  - DANGEROUS_TOOL_KEYWORDS frozenset for detecting high-risk tool names
+  - All 10 OWASP Agentic categories have remediation templates with code examples
+- 38 tests with 95% coverage on agent_defender.py.
+- Reviews completed: council code-review, council security audit.
+- **Learnings for future iterations:**
+  - **Enum Names**: Always verify exact enum value names before using (ASI02_INADEQUATE_HUMAN_OVERSIGHT not ASI02_INADEQUATE_OVERSIGHT).
+  - **Composition Pattern**: Use composition (wrapping optional client) rather than inheritance for flexibility.
+  - **Rule-Based First**: Start with deterministic rule-based logic, enhance with LLM optionally.
+  - **Fallback Strategy**: LLM calls should always have rule-based fallback for reliability.
+  - **JudgeScore Schema**: Verify required fields (leaked_secret, leaked_instructions) when creating test fixtures.
+  - **Remediation Templates**: Store description, code_example, effort as tuples for consistent structure.
+---
