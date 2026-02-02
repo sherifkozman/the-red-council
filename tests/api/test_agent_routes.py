@@ -94,8 +94,9 @@ class TestCreateSession:
         assert data["message"] == "Agent testing session created successfully"
 
         # Verify session stored
-        session_id = UUID(data["session_id"])
+        session_id = data["session_id"]
         assert session_id in _sessions
+        assert isinstance(_sessions[session_id]["internal_session_id"], UUID)
 
     def test_create_session_with_context(self, client):
         """Test session creation with context."""
@@ -107,7 +108,7 @@ class TestCreateSession:
             },
         )
         assert response.status_code == 201
-        session_id = UUID(response.json()["session_id"])
+        session_id = response.json()["session_id"]
         assert _sessions[session_id]["context"] == "User asked about the weather."
         assert _sessions[session_id]["target_secret"] == "SECRET123"
 
@@ -118,7 +119,7 @@ class TestCreateSession:
         from src.api.agent_routes import _cleanup_oldest_session
 
         # Manually add sessions to simulate capacity
-        first_session_id = uuid4()
+        first_session_id = "session-0"
         _sessions[first_session_id] = {
             "session_id": first_session_id,
             "status": SessionStatus.ACTIVE,
@@ -126,7 +127,7 @@ class TestCreateSession:
 
         # Add more sessions to reach just under capacity
         for i in range(MAX_SESSIONS - 1):
-            sid = uuid4()
+            sid = f"session-{i + 1}"
             _sessions[sid] = {"session_id": sid, "status": SessionStatus.ACTIVE}
 
         assert len(_sessions) == MAX_SESSIONS
@@ -196,7 +197,7 @@ class TestSubmitEvents:
     def test_submit_events_to_non_active_session(self, client, sample_tool_call_event):
         """Test submitting events to a completed session."""
         response = client.post("/api/v1/agent/session", json={})
-        session_id = UUID(response.json()["session_id"])
+        session_id = response.json()["session_id"]
 
         # Manually set status
         _sessions[session_id]["status"] = SessionStatus.COMPLETED
@@ -255,7 +256,7 @@ class TestEvaluateSession:
     ):
         """Test that evaluation triggers background task."""
         response = client.post("/api/v1/agent/session", json={})
-        session_id = UUID(response.json()["session_id"])
+        session_id = response.json()["session_id"]
 
         # Submit events
         client.post(
@@ -369,7 +370,7 @@ class TestGetScore:
     def test_get_score_with_mocked_result(self, client, sample_tool_call_event):
         """Test getting score after evaluation completes."""
         response = client.post("/api/v1/agent/session", json={})
-        session_id = UUID(response.json()["session_id"])
+        session_id = response.json()["session_id"]
 
         # Submit events
         client.post(
@@ -427,7 +428,7 @@ class TestGetReport:
     def test_get_report_json_format(self, client, sample_tool_call_event):
         """Test getting report in JSON format."""
         response = client.post("/api/v1/agent/session", json={})
-        session_id = UUID(response.json()["session_id"])
+        session_id = response.json()["session_id"]
 
         # Submit events
         client.post(
@@ -454,7 +455,7 @@ class TestGetReport:
     def test_get_report_markdown_format(self, client, sample_tool_call_event):
         """Test getting report in Markdown format."""
         response = client.post("/api/v1/agent/session", json={})
-        session_id = UUID(response.json()["session_id"])
+        session_id = response.json()["session_id"]
 
         # Submit events
         client.post(
@@ -493,7 +494,7 @@ class TestDeleteSession:
     def test_delete_session_success(self, client):
         """Test successful session deletion."""
         response = client.post("/api/v1/agent/session", json={})
-        session_id = UUID(response.json()["session_id"])
+        session_id = response.json()["session_id"]
         assert session_id in _sessions
 
         response = client.delete(f"/api/v1/agent/session/{session_id}")
@@ -665,7 +666,7 @@ class TestEdgeCases:
     def test_re_evaluate_failed_session(self, client, sample_tool_call_event):
         """Test that a failed session can be re-evaluated."""
         response = client.post("/api/v1/agent/session", json={})
-        session_id = UUID(response.json()["session_id"])
+        session_id = response.json()["session_id"]
 
         client.post(
             f"/api/v1/agent/session/{session_id}/events",

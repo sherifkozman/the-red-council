@@ -5,6 +5,7 @@ Allows external clients to submit agent events, run evaluations, and retrieve re
 """
 
 import logging
+import secrets
 from collections import deque
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -71,7 +72,7 @@ class CreateSessionRequest(BaseModel):
 class CreateSessionResponse(BaseModel):
     """Response schema for session creation."""
 
-    session_id: UUID
+    session_id: str
     status: SessionStatus = SessionStatus.ACTIVE
     message: str = "Agent testing session created successfully"
 
@@ -87,7 +88,7 @@ class SubmitEventsRequest(BaseModel):
 class SubmitEventsResponse(BaseModel):
     """Response schema for event submission."""
 
-    session_id: UUID
+    session_id: str
     events_accepted: int
     total_events: int
     message: str = "Events submitted successfully"
@@ -104,7 +105,7 @@ class EvaluateRequest(BaseModel):
 class EvaluateResponse(BaseModel):
     """Response schema for evaluation trigger."""
 
-    session_id: UUID
+    session_id: str
     status: SessionStatus
     message: str = "Evaluation started"
 
@@ -112,7 +113,7 @@ class EvaluateResponse(BaseModel):
 class GetEventsResponse(BaseModel):
     """Response schema for retrieving events."""
 
-    session_id: UUID
+    session_id: str
     events: List[Dict[str, Any]]
     total_count: int
 
@@ -120,7 +121,7 @@ class GetEventsResponse(BaseModel):
 class GetScoreResponse(BaseModel):
     """Response schema for retrieving score."""
 
-    session_id: UUID
+    session_id: str
     score: Optional[Dict[str, Any]] = None
     status: SessionStatus
     error: Optional[str] = None
@@ -129,7 +130,7 @@ class GetScoreResponse(BaseModel):
 class GetReportResponse(BaseModel):
     """Response schema for retrieving report."""
 
-    session_id: UUID
+    session_id: str
     report: Optional[Dict[str, Any]] = None
     markdown: Optional[str] = None
     status: SessionStatus
@@ -139,14 +140,14 @@ class GetReportResponse(BaseModel):
 class DeleteSessionResponse(BaseModel):
     """Response schema for session deletion."""
 
-    session_id: UUID
+    session_id: str
     message: str = "Session deleted successfully"
 
 
 class SessionInfoResponse(BaseModel):
     """Response schema for session status check."""
 
-    session_id: UUID
+    session_id: str
     status: SessionStatus
     event_count: int
     has_score: bool
@@ -157,7 +158,12 @@ class SessionInfoResponse(BaseModel):
 # Global State (In-Memory for MVP)
 # ============================================================
 # NOTE: For production, replace with Redis or database-backed storage
-_sessions: Dict[UUID, Dict[str, Any]] = {}
+_sessions: Dict[str, Dict[str, Any]] = {}
+
+
+def _generate_external_session_id() -> str:
+    """Generate a cryptographically secure external session ID."""
+    return secrets.token_urlsafe(32)
 
 
 def _cleanup_oldest_session() -> None:
@@ -169,14 +175,14 @@ def _cleanup_oldest_session() -> None:
         del _sessions[oldest_id]
 
 
-def _get_session(session_id: UUID) -> Dict[str, Any]:
+def _get_session(session_id: str) -> Dict[str, Any]:
     """Get session or raise 404."""
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
     return _sessions[session_id]
 
 
-def _verify_session_ownership(session_id: UUID, owner: str) -> Dict[str, Any]:
+def _verify_session_ownership(session_id: str, owner: str) -> Dict[str, Any]:
     """Verify session exists and belongs to the requesting user."""
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
@@ -189,7 +195,7 @@ def _verify_session_ownership(session_id: UUID, owner: str) -> Dict[str, Any]:
     return session
 
 
-def _parse_event(event_data: Dict[str, Any], session_id: UUID) -> Optional[AgentEvent]:
+def _parse_event(event_data: Dict[str, Any], internal_session_id: UUID) -> Optional[AgentEvent]:
     """
     Parse event dictionary into typed AgentEvent.
     Returns None if parsing fails (event will be logged but not stored).
@@ -197,8 +203,7 @@ def _parse_event(event_data: Dict[str, Any], session_id: UUID) -> Optional[Agent
     event_type = event_data.get("event_type")
 
     # Inject session_id if not present
-    if "session_id" not in event_data:
-        event_data["session_id"] = session_id
+    event_data["session_id"] = internal_session_id
 
     try:
         if event_type == "tool_call":
@@ -243,7 +248,7 @@ def _sanitize_report_for_response(report: AgentSecurityReport) -> Dict[str, Any]
     return report.model_dump(mode="json")
 
 
-async def _run_evaluation(session_id: UUID) -> None:
+async def _run_evaluation(session_id: str) -> None:
     """Background task to run evaluation."""
     session = _sessions.get(session_id)
     if not session:
@@ -307,9 +312,11 @@ async def create_session(
     """
     _cleanup_oldest_session()
 
-    session_id = uuid4()
-    _sessions[session_id] = {
-        "session_id": session_id,
+    external_session_id = _generate_external_session_id()
+    internal_session_id = uuid4()
+    _sessions[external_session_id] = {
+        "session_id": external_session_id,
+        "internal_session_id": internal_session_id,
         "owner": user_id,
         "status": SessionStatus.ACTIVE,
         "events": [],
@@ -322,13 +329,13 @@ async def create_session(
         "eval_config": None,
     }
 
-    logger.info(f"Created agent testing session: {session_id}")
-    return CreateSessionResponse(session_id=session_id)
+    logger.info(f"Created agent testing session: {external_session_id}")
+    return CreateSessionResponse(session_id=external_session_id)
 
 
 @router.post("/session/{session_id}/events", response_model=SubmitEventsResponse)
 async def submit_events(
-    session_id: UUID,
+    session_id: str,
     request: SubmitEventsRequest,
     _: None = Depends(rate_limit_dependency),
     user_id: str = Depends(verify_bearer_token),
@@ -347,6 +354,7 @@ async def submit_events(
         )
 
     events_list: List[AgentEvent] = session["events"]
+    internal_session_id: UUID = session["internal_session_id"]
     events_accepted = 0
 
     for event_data in request.events:
@@ -354,7 +362,7 @@ async def submit_events(
             logger.warning(f"Session {session_id} reached max events limit")
             break
 
-        parsed = _parse_event(event_data, session_id)
+        parsed = _parse_event(event_data, internal_session_id)
         if parsed:
             events_list.append(parsed)
             events_accepted += 1
@@ -371,7 +379,7 @@ async def submit_events(
     "/session/{session_id}/evaluate", response_model=EvaluateResponse, status_code=202
 )
 async def evaluate_session(
-    session_id: UUID,
+    session_id: str,
     request: EvaluateRequest,
     background_tasks: BackgroundTasks,
     _: None = Depends(rate_limit_dependency),
@@ -416,7 +424,7 @@ async def evaluate_session(
 
 @router.get("/session/{session_id}/events", response_model=GetEventsResponse)
 async def get_events(
-    session_id: UUID,
+    session_id: str,
     limit: int = 100,
     offset: int = 0,
     _: None = Depends(rate_limit_dependency),
@@ -435,6 +443,9 @@ async def get_events(
 
     # Convert to dicts for response
     events_data = [e.model_dump(mode="json") for e in paginated]
+    # Replace internal UUID with external session ID for client consistency
+    for event in events_data:
+        event["session_id"] = session_id
 
     return GetEventsResponse(
         session_id=session_id, events=events_data, total_count=len(events)
@@ -443,7 +454,7 @@ async def get_events(
 
 @router.get("/session/{session_id}/score", response_model=GetScoreResponse)
 async def get_score(
-    session_id: UUID,
+    session_id: str,
     _: None = Depends(rate_limit_dependency),
     user_id: str = Depends(verify_bearer_token),
 ) -> GetScoreResponse:
@@ -468,7 +479,7 @@ async def get_score(
 
 @router.get("/session/{session_id}/report", response_model=GetReportResponse)
 async def get_report(
-    session_id: UUID,
+    session_id: str,
     format: str = "json",
     _: None = Depends(rate_limit_dependency),
     user_id: str = Depends(verify_bearer_token),
@@ -500,7 +511,7 @@ async def get_report(
 
 @router.delete("/session/{session_id}", response_model=DeleteSessionResponse)
 async def delete_session(
-    session_id: UUID,
+    session_id: str,
     _: None = Depends(rate_limit_dependency),
     user_id: str = Depends(verify_bearer_token),
 ) -> DeleteSessionResponse:
@@ -517,7 +528,7 @@ async def delete_session(
 
 @router.get("/session/{session_id}", response_model=SessionInfoResponse)
 async def get_session_info(
-    session_id: UUID,
+    session_id: str,
     _: None = Depends(rate_limit_dependency),
     user_id: str = Depends(verify_bearer_token),
 ) -> SessionInfoResponse:
