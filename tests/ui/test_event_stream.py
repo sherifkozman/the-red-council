@@ -12,6 +12,8 @@ import pytest
 mock_st = MagicMock()
 mock_st.session_state = {}
 sys.modules["streamlit"] = mock_st
+if "src.ui.components.event_stream" in sys.modules:
+    del sys.modules["src.ui.components.event_stream"]
 
 from src.ui.components.event_stream import (
     CONNECTION_TIMEOUT_SECONDS,
@@ -434,7 +436,7 @@ class TestRenderEventStream:
         """Test rendering with no events."""
         mock_st.reset_mock()
         mock_st.session_state = {}
-        mock_st.columns.return_value = [MagicMock() for _ in range(4)]
+        mock_st.columns.side_effect = lambda n: [MagicMock() for _ in range(n)]
 
         render_event_stream()
 
@@ -454,7 +456,7 @@ class TestRenderEventStream:
             ]
         )
 
-        mock_st.columns.return_value = [MagicMock() for _ in range(4)]
+        mock_st.columns.side_effect = lambda n: [MagicMock() for _ in range(n)]
         mock_st.container.return_value.__enter__ = MagicMock()
         mock_st.container.return_value.__exit__ = MagicMock()
         mock_st.expander.return_value.__enter__ = MagicMock()
@@ -651,6 +653,9 @@ def test_polling_handles_error(monkeypatch):
     import src.ui.components.event_stream as es
 
     es.st.session_state["sdk_session_id"] = "token-123"
+    class PollErr(Exception):
+        pass
+    monkeypatch.setattr(es, "EventPollingError", PollErr)
 
     def _raise(**_kwargs):
         raise es.EventPollingError("boom")

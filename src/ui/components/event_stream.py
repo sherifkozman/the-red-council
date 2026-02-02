@@ -558,8 +558,9 @@ def render_event_stream() -> None:
     # Poll for new events (best-effort, sync)
     _poll_events_if_needed(state)
 
-    # Update connection status after polling
-    state.connection_status = _get_connection_status(state)
+    # Update connection status after polling unless a polling error was recorded
+    if state.connection_status != ConnectionStatus.ERROR:
+        state.connection_status = _get_connection_status(state)
 
     # Connection indicator
     _render_connection_indicator(state.connection_status)
