@@ -14,8 +14,12 @@ Supports:
 import html
 import json
 import logging
+import os
 import re
+import stat
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal
 
 import streamlit as st
@@ -25,6 +29,11 @@ logger = logging.getLogger(__name__)
 # Session state keys
 REMOTE_AGENT_CONFIG_KEY = "remote_agent_config"
 REMOTE_AGENT_TEST_RESULT_KEY = "remote_agent_test_result"
+
+# Persistence settings
+REMOTE_AGENT_CONFIG_PATH_ENV = "RC_REMOTE_AGENT_CONFIG_PATH"
+REMOTE_AGENT_CONFIG_DIR = Path("data")
+REMOTE_AGENT_CONFIG_FILENAME = "remote_agent_config.json"
 
 # Type aliases
 AuthType = Literal["none", "bearer", "api_key_header"]
@@ -187,7 +196,8 @@ def _validate_json_path(json_path: str) -> tuple[bool, str]:
 def _get_or_create_config() -> RemoteAgentConfig:
     """Get existing config from session state or create default."""
     if REMOTE_AGENT_CONFIG_KEY not in st.session_state:
-        st.session_state[REMOTE_AGENT_CONFIG_KEY] = RemoteAgentConfig()
+        loaded = _load_config_from_disk()
+        st.session_state[REMOTE_AGENT_CONFIG_KEY] = loaded or RemoteAgentConfig()
     # session_state returns Any; cast for mypy
     config: RemoteAgentConfig = st.session_state[REMOTE_AGENT_CONFIG_KEY]
     return config
@@ -196,6 +206,55 @@ def _get_or_create_config() -> RemoteAgentConfig:
 def _save_config(config: RemoteAgentConfig) -> None:
     """Save configuration to session state."""
     st.session_state[REMOTE_AGENT_CONFIG_KEY] = config
+    try:
+        _persist_config_to_disk(config)
+    except Exception as exc:
+        logger.warning(f"Failed to persist remote agent config: {exc}")
+
+
+def _get_config_path() -> Path:
+    """Resolve the storage path for the remote agent config."""
+    env_path = os.getenv(REMOTE_AGENT_CONFIG_PATH_ENV)
+    if env_path:
+        return Path(env_path).expanduser()
+    return REMOTE_AGENT_CONFIG_DIR / REMOTE_AGENT_CONFIG_FILENAME
+
+
+def _load_config_from_disk() -> RemoteAgentConfig | None:
+    """Load configuration from disk if present."""
+    path = _get_config_path()
+    if not path.exists():
+        return None
+    try:
+        raw = path.read_text(encoding="utf-8")
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            return None
+        return RemoteAgentConfig.from_dict(data)
+    except Exception as exc:
+        logger.warning(f"Failed to load remote agent config: {exc}")
+        return None
+
+
+def _persist_config_to_disk(config: RemoteAgentConfig) -> None:
+    """Persist configuration to disk with atomic write."""
+    path = _get_config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        os.chmod(tmp_path, stat.S_IRUSR | stat.S_IWUSR)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(config.to_dict(), handle, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                logger.warning("Failed to remove temporary config file.")
 
 
 def _build_request_headers(config: RemoteAgentConfig) -> dict[str, str]:
@@ -616,7 +675,7 @@ def render_remote_agent_config() -> None:
             key="clear_remote_config_btn",
             help="Reset all configuration to defaults",
         ):
-            st.session_state[REMOTE_AGENT_CONFIG_KEY] = RemoteAgentConfig()
+            _save_config(RemoteAgentConfig())
             st.session_state.pop(REMOTE_AGENT_TEST_RESULT_KEY, None)
             st.rerun()
 

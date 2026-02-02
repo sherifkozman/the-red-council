@@ -19,6 +19,7 @@ from src.ui.components.remote_agent_config import (
     _build_request_headers,
     _extract_response,
     _get_or_create_config,
+    _load_config_from_disk,
     _save_config,
     _simple_jsonpath_extract,
     _validate_json_path,
@@ -31,6 +32,9 @@ from src.ui.components.remote_agent_config import (
 )
 import src.ui.components.remote_agent_config as remote_agent_config
 
+ORIGINAL_LOAD_CONFIG = remote_agent_config._load_config_from_disk
+ORIGINAL_PERSIST_CONFIG = remote_agent_config._persist_config_to_disk
+
 
 @pytest.fixture
 def mock_session_state():
@@ -41,7 +45,11 @@ def mock_session_state():
 @pytest.fixture
 def mock_st(mock_session_state):
     """Create mock streamlit with session state."""
-    with patch.object(remote_agent_config, "st") as mock:
+    with (
+        patch.object(remote_agent_config, "st") as mock,
+        patch.object(remote_agent_config, "_load_config_from_disk", return_value=None),
+        patch.object(remote_agent_config, "_persist_config_to_disk"),
+    ):
         mock.session_state = mock_session_state
         mock.sidebar = MagicMock()
         yield mock
@@ -624,6 +632,33 @@ def test_save_config(mock_st, mock_session_state):
     assert (
         mock_session_state[REMOTE_AGENT_CONFIG_KEY].endpoint_url == "https://saved.com"
     )
+
+
+def test_load_config_from_disk_missing(tmp_path, monkeypatch):
+    """Test load returns None when no file exists."""
+    monkeypatch.setattr(remote_agent_config, "_get_config_path", lambda: tmp_path / "missing.json")
+    assert _load_config_from_disk() is None
+
+
+def test_config_persistence_roundtrip(tmp_path, monkeypatch, mock_st, mock_session_state):
+    """Test config persists to disk and reloads across refresh."""
+    path = tmp_path / "remote_agent_config.json"
+    monkeypatch.setattr(remote_agent_config, "_get_config_path", lambda: path)
+    monkeypatch.setattr(remote_agent_config, "_load_config_from_disk", ORIGINAL_LOAD_CONFIG)
+    monkeypatch.setattr(remote_agent_config, "_persist_config_to_disk", ORIGINAL_PERSIST_CONFIG)
+
+    config = RemoteAgentConfig(
+        endpoint_url="https://persisted.example.com",
+        auth_type="bearer",
+        auth_token="persisted-token",
+    )
+    _save_config(config)
+
+    mock_session_state.pop(REMOTE_AGENT_CONFIG_KEY, None)
+    loaded = _get_or_create_config()
+
+    assert loaded.endpoint_url == "https://persisted.example.com"
+    assert loaded.auth_token == "persisted-token"
 
 
 # =============================================================================
