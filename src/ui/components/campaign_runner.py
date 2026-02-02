@@ -35,6 +35,7 @@ from src.ui.components.remote_agent_config import (
     get_remote_agent_config,
     is_remote_agent_configured,
 )
+from src.ui.async_utils import safe_run_async
 
 logger = logging.getLogger(__name__)
 
@@ -338,9 +339,12 @@ def _start_campaign() -> None:
 
     try:
         with st.spinner(f"Running campaign with {len(templates)} attacks..."):
-            progress, results, events = asyncio.run(
-                _run_campaign_async(templates, session_id)
-            )
+            result = safe_run_async(_run_campaign_async(templates, session_id))
+            if isinstance(result, asyncio.Task) or asyncio.isfuture(result):
+                st.info("Campaign started in background. Refresh to see progress.")
+                return
+
+            progress, results, events = result
 
             # Save results
             _save_campaign_progress(progress)

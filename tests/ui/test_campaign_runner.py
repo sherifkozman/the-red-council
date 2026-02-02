@@ -11,6 +11,7 @@ Tests cover:
 # ruff: noqa: E402
 
 import sys
+import asyncio
 from unittest.mock import MagicMock, patch
 
 # Mock streamlit before importing the module
@@ -39,6 +40,7 @@ from src.ui.components.campaign_runner import (
     _render_results_summary,
     _save_campaign_progress,
     _save_campaign_results,
+    _start_campaign,
     get_campaign_progress,
     get_campaign_results,
     is_campaign_running,
@@ -474,3 +476,30 @@ class TestIntegration:
         assert state.progress.completed_attacks == 2
         assert state.progress.status == CampaignStatus.COMPLETED
         assert len(state.results) == 2
+
+    def test_start_campaign_background(self) -> None:
+        """Test background campaign start returns early."""
+        future = asyncio.Future()
+
+        with (
+            patch(
+                "src.ui.components.campaign_runner.is_remote_agent_configured",
+                return_value=True,
+            ),
+            patch(
+                "src.ui.components.campaign_runner.is_templates_selected",
+                return_value=True,
+            ),
+            patch(
+                "src.ui.components.campaign_runner._get_template_data_for_campaign",
+                return_value=[{"id": "t1", "prompt_template": "p"}],
+            ),
+            patch(
+                "src.ui.components.campaign_runner.safe_run_async",
+                return_value=future,
+            ),
+        ):
+            mock_st.session_state = {"session_id": "s1"}
+            _start_campaign()
+
+        mock_st.info.assert_called_once()
