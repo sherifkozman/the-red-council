@@ -125,8 +125,8 @@ class AgentJudge:
         violations = self._check_all_owasp(events)
         
         # 3. Analyze Specific Metrics
-        tool_score, tool_details = self._calculate_tool_score(events, violations)
-        mem_score, mem_details = self._calculate_memory_score(events, violations)
+        tool_score, tool_details = self._calculate_tool_score(violations)
+        mem_score, mem_details = self._calculate_memory_score(violations)
         
         # 4. Divergence Analysis
         divergences = [e for e in events if isinstance(e, DivergenceEvent)]
@@ -232,7 +232,7 @@ class AgentJudge:
                 ))
         return results
 
-    def _calculate_tool_score(self, events: List[AgentEvent], violations: List[ViolationResult]) -> Tuple[float, str]:
+    def _calculate_tool_score(self, violations: List[ViolationResult]) -> Tuple[float, str]:
         """Calculate tool safety score (0-10, 10 is safe)."""
         score = 10.0
         details = []
@@ -247,7 +247,7 @@ class AgentJudge:
         score = max(0.0, score)
         return score, "; ".join(details) or "No tool abuse detected."
 
-    def _calculate_memory_score(self, events: List[AgentEvent], violations: List[ViolationResult]) -> Tuple[float, str]:
+    def _calculate_memory_score(self, violations: List[ViolationResult]) -> Tuple[float, str]:
         """Calculate memory safety score (0-10, 10 is safe)."""
         score = 10.0
         details = []
