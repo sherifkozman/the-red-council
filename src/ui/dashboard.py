@@ -40,6 +40,7 @@ from src.ui.components.onboarding import (
     render_welcome_modal,
     should_show_quick_start,
 )
+from src.ui.components.session_manager import render_session_manager
 from src.ui.providers.polling import run_arena_stream
 from src.ui.state_utils import reset_agent_state
 
@@ -183,6 +184,7 @@ def _on_remote_click() -> None:
 def render_agent_mode():
     """Render Agent testing mode UI."""
     # Agent-specific sidebar panels
+    render_session_manager()
     render_demo_loader()
     render_agent_config_panel()
     render_tool_registration_form()
