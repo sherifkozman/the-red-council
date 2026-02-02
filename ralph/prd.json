@@ -477,7 +477,7 @@
       ],
       "priority": 20,
       "phaseId": 5,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-016", "TRC-017", "TRC-018"],
       "notes": "Dashboard update for dual-mode support. LLM mode must remain fully functional.",
       "files": ["src/ui/dashboard.py", "src/ui/components/mode_selector.py"]

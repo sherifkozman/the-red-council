@@ -270,3 +270,29 @@ Stopped at iteration 1 by EXIT
   - **Dataclasses**: Use frozen dataclasses for immutable analysis results.
   - **Security in Graphs**: Even node labels need XSS protection via html.escape().
 ---
+
+## 2026-02-02 - TRC-019
+- Implemented dual-mode dashboard supporting LLM Testing and Agent Testing modes.
+- Created `src/ui/components/mode_selector.py` with:
+  - `render_mode_selector() -> TestingMode` renders sidebar radio button for mode selection
+  - `render_agent_config_panel() -> AgentInstrumentationConfig` renders agent configuration
+  - `render_tool_registration_form()` allows users to register custom tools
+  - `render_memory_config()` configures memory access patterns
+  - Helper functions: `get_current_mode()`, `get_agent_config()`, `is_agent_mode()`
+  - Session state management with centralized keys (MODE_KEY, AGENT_CONFIG_KEY, AGENT_EVENTS_KEY, AGENT_SCORE_KEY)
+  - Mode transition handling with `_on_mode_change` callback that clears agent state when switching back to LLM
+  - XSS protection via html.escape() for user-supplied tool names/descriptions
+- Updated `src/ui/dashboard.py` with:
+  - Separated mode-specific rendering into `render_llm_mode()` and `render_agent_mode()`
+  - Agent mode shows tabs: Timeline, Tool Chain, OWASP Coverage, Events
+  - Lazy imports for agent components to avoid circular dependencies
+  - Action buttons: Clear Events, Run Evaluation, Generate Report
+- 23 tests with 84% coverage on mode_selector.py.
+- Reviews completed: council code-review, council security audit.
+- **Learnings for future iterations:**
+  - **Session State**: Use centralized key constants and `_init_session_state()` pattern for consistent initialization.
+  - **Mode Transitions**: Explicitly define what state is cleared/preserved when switching modes.
+  - **Lazy Imports**: Use inside tabs/expanders to avoid circular dependencies in UI components.
+  - **Streamlit Mocking**: Mock `st.session_state` as a dict, but be aware that attribute access patterns differ.
+  - **XSS in Forms**: Use html.escape() for all user-supplied strings before storing or displaying.
+---
