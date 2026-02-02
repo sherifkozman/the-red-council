@@ -17,6 +17,9 @@ class Technique(Enum):
     INSTRUCTION_OVERRIDE = "instruction_override"
     ENCODING = "encoding"
     CONTEXT_MANIPULATION = "context_manipulation"
+    INDIRECT_INJECTION = "indirect_injection"
+    CHAINING = "chaining"
+    DIRECT_INSTRUCTION = "direct_instruction"
 
 
 class JudgeScore(BaseModel):

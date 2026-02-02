@@ -34,4 +34,48 @@
   - **Mocking Risks**: Avoid mocking the system-under-test. Only mock external dependencies (like the base LLM judge).
   - **Assertions**: Assert *absence* of violations in benign cases to prevent noisy detectors.
   - **Strictness**: Avoid asserting exact floating point scores if logic changes; assert thresholds (e.g., score < 8.0).
+
+## 2026-02-02 - TRC-010
+- Implemented `AgentAttackKnowledgeBase` and `AgentAttackTemplate` in `src/knowledge/agent_attacks.py`
+- Implemented robust metadata filtering and corruption handling
+- Achieved 100% pass rate on new tests, 83% coverage on new file
+- Reviews completed: code-reviewer, silent-failure-hunter, security
+- **Learnings for future iterations:**
+  - **Base64 is NOT Encryption**: Document clearly that it's for formatting/obfuscation.
+  - **Fail Fast**: In security context, DB corruption should raise exceptions, not fail silently.
+  - **Strict Validation**: Validate inputs (length, chars) at the boundary (`add` method).
+  - **Enum Handling**: Don't rely on implicit string conversion; map enums explicitly and validate.
+  - **Resource Cleanup**: Ensure `ThreadPoolExecutor` is shutdown in `__del__` or via context manager.
+---
+
+## 2026-02-02 - TRC-011
+- Implemented `src/knowledge/agent_seed_data.py` with 9 attack templates for ASI01-ASI03.
+- Implemented `seed_agent_attacks` function with robust error handling and logging.
+- Added comprehensive tests in `tests/knowledge/test_agent_seed.py` (idempotency, partial seeding, capability retrieval).
+- Test coverage: 100% for test file, 82% for source file.
+- Reviews completed: code-reviewer, silent-failure-hunter, security, code-simplifier.
+- **Learnings for future iterations:**
+  - **Testing Seeding**: Verify exact set equality (IDs) rather than just counts to catch missing/extra items.
+  - **Security of Test Data**: Explicitly mark test artifacts (like malicious prompts) with warnings and environment guards.
+  - **KB Logic**: When seeding KBs, idempotency is critical. `get_by_id` check is useful for logging "skipped" vs "error", even if DB handles uniqueness.
+  - **Logging**: Use parameterized logging (`logger.info("Msg %s", arg)`) for performance and clarity.
+---
+
+## 2026-02-02 - TRC-012
+- Implemented 9 new attack templates for ASI04, ASI05, and ASI06 in `src/knowledge/agent_seed_data.py`.
+- Added new `Technique` enum values: `INDIRECT_INJECTION`, `CHAINING`, `DIRECT_INSTRUCTION`.
+- Updated `seed_agent_attacks` to return `SeedResult` object with stats (added, skipped, failed).
+- Added security environment check to `seed_agent_attacks` (requires `allow_production=True` or `RC_ENV=test/dev/ci`).
+- Added robust exception handling catching specific signals (`KeyboardInterrupt`, `SystemExit`) correctly.
+- Updated tests in `tests/knowledge/test_agent_seed.py` to verify new templates and return types.
+- Fixed `test_agent_seed.py` by adding `setup_env` fixture to mock `RC_ENV`.
+- Addressed security review findings:
+    - Added environment gating.
+    - Improved return type for better visibility.
+    - Safe exception handling.
+- **Learnings for future iterations:**
+    - **Security Gating**: Always gate destructive/seeding operations with environment checks.
+    - **Return Types**: Use dataclasses/Pydantic models for complex return values (counts + status) instead of simple ints.
+    - **Exception Safety**: Be careful catching `Exception`; explicitly re-raise system signals.
+    - **Test Fixtures**: Use `autouse=True` fixtures for environment setup in tests to ensure consistency.
 ---

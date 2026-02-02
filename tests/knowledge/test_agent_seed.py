@@ -16,6 +16,11 @@ class TestAgentSeedData:
         yield temp_dir
         shutil.rmtree(temp_dir)
 
+    @pytest.fixture(autouse=True)
+    def setup_env(self, monkeypatch):
+        """Set RC_ENV to test for all tests in this class."""
+        monkeypatch.setenv("RC_ENV", "test")
+
     @pytest.fixture
     def kb(self, temp_db_path):
         """Initialize KB with temp directory."""
@@ -25,11 +30,13 @@ class TestAgentSeedData:
 
     def test_seed_agent_attacks_success(self, kb):
         """Verify seeding adds templates to the KB."""
-        count = seed_agent_attacks(kb)
+        result = seed_agent_attacks(kb)
         
         # Verify count matches defined templates
-        assert count == len(AGENT_ATTACK_TEMPLATES)
-        assert count > 0, "Should have seeded at least one template"
+        assert result.added == len(AGENT_ATTACK_TEMPLATES)
+        assert result.failed == 0
+        assert result.skipped == 0
+        assert result.added > 0, "Should have seeded at least one template"
         
         # Verify collection count
         assert kb.collection.count() == len(AGENT_ATTACK_TEMPLATES)
@@ -44,12 +51,14 @@ class TestAgentSeedData:
     def test_seed_idempotency(self, kb):
         """Verify seeding is idempotent (skips existing)."""
         # First run
-        count1 = seed_agent_attacks(kb)
-        assert count1 == len(AGENT_ATTACK_TEMPLATES)
+        result1 = seed_agent_attacks(kb)
+        assert result1.added == len(AGENT_ATTACK_TEMPLATES)
         
         # Second run
-        count2 = seed_agent_attacks(kb)
-        assert count2 == 0  # Should add 0 new
+        result2 = seed_agent_attacks(kb)
+        assert result2.added == 0
+        assert result2.skipped == len(AGENT_ATTACK_TEMPLATES)
+        assert result2.failed == 0
         
         # Total count should remain same
         assert kb.collection.count() == len(AGENT_ATTACK_TEMPLATES)
@@ -64,11 +73,13 @@ class TestAgentSeedData:
         assert kb.collection.count() == 2
         
         # Run seed
-        count = seed_agent_attacks(kb)
+        result = seed_agent_attacks(kb)
         
         # Should add the rest
         expected_added = len(AGENT_ATTACK_TEMPLATES) - 2
-        assert count == expected_added
+        assert result.added == expected_added
+        assert result.skipped == 2
+        assert result.failed == 0
         
         # Total should be full
         assert kb.collection.count() == len(AGENT_ATTACK_TEMPLATES)
@@ -93,6 +104,30 @@ class TestAgentSeedData:
         assert len(asi02_attacks) == len(expected_asi02)
         assert {a.id for a in asi02_attacks} == {t.id for t in expected_asi02}
 
+        # Verify ASI04
+        expected_asi04 = [t for t in AGENT_ATTACK_TEMPLATES 
+                          if OWASPAgenticRisk.ASI04_INDIRECT_PROMPT_INJECTION in t.target_owasp]
+        asi04_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI04_INDIRECT_PROMPT_INJECTION)
+        
+        assert len(asi04_attacks) == len(expected_asi04)
+        assert {a.id for a in asi04_attacks} == {t.id for t in expected_asi04}
+
+        # Verify ASI05
+        expected_asi05 = [t for t in AGENT_ATTACK_TEMPLATES 
+                          if OWASPAgenticRisk.ASI05_IMPROPER_AUTHORIZATION in t.target_owasp]
+        asi05_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI05_IMPROPER_AUTHORIZATION)
+        
+        assert len(asi05_attacks) == len(expected_asi05)
+        assert {a.id for a in asi05_attacks} == {t.id for t in expected_asi05}
+
+        # Verify ASI06
+        expected_asi06 = [t for t in AGENT_ATTACK_TEMPLATES 
+                          if OWASPAgenticRisk.ASI06_DATA_DISCLOSURE in t.target_owasp]
+        asi06_attacks = kb.get_attacks_for_owasp(OWASPAgenticRisk.ASI06_DATA_DISCLOSURE)
+        
+        assert len(asi06_attacks) == len(expected_asi06)
+        assert {a.id for a in asi06_attacks} == {t.id for t in expected_asi06}
+
     def test_multi_category_owasp_retrieval(self, kb):
         """Verify templates with multiple OWASP tags are retrievable by all of them."""
         seed_agent_attacks(kb)
@@ -114,13 +149,14 @@ class TestAgentSeedData:
         
         # Requires tool access
         expected_tools = {t.id for t in AGENT_ATTACK_TEMPLATES if t.requires_tool_access}
-        # Pass k to ensure we get all of them (default is 5)
-        tool_attacks = kb.get_attacks_by_capability(tools=True, k=100)
+        # Pass k large enough to ensure we get all of them, or use a specific method if available
+        # Current implementation supports large k
+        tool_attacks = kb.get_attacks_by_capability(tools=True, k=len(AGENT_ATTACK_TEMPLATES) + 10)
         assert {a.id for a in tool_attacks} == expected_tools
             
         # Requires memory access
         expected_memory = {t.id for t in AGENT_ATTACK_TEMPLATES if t.requires_memory_access}
-        memory_attacks = kb.get_attacks_by_capability(memory=True, k=100)
+        memory_attacks = kb.get_attacks_by_capability(memory=True, k=len(AGENT_ATTACK_TEMPLATES) + 10)
         assert {a.id for a in memory_attacks} == expected_memory
 
     def test_validate_template_ids(self):

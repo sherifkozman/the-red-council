@@ -276,7 +276,7 @@
       ],
       "priority": 11,
       "phaseId": 3,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-001"],
       "notes": "Separate collection allows targeted agent attacks. Follows same patterns as existing attack_kb.py.",
       "files": ["src/knowledge/agent_attacks.py", "tests/knowledge/test_agent_attacks.py"]
@@ -296,7 +296,7 @@
       ],
       "priority": 12,
       "phaseId": 3,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-010"],
       "notes": "Focus on the most critical agent vulnerabilities first. Minimum 9 templates in this story.",
       "files": ["src/knowledge/agent_seed_data.py", "tests/knowledge/test_agent_seed.py"]
@@ -315,7 +315,7 @@
       ],
       "priority": 13,
       "phaseId": 3,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-010"],
       "notes": "Second batch of attack templates. Minimum 9 templates in this story.",
       "files": ["src/knowledge/agent_seed_data.py", "tests/knowledge/test_agent_seed.py"]
