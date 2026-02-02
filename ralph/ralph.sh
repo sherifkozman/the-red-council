@@ -17,6 +17,7 @@ set -u
 # Configuration
 # =============================================================================
 CLI="claude"
+GEMINI_MODEL="gemini-3-pro-preview"   # Default Gemini model
 MAX_ITERATIONS=32               # Match story count
 ITERATION_TIMEOUT=2400          # 40 minutes per iteration (complex stories)
 MAX_RETRIES=5                   # Retries per iteration on transient failures
@@ -31,6 +32,10 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --cli)
       CLI="$2"
+      shift 2
+      ;;
+    --model)
+      GEMINI_MODEL="$2"
       shift 2
       ;;
     --timeout)
@@ -51,15 +56,17 @@ Usage: ./ralph.sh [OPTIONS] [max_iterations]
 
 Options:
   --cli <cli>          AI CLI to use: claude or gemini (default: claude)
+  --model <model>      Gemini model to use (default: gemini-2.5-pro)
   --timeout <seconds>  Timeout per iteration in seconds (default: 2400)
   --max-retries <n>    Max retries on transient failures (default: 5)
   --cooldown <seconds> Cooldown between iterations (default: 10)
   -h, --help           Show this help message
 
 Examples:
-  ./ralph.sh                        # Claude, 32 iterations, 40min timeout
-  ./ralph.sh --cli gemini 20        # Gemini, 20 iterations
-  ./ralph.sh --timeout 3600 5       # 1 hour timeout, 5 iterations
+  ./ralph.sh                              # Claude, 32 iterations
+  ./ralph.sh --cli gemini                 # Gemini with gemini-2.5-pro
+  ./ralph.sh --cli gemini --model gemini-3-flash    # Gemini with specific model
+  ./ralph.sh --timeout 3600 5             # 1 hour timeout, 5 iterations
 
 Monitoring:
   ./ralph-monitor.sh                # Real-time progress dashboard
@@ -433,8 +440,8 @@ build_command() {
       fi
       ;;
     gemini)
-      # Gemini CLI: use --yolo for auto-approve, pipe prompt via stdin
-      echo "cd '$REPO_ROOT' && cat '$PROMPT_FILE' | gemini --yolo"
+      # Gemini CLI: use --yolo for auto-approve, specify model, pipe prompt via stdin
+      echo "cd '$REPO_ROOT' && cat '$PROMPT_FILE' | gemini --yolo --model '$GEMINI_MODEL'"
       ;;
   esac
 }
@@ -570,6 +577,9 @@ main() {
   echo "║     RALPH WIGGUM - The Red Council Autonomous Agent Loop          ║"
   echo "╠════════════════════════════════════════════════════════════════════╣"
   echo "║ CLI:              $CLI"
+  if [[ "$CLI" == "gemini" ]]; then
+    echo "║ Model:            $GEMINI_MODEL"
+  fi
   echo "║ Max iterations:   $MAX_ITERATIONS"
   echo "║ Timeout/iter:     ${ITERATION_TIMEOUT}s ($(($ITERATION_TIMEOUT / 60)) min)"
   echo "║ Max retries:      $MAX_RETRIES"
