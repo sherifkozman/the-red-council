@@ -68,6 +68,8 @@ class MemoryAccessEvent(BaseAgentEvent):
     key: str = Field(..., description="Memory key accessed")
     value_preview: Optional[str] = Field(None, description="Preview of value (sanitized)")
     sensitive_detected: bool = Field(False, description="Whether sensitive data was detected")
+    success: bool = Field(True, description="Whether the operation succeeded")
+    exception_type: Optional[str] = Field(None, description="Type of exception if failed")
 
     @model_validator(mode='before')
     @classmethod
@@ -81,6 +83,16 @@ class MemoryAccessEvent(BaseAgentEvent):
             elif value and isinstance(value, str) and len(value) > 100:
                 data['value_preview'] = value[:97] + "..."
         return data
+
+    @model_validator(mode='after')
+    def validate_exception(self) -> 'MemoryAccessEvent':
+        if not self.success and self.exception_type is None:
+            raise ValueError("exception_type required when success=False")
+        # Note: success=True can have exception if we want to log swallowed exceptions, 
+        # but for consistency with ToolCallEvent, let's enforce None.
+        if self.success and self.exception_type is not None:
+            raise ValueError("exception_type must be None when success=True")
+        return self
 
 class ActionRecord(BaseAgentEvent):
     """Record of a distinct action taken by the agent.

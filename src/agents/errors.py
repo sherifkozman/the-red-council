@@ -55,7 +55,11 @@ class TargetLLMError(AgentError):
     pass
 
 
-class ToolInterceptionError(AgentError):
-    """Errors during tool interception."""
-
+class ToolInterceptionError(Exception):
+    """Raised when tool interception fails."""
     pass
+
+class InstrumentationFailureError(Exception):
+    """Raised when instrumentation system is compromised (too many failures)."""
+    pass
+

@@ -3,10 +3,12 @@ import time
 import random
 import threading
 import logging
+import reprlib
+import re
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, List, Optional, TypeVar, Dict, Union, Awaitable
+from typing import Any, Callable, List, Optional, TypeVar, Dict, Union, Awaitable, Protocol, runtime_checkable
 from uuid import uuid4, UUID
 
 from src.core.agent_schemas import (
@@ -19,11 +21,36 @@ from src.core.agent_schemas import (
     DivergenceEvent,
     MemoryAccessOperation,
 )
-from src.agents.errors import ToolInterceptionError
+from src.agents.errors import ToolInterceptionError, InstrumentationFailureError
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+# TRC-005: Sensitive patterns for memory monitoring
+SECRET_PATTERNS = frozenset({
+    "password", "secret", "api_key", "token", "credential", "auth", "private_key",
+    "bearer", "session", "jwt", "oauth", "ssn", "credit_card", "access_key"
+})
+SYSTEM_KEY_PATTERNS = frozenset({"__", "system_", "config_", "env_"})
+
+MAX_RECORDING_FAILURES = 10
+MAX_INTERNAL_MEMORY_KEYS = 10000
+KEY_VALIDATION_PATTERN = re.compile(r'^[a-zA-Z0-9_./:-]+$')
+
+@runtime_checkable
+class MemoryBackend(Protocol):
+    """
+    Protocol for external memory backends (Redis, VectorDB, etc).
+    
+    SECURITY WARNING: 
+    - Implementations MUST validate inputs to prevent injection attacks.
+    - Implementations SHOULD NOT use unsafe serialization (pickle/dill) for values.
+    """
+    def get(self, key: str) -> Any: ...
+    def set(self, key: str, value: Any) -> None: ...
+    def delete(self, key: str) -> None: ...
+    def keys(self) -> List[str]: ...
 
 @dataclass
 class ToolRegistration:
@@ -61,10 +88,13 @@ class InstrumentedAgent:
         self,
         agent: Any,
         name: str,
-        config: AgentInstrumentationConfig
+        config: AgentInstrumentationConfig,
+        memory_backend: Optional[MemoryBackend] = None
     ):
         if config.max_events <= 0:
             raise ValueError("max_events must be positive")
+        if not (0.0 <= config.sampling_rate <= 1.0):
+            raise ValueError("sampling_rate must be between 0.0 and 1.0")
 
         self.agent = agent
         self.name = name
@@ -72,10 +102,14 @@ class InstrumentedAgent:
         # Use deque for O(1) appends and automatic maxlen enforcement
         self._events: deque[AgentEvent] = deque(maxlen=config.max_events)
         self._session_id = uuid4()
-        self._lock = threading.Lock()
-        self._rng = random.Random()
+        self._lock = threading.RLock()
+        self._rng = random.SystemRandom()
         self.tool_registry: Dict[str, ToolRegistration] = {}
         self._recording_failures = 0
+        
+        # Memory storage: use provided backend or internal dict
+        self._memory_backend = memory_backend
+        self._internal_memory: Dict[str, Any] = {}
         
         # Determine if wrapped agent is async
         self.is_async = (
@@ -129,7 +163,8 @@ class InstrumentedAgent:
     def _safe_repr(self, obj: Any, max_len: int = 1000) -> str:
         """Safely represent an object as a string with truncation."""
         try:
-            s = str(obj)
+            # Use reprlib for safer, limited representation of complex objects
+            s = reprlib.repr(obj)
             if len(s) > max_len:
                 return s[:max_len] + "..."
             return s
@@ -284,7 +319,10 @@ class InstrumentedAgent:
         except Exception as e:
             with self._lock:
                 self._recording_failures += 1
-            logger.error(f"Failed to record tool call event (failures: {self._recording_failures}): {e}")
+            # Security: Log only exception type to avoid leaking sensitive data in message
+            logger.error(f"Failed to record tool call event (failures: {self._recording_failures}): {type(e).__name__}")
+            if self._recording_failures > MAX_RECORDING_FAILURES:
+                raise InstrumentationFailureError(f"Instrumentation failed too many times ({self._recording_failures})") from e
 
     def record_speech(
         self,
@@ -400,7 +438,9 @@ class InstrumentedAgent:
         self,
         operation: MemoryAccessOperation,
         key: str,
-        value: Any = None
+        value: Any = None,
+        success: bool = True,
+        exception_type: Optional[str] = None
     ) -> None:
         """
         Record a memory access event. 
@@ -409,17 +449,142 @@ class InstrumentedAgent:
         if not self.config.enable_memory_monitoring:
             return
             
-        # Determine if sensitive (placeholder logic, expanded in TRC-005)
-        sensitive = False 
+        # Detect sensitive access patterns
+        sensitive = False
+        lower_key = key.lower()
         
-        event = MemoryAccessEvent(
-            session_id=self._session_id,
-            operation=operation,
-            key=key,
-            value_preview=self._safe_repr(value) if value is not None else None,
-            sensitive_detected=sensitive
-        )
-        self._add_event(event)
+        if operation == MemoryAccessOperation.READ:
+            # Check for reading secrets
+            if any(p in lower_key for p in SECRET_PATTERNS):
+                sensitive = True
+        elif operation == MemoryAccessOperation.WRITE:
+            # Check for writing to system keys
+            if any(lower_key.startswith(p) for p in SYSTEM_KEY_PATTERNS):
+                sensitive = True
+        
+        value_preview = None
+        if value is not None:
+            if sensitive:
+                value_preview = "******"
+            else:
+                value_preview = self._safe_repr(value)
+
+        try:
+            event = MemoryAccessEvent(
+                session_id=self._session_id,
+                operation=operation,
+                key=key,
+                value_preview=value_preview,
+                sensitive_detected=sensitive,
+                success=success,
+                exception_type=exception_type
+            )
+            self._add_event(event)
+        except Exception as e:
+            with self._lock:
+                self._recording_failures += 1
+            # Security: Log only exception type to avoid leaking sensitive data in message
+            logger.error(f"Failed to record memory access event (failures: {self._recording_failures}): {type(e).__name__}")
+            if self._recording_failures > MAX_RECORDING_FAILURES:
+                 raise InstrumentationFailureError(f"Instrumentation failed too many times ({self._recording_failures})") from e
+
+    def _validate_key(self, key: str) -> None:
+        """Validate memory key to prevent injection attacks."""
+        if not KEY_VALIDATION_PATTERN.match(key):
+            raise ValueError(f"Invalid memory key '{key}': must match pattern {KEY_VALIDATION_PATTERN.pattern}")
+        if ".." in key:
+            raise ValueError(f"Invalid memory key '{key}': traversal detected")
+        if key.startswith(".") or key.startswith("_"):
+            raise ValueError(f"Invalid memory key '{key}': cannot start with '.' or '_'")
+
+    def get_memory(self, key: str) -> Any:
+        """Retrieve a value from memory and record the access."""
+        value = None
+        success = True
+        exception_type = None
+        
+        with self._lock:
+            try:
+                self._validate_key(key)
+                if self._memory_backend:
+                    value = self._memory_backend.get(key)
+                else:
+                    value = self._internal_memory.get(key)
+            except Exception as e:
+                success = False
+                exception_type = type(e).__name__
+                raise e
+            finally:
+                self.wrap_memory_access(
+                    MemoryAccessOperation.READ, 
+                    key, 
+                    value, 
+                    success=success, 
+                    exception_type=exception_type
+                )
+        return value
+
+    def set_memory(self, key: str, value: Any) -> None:
+        """Set a value in memory and record the access."""
+        success = True
+        exception_type = None
+        
+        with self._lock:
+            try:
+                self._validate_key(key)
+                
+                # Check memory limit for internal memory
+                if not self._memory_backend:
+                    if len(self._internal_memory) >= MAX_INTERNAL_MEMORY_KEYS and key not in self._internal_memory:
+                        raise ValueError(f"Internal memory limit reached ({MAX_INTERNAL_MEMORY_KEYS} keys)")
+                
+                if self._memory_backend:
+                    self._memory_backend.set(key, value)
+                else:
+                    self._internal_memory[key] = value
+            except Exception as e:
+                success = False
+                exception_type = type(e).__name__
+                raise e
+            finally:
+                self.wrap_memory_access(
+                    MemoryAccessOperation.WRITE, 
+                    key, 
+                    value,
+                    success=success,
+                    exception_type=exception_type
+                )
+
+    def delete_memory(self, key: str) -> None:
+        """Delete a value from memory and record the access."""
+        success = True
+        exception_type = None
+        
+        with self._lock:
+            try:
+                self._validate_key(key)
+                if self._memory_backend:
+                    self._memory_backend.delete(key)
+                elif key in self._internal_memory:
+                    del self._internal_memory[key]
+            except Exception as e:
+                success = False
+                exception_type = type(e).__name__
+                raise e
+            finally:
+                self.wrap_memory_access(
+                    MemoryAccessOperation.DELETE, 
+                    key,
+                    success=success,
+                    exception_type=exception_type
+                )
+
+    def list_memory_keys(self) -> List[str]:
+        """List all keys in memory."""
+        with self._lock:
+            if self._memory_backend:
+                return self._memory_backend.keys()
+            return list(self._internal_memory.keys())
 
     def detect_divergence(
         self,
@@ -430,8 +595,7 @@ class InstrumentedAgent:
         Detect divergence between speech and actions.
         Implementation deferred to TRC-006.
         """
-        # TODO: Implement with DivergenceDetector in TRC-006
-        return None
+        raise NotImplementedError("Divergence detection not yet implemented (TRC-006)")
 
     def __enter__(self):
         return self
