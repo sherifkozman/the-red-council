@@ -6,7 +6,10 @@ import uuid
 
 import streamlit as st
 
+from src.agents.agent_judge import AgentJudge, AgentJudgeConfig
+from src.agents.judge import JudgeAgent
 from src.core.security import check_rate_limit, validate_input
+from src.providers.gemini_client import GeminiClient
 from src.ui.components.chat import render_chat
 from src.ui.components.header import render_header
 from src.ui.components.metrics import render_metrics
@@ -20,9 +23,6 @@ from src.ui.components.mode_selector import (
     render_tool_registration_form,
 )
 from src.ui.providers.polling import run_arena_stream
-from src.agents.agent_judge import AgentJudge, AgentJudgeConfig
-from src.agents.judge import JudgeAgent
-from src.providers.gemini_client import GeminiClient
 
 
 async def run_agent_evaluation():
@@ -37,11 +37,11 @@ async def run_agent_evaluation():
         # Using defaults for GeminiClient - relies on env vars or default project
         client = GeminiClient()
         judge_agent = JudgeAgent(client=client)
-        
+
         # Use default configuration for now
         # Future: Load from UI if we add configuration panel for weights
-        judge_config = AgentJudgeConfig() 
-        
+        judge_config = AgentJudgeConfig()
+
         agent_judge = AgentJudge(judge=judge_agent, config=judge_config)
 
         with st.spinner("Running OWASP Agentic Security Evaluation..."):
@@ -49,7 +49,7 @@ async def run_agent_evaluation():
             score = await agent_judge.evaluate_agent_async(events)
             st.session_state[AGENT_SCORE_KEY] = score
             st.success("Evaluation complete!")
-            
+
     except Exception as e:
         logger = logging.getLogger(__name__)
         logger.error(f"Evaluation failed: {str(e)}", exc_info=True)

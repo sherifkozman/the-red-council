@@ -32,6 +32,11 @@
       "id": 6,
       "name": "Phase 6: Framework Integrations",
       "description": "Adapters for LangChain, LangGraph, and MCP protocol integration."
+    },
+    {
+      "id": 7,
+      "name": "Phase 7: UI/UX Completion",
+      "description": "Wire existing UI components to backend, implement three agent testing modes (Demo, SDK, Remote), add onboarding flows and session management."
     }
   ],
   "userStories": [
@@ -649,7 +654,7 @@
       ],
       "priority": 27,
       "phaseId": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-020", "TRC-021", "TRC-022", "TRC-025"],
       "notes": "Documentation for new features. Examples are critical for adoption.",
       "files": ["README.md", "docs/agent-testing-guide.md", "examples/agent_testing/basic_test.py", "examples/agent_testing/langchain_example.py", "examples/agent_testing/custom_agent.py"]
@@ -672,7 +677,7 @@
       ],
       "priority": 28,
       "phaseId": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-023", "TRC-025", "TRC-019"],
       "notes": "E2E tests verify complete flow. Run after all components integrated.",
       "files": ["tests/e2e/test_agent_flow.py", "tests/e2e/test_langchain_e2e.py", "tests/e2e/conftest.py"]
@@ -694,7 +699,7 @@
       ],
       "priority": 29,
       "phaseId": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-027"],
       "notes": "Performance validation ensures sub-30s target from success metrics.",
       "files": ["tests/performance/test_agent_performance.py", "tests/performance/conftest.py"]
@@ -717,7 +722,7 @@
       ],
       "priority": 30,
       "phaseId": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": [],
       "notes": "Framework version pinning prevents breaking changes. Optional deps keep core lightweight.",
       "files": ["pyproject.toml", "README.md"]
@@ -767,10 +772,10 @@
       ],
       "priority": 32,
       "phaseId": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-003", "TRC-008"],
-      "notes": "Real agent for integration testing - NOT a mock. This validates the entire pipeline against actual agent behavior.",
-      "files": ["src/test_agents/__init__.py", "src/test_agents/vulnerable_agent.py", "tests/test_agents/test_vulnerable_agent.py"]
+      "notes": "Real agent for integration testing - NOT a mock. This validates the entire pipeline against actual agent behavior. Test dir renamed to tests/vulnerable_agents to avoid conflict with tests/test_agents.py.",
+      "files": ["src/test_agents/__init__.py", "src/test_agents/vulnerable_agent.py", "tests/vulnerable_agents/test_vulnerable_agent.py"]
     },
     {
       "id": "TRC-032",
@@ -801,10 +806,264 @@
       ],
       "priority": 33,
       "phaseId": 3,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-010"],
       "notes": "Seeds real attack data equivalent to seed_data.py for LLM attacks. Sources: AgentDojo, InjecAgent, ToolEmu, R-Judge, MCPTox.",
       "files": ["src/knowledge/agent_attack_sources.py", "src/knowledge/agent_seed_data.py", "docs/agent-attack-data.md", "tests/knowledge/test_agent_attack_sources.py"]
+    },
+    {
+      "id": "TRC-033",
+      "title": "Wire Run Evaluation button to AgentJudge backend",
+      "description": "As a user, I need the 'Run Evaluation' button to execute OWASP evaluation on captured events so that I can assess my agent's security posture.",
+      "acceptanceCriteria": [
+        "Button callback invokes AgentJudge.evaluate_agent_async() with session events",
+        "Loading spinner displays during evaluation (use st.spinner)",
+        "Results stored in st.session_state[AGENT_SCORE_KEY]",
+        "OWASP Coverage tab auto-refreshes with evaluation results",
+        "Error handling displays user-friendly message on failure",
+        "Button disabled while evaluation is in progress",
+        "Success toast notification when evaluation completes"
+      ],
+      "priority": 1,
+      "phaseId": 7,
+      "passes": true,
+      "dependsOn": ["TRC-019"],
+      "notes": "This is the critical wiring to connect the UI to the backend evaluation. AgentJudge and AgentJudgeConfig already exist.",
+      "files": ["src/ui/dashboard.py", "src/ui/components/mode_selector.py"]
+    },
+    {
+      "id": "TRC-034",
+      "title": "Wire Generate Report button to AgentReportGenerator",
+      "description": "As a user, I need the 'Generate Report' button to create a downloadable security report so that I can share findings with my team.",
+      "acceptanceCriteria": [
+        "Button callback invokes AgentReportGenerator.generate() with score and events",
+        "Report rendered to markdown via report.to_markdown()",
+        "Download button appears with report as .md file",
+        "JSON export option available via report.model_dump(mode='json')",
+        "Report viewer modal/expander shows formatted report preview",
+        "Button disabled if no score available",
+        "Error handling for report generation failures"
+      ],
+      "priority": 2,
+      "phaseId": 7,
+      "passes": false,
+      "dependsOn": ["TRC-033"],
+      "notes": "AgentReportGenerator and templates already exist. Need to wire UI to call generate() and render().",
+      "files": ["src/ui/dashboard.py", "src/ui/components/report_viewer.py"]
+    },
+    {
+      "id": "TRC-035",
+      "title": "Implement Demo Mode with VulnerableTestAgent",
+      "description": "As a new user, I need a 'Load Demo' button that populates the dashboard with sample data so that I can explore the platform without setting up my own agent.",
+      "acceptanceCriteria": [
+        "Add 'Load Demo' button in Agent Testing mode sidebar",
+        "Button creates VulnerableTestAgent instance and runs sample attack prompts",
+        "Pre-recorded events from demo run populate st.session_state[AGENT_EVENTS_KEY]",
+        "Timeline, Tool Chain tabs immediately show populated data",
+        "Demo mode indicator shown in header/sidebar",
+        "Clear Demo button to reset to empty state",
+        "Demo includes representative events: tool calls, memory access, divergence",
+        "Demo attacks trigger at least 3 OWASP violations (ASI01, ASI06, ASI07)"
+      ],
+      "priority": 3,
+      "phaseId": 7,
+      "passes": false,
+      "dependsOn": ["TRC-031", "TRC-033"],
+      "notes": "VulnerableTestAgent already has intentional vulnerabilities for ASI01, ASI02, ASI04, ASI06, ASI07. Generate demo events by running standard attack prompts against it.",
+      "files": ["src/ui/dashboard.py", "src/ui/components/demo_loader.py", "src/test_agents/vulnerable_agent.py"]
+    },
+    {
+      "id": "TRC-036",
+      "title": "Create SDK Connection Panel with code snippets",
+      "description": "As a developer, I need an SDK connection panel showing code snippets for my framework so that I can instrument my agent to send events to the dashboard.",
+      "acceptanceCriteria": [
+        "New 'SDK Integration' tab in Agent Testing mode",
+        "Framework selector: LangChain, LangGraph, MCP, Custom",
+        "Framework-specific code snippet displayed with syntax highlighting",
+        "Copy-to-clipboard button for code snippet",
+        "Session webhook URL displayed: /api/v1/agent/session/{session_id}/events",
+        "Auto-generate session ID on panel load if none exists",
+        "Link to full documentation for each framework",
+        "Code snippets include authentication header example"
+      ],
+      "priority": 4,
+      "phaseId": 7,
+      "passes": false,
+      "dependsOn": ["TRC-020", "TRC-021", "TRC-022", "TRC-025"],
+      "notes": "Framework adapters exist in src/integrations/. Generate snippets showing how to wrap agent and POST events to webhook URL.",
+      "files": ["src/ui/components/sdk_connection.py", "src/ui/dashboard.py"]
+    },
+    {
+      "id": "TRC-037",
+      "title": "Create Remote Agent Configuration panel",
+      "description": "As a security tester, I need to configure a remote agent endpoint so that I can run attacks against any HTTP-accessible agent without code changes.",
+      "acceptanceCriteria": [
+        "New 'Remote Agent' tab/section in Agent Testing mode",
+        "Agent endpoint URL input with validation",
+        "Auth configuration: Bearer token, API key header, or None",
+        "Request format selector: OpenAI-compatible, custom JSON template",
+        "Response format selector: text, JSON path extraction",
+        "Test connection button with status indicator",
+        "Save configuration to session state",
+        "Configuration persists across page refreshes"
+      ],
+      "priority": 5,
+      "phaseId": 7,
+      "passes": false,
+      "dependsOn": ["TRC-019"],
+      "notes": "Similar to existing LLM model configuration pattern. Remote agent acts as target for attack campaigns.",
+      "files": ["src/ui/components/remote_agent_config.py", "src/ui/dashboard.py"]
+    },
+    {
+      "id": "TRC-038",
+      "title": "Create Attack Template Selector component",
+      "description": "As a security tester, I need to select which attack templates to run so that I can focus testing on specific OWASP categories or agent capabilities.",
+      "acceptanceCriteria": [
+        "New 'Attack Templates' panel in Agent Testing mode",
+        "Filter by OWASP category (ASI01-ASI10 checkboxes)",
+        "Filter by capability: requires_tool_access, requires_memory_access",
+        "Display template count per filter combination",
+        "Select All / Deselect All buttons",
+        "Preview selected templates in expandable list",
+        "Show template details: prompt preview, expected behavior, severity",
+        "Selected templates stored in session state for campaign execution"
+      ],
+      "priority": 6,
+      "phaseId": 7,
+      "passes": false,
+      "dependsOn": ["TRC-010", "TRC-011", "TRC-012", "TRC-013"],
+      "notes": "AgentAttackKnowledgeBase provides get_attacks_for_owasp() and get_attacks_by_capability() methods. 27+ templates available.",
+      "files": ["src/ui/components/attack_selector.py", "src/ui/dashboard.py"]
+    },
+    {
+      "id": "TRC-039",
+      "title": "Implement Attack Campaign Orchestration UI",
+      "description": "As a security tester, I need to launch and monitor an attack campaign so that I can systematically test a remote agent against selected templates.",
+      "acceptanceCriteria": [
+        "Start Campaign button launches selected attacks against configured remote agent",
+        "Campaign progress bar shows attacks completed / total",
+        "Real-time status updates as each attack executes",
+        "Pause/Resume campaign controls",
+        "Cancel campaign with graceful cleanup",
+        "Campaign results summary: attacks run, responses captured, errors",
+        "Auto-convert agent responses to AgentEvent format",
+        "Events automatically populate Timeline and Tool Chain tabs",
+        "Campaign completion triggers notification"
+      ],
+      "priority": 7,
+      "phaseId": 7,
+      "passes": false,
+      "dependsOn": ["TRC-037", "TRC-038"],
+      "notes": "Orchestrates sending attack templates to remote agent endpoint, capturing responses, and converting to events for evaluation.",
+      "files": ["src/ui/components/campaign_runner.py", "src/ui/dashboard.py", "src/orchestrator/agent_campaign.py"]
+    },
+    {
+      "id": "TRC-040",
+      "title": "Implement real-time event streaming display",
+      "description": "As a developer using SDK mode, I need to see events appear in real-time as my instrumented agent sends them so that I can verify my integration is working.",
+      "acceptanceCriteria": [
+        "Events appear in Timeline tab within 1 second of submission to API",
+        "New event indicator/badge shows count of recent events",
+        "Auto-scroll option to follow new events",
+        "Event rate indicator (events/second)",
+        "Connection status indicator for webhook endpoint",
+        "Pause/Resume streaming toggle",
+        "Buffer indicator showing pending events",
+        "Works with both SDK webhook and polling approaches"
+      ],
+      "priority": 8,
+      "phaseId": 7,
+      "passes": false,
+      "dependsOn": ["TRC-036", "TRC-017"],
+      "notes": "Streamlit has limited real-time capabilities. Use st.experimental_rerun with polling or streamlit-server-state for shared state.",
+      "files": ["src/ui/components/event_stream.py", "src/ui/providers/polling.py", "src/ui/dashboard.py"]
+    },
+    {
+      "id": "TRC-041",
+      "title": "Create Report Viewer with export options",
+      "description": "As a user, I need a full-featured report viewer so that I can explore findings in detail and export in multiple formats.",
+      "acceptanceCriteria": [
+        "Report viewer modal/page shows full AgentSecurityReport",
+        "Sections: Summary, OWASP Coverage, Tool Analysis, Memory Analysis, Divergence Analysis, Recommendations",
+        "Export formats: Markdown (.md), JSON (.json), PDF (if reportlab available)",
+        "Print-friendly view option",
+        "Copy individual sections to clipboard",
+        "Link to specific findings via URL anchors",
+        "Historical reports list (if multiple evaluations run)",
+        "Compare reports feature (diff between two evaluations)"
+      ],
+      "priority": 9,
+      "phaseId": 7,
+      "passes": false,
+      "dependsOn": ["TRC-034"],
+      "notes": "Extends basic report download with rich viewing experience. Report template already exists in src/reports/templates/report.md.j2.",
+      "files": ["src/ui/components/report_viewer.py", "src/ui/pages/report.py"]
+    },
+    {
+      "id": "TRC-042",
+      "title": "Create onboarding flow and empty states",
+      "description": "As a new user, I need clear guidance on how to get started so that I can quickly understand the platform and begin testing.",
+      "acceptanceCriteria": [
+        "Empty state for Timeline tab: illustration + 'No events yet' + action buttons",
+        "Empty state for OWASP Coverage: 'Run evaluation to see results'",
+        "Empty state for Tool Chain: 'No tool calls captured'",
+        "First-time user welcome modal with mode selection",
+        "Quick start guide for each mode (Demo, SDK, Remote)",
+        "Contextual help tooltips on key UI elements",
+        "Link to documentation from empty states",
+        "Progress indicator for getting started checklist"
+      ],
+      "priority": 10,
+      "phaseId": 7,
+      "passes": false,
+      "dependsOn": ["TRC-019"],
+      "notes": "Improve user onboarding with clear empty states and guidance. Reduces confusion for new users.",
+      "files": ["src/ui/components/empty_states.py", "src/ui/components/onboarding.py", "src/ui/dashboard.py"]
+    },
+    {
+      "id": "TRC-043",
+      "title": "Implement session management UI",
+      "description": "As a user, I need to manage multiple testing sessions so that I can organize different test runs and compare results.",
+      "acceptanceCriteria": [
+        "Session list sidebar showing active/completed sessions",
+        "Create new session button with optional name/description",
+        "Switch between sessions without losing data",
+        "Delete session with confirmation dialog",
+        "Session metadata display: created time, event count, evaluation status",
+        "Export session data (events + score + report)",
+        "Import session from JSON file",
+        "Session naming and tagging",
+        "Auto-cleanup of old sessions (configurable retention)"
+      ],
+      "priority": 11,
+      "phaseId": 7,
+      "passes": false,
+      "dependsOn": ["TRC-025"],
+      "notes": "API already supports session CRUD operations. Need UI to expose these capabilities.",
+      "files": ["src/ui/components/session_manager.py", "src/ui/dashboard.py"]
+    },
+    {
+      "id": "TRC-044",
+      "title": "Add keyboard shortcuts and power user features",
+      "description": "As a power user, I need keyboard shortcuts and advanced features so that I can work efficiently without excessive clicking.",
+      "acceptanceCriteria": [
+        "Keyboard shortcut panel (? key to show)",
+        "Ctrl+E: Run Evaluation",
+        "Ctrl+R: Generate Report",
+        "Ctrl+D: Load Demo",
+        "Ctrl+N: New Session",
+        "Tab navigation between main panels",
+        "Command palette (Ctrl+K) for quick actions",
+        "Dark mode toggle",
+        "Density toggle (compact/comfortable)",
+        "Shortcuts work when focus is in main content area"
+      ],
+      "priority": 12,
+      "phaseId": 7,
+      "passes": false,
+      "dependsOn": ["TRC-019"],
+      "notes": "Streamlit has limited keyboard shortcut support. May require custom JavaScript injection via st.components.v1.html.",
+      "files": ["src/ui/components/shortcuts.py", "src/ui/dashboard.py"]
     }
   ],
   "metadata": {
@@ -812,15 +1071,16 @@
     "codename": "Agent Security",
     "created": "2026-02-01",
     "updated": "2026-02-02",
-    "estimatedDays": 32,
-    "estimatedHours": 128,
+    "estimatedDays": 40,
+    "estimatedHours": 160,
     "epics": [
       {"name": "Agent Instrumentation SDK", "stories": ["TRC-001", "TRC-002", "TRC-003", "TRC-004", "TRC-005", "TRC-006"]},
       {"name": "Extended Judge for Agents", "stories": ["TRC-007", "TRC-008", "TRC-009", "TRC-030"]},
       {"name": "Agent Attack Templates", "stories": ["TRC-010", "TRC-011", "TRC-012", "TRC-013", "TRC-032"]},
       {"name": "Agent Security Reports", "stories": ["TRC-014", "TRC-015", "TRC-024"]},
       {"name": "UI Enhancements", "stories": ["TRC-016", "TRC-017", "TRC-018", "TRC-019", "TRC-025"]},
-      {"name": "Framework Integrations", "stories": ["TRC-020", "TRC-021", "TRC-022", "TRC-023", "TRC-026", "TRC-027", "TRC-028", "TRC-029", "TRC-031"]}
+      {"name": "Framework Integrations", "stories": ["TRC-020", "TRC-021", "TRC-022", "TRC-023", "TRC-026", "TRC-027", "TRC-028", "TRC-029", "TRC-031"]},
+      {"name": "UI/UX Completion", "stories": ["TRC-033", "TRC-034", "TRC-035", "TRC-036", "TRC-037", "TRC-038", "TRC-039", "TRC-040", "TRC-041", "TRC-042", "TRC-043", "TRC-044"]}
     ],
     "dependencies": {
       "external": {
@@ -845,7 +1105,9 @@
       "3+ framework integrations working (LangChain, LangGraph, MCP)",
       "Sub-30s test execution for typical agent (validated by TRC-028)",
       "75%+ test coverage maintained across all new code",
-      "Zero breaking changes to existing LLM testing functionality"
+      "Zero breaking changes to existing LLM testing functionality",
+      "Three working agent testing modes: Demo, SDK, Remote URL",
+      "End-to-end user flow from mode selection to report download"
     ],
     "newPackages": [
       "src/integrations/__init__.py",
