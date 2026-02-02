@@ -10,7 +10,8 @@ from src.core.agent_schemas import (
     AgentEvent,
     AgentInstrumentationConfig,
     MemoryAccessOperation,
-    DivergenceSeverity
+    DivergenceSeverity,
+    MAX_VALUE_PREVIEW_LENGTH
 )
 from pydantic import TypeAdapter, ValidationError
 
@@ -31,6 +32,33 @@ class TestAgentSchemas:
         assert event.event_type == "tool_call"
         assert event.session_id == session_id
         assert isinstance(event.timestamp, datetime)
+        assert event.timestamp.tzinfo is not None
+
+    def test_timestamp_validation(self):
+        session_id = uuid4()
+        # Naive datetime should fail
+        naive_dt = datetime(2025, 1, 1, 12, 0, 0)
+        with pytest.raises(ValidationError):
+            ToolCallEvent(
+                session_id=session_id,
+                tool_name="test",
+                arguments={},
+                duration_ms=1,
+                success=True,
+                timestamp=naive_dt
+            )
+        
+        # Aware datetime should pass
+        aware_dt = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        event = ToolCallEvent(
+            session_id=session_id,
+            tool_name="test",
+            arguments={},
+            duration_ms=1,
+            success=True,
+            timestamp=aware_dt
+        )
+        assert event.timestamp == aware_dt
 
     def test_tool_call_validation(self):
         session_id = uuid4()
@@ -82,7 +110,7 @@ class TestAgentSchemas:
 
     def test_memory_access_event_truncation(self):
         session_id = uuid4()
-        long_value = "a" * 150
+        long_value = "a" * (MAX_VALUE_PREVIEW_LENGTH + 50)
         event = MemoryAccessEvent(
             session_id=session_id,
             operation=MemoryAccessOperation.READ,
@@ -90,8 +118,24 @@ class TestAgentSchemas:
             value_preview=long_value,
             sensitive_detected=False
         )
-        assert len(event.value_preview) <= 100
+        assert len(event.value_preview) <= MAX_VALUE_PREVIEW_LENGTH
         assert event.value_preview.endswith("...")
+
+    def test_memory_access_non_string_sanitization(self):
+        session_id = uuid4()
+        # Pass a dict as value_preview - should be stringified and truncated
+        huge_dict = {"key": "a" * (MAX_VALUE_PREVIEW_LENGTH + 50)}
+        event = MemoryAccessEvent(
+            session_id=session_id,
+            operation=MemoryAccessOperation.READ,
+            key="test_key",
+            value_preview=huge_dict, # type: ignore - testing validator behavior
+            sensitive_detected=False
+        )
+        assert isinstance(event.value_preview, str)
+        assert len(event.value_preview) <= MAX_VALUE_PREVIEW_LENGTH
+        assert event.value_preview.endswith("...")
+        assert event.value_preview.startswith("{'key':")
 
     def test_max_length_constraints(self):
         session_id = uuid4()
@@ -123,6 +167,7 @@ class TestAgentSchemas:
         )
         assert event.action_type == "file_write"
         assert tool_id in event.related_tool_calls
+        assert isinstance(event.related_tool_calls, tuple)
 
     def test_speech_record(self):
         session_id = uuid4()
@@ -212,3 +257,101 @@ class TestAgentSchemas:
                 extra_field="fail"
             )
         assert "extra_field" in str(excinfo.value)
+
+    def test_violation_result(self):
+        from src.core.agent_schemas import ViolationResult
+        from src.core.owasp_agentic import OWASPAgenticRisk
+
+        result = ViolationResult(
+            detected=True,
+            severity=8,
+            evidence="Agent abused tool",
+            recommendation="Limit tool access",
+            owasp_category=OWASPAgenticRisk.ASI01_EXCESSIVE_AGENCY
+        )
+        assert result.detected is True
+        assert result.severity == 8
+        assert result.owasp_category == OWASPAgenticRisk.ASI01_EXCESSIVE_AGENCY
+
+    def test_agent_judge_score(self):
+        from src.core.agent_schemas import AgentJudgeScore, ViolationResult
+        from src.core.schemas import JudgeScore
+        from src.core.owasp_agentic import OWASPAgenticRisk
+
+        base = JudgeScore(
+            score=5,
+            leaked_secret=False,
+            leaked_instructions=False,
+            reasoning="Base reasoning"
+        )
+        
+        violation = ViolationResult(
+            detected=True,
+            severity=9,
+            evidence="Evidence",
+            recommendation="Fix it",
+            owasp_category=OWASPAgenticRisk.ASI01_EXCESSIVE_AGENCY
+        )
+
+        score = AgentJudgeScore(
+            base_score=base,
+            owasp_violations=[violation],
+            tool_abuse_score=2.0,
+            tool_abuse_details="Abused",
+            memory_safety_score=8.0,
+            memory_safety_details="Safe",
+            divergence_count=0,
+            divergence_examples=[],
+            overall_agent_risk=7.5,
+            recommendations=["Fix the agent"]
+        )
+
+        assert score.base_score.score == 5
+        assert len(score.owasp_violations) == 1
+        assert isinstance(score.owasp_violations, tuple)
+        assert score.overall_agent_risk == 7.5
+        
+        # Test methods
+        failed = score.get_failed_categories()
+        assert len(failed) == 1
+        assert failed[0] == OWASPAgenticRisk.ASI01_EXCESSIVE_AGENCY
+
+        summary = score.to_summary_dict()
+        assert summary["overall_risk"] == 7.5
+        assert summary["violations_count"] == 1
+        assert summary["failed_categories"] == ["ASI01"]
+
+    def test_agent_judge_score_validation(self):
+        from src.core.agent_schemas import AgentJudgeScore
+        from src.core.schemas import JudgeScore
+        
+        base = JudgeScore(
+            score=10, 
+            leaked_secret=False, 
+            leaked_instructions=False, 
+            reasoning="OK"
+        )
+
+        # Fail: divergence_count < len(examples)
+        with pytest.raises(ValidationError) as excinfo:
+            AgentJudgeScore(
+                base_score=base,
+                owasp_violations=[],
+                tool_abuse_score=10.0,
+                tool_abuse_details="",
+                memory_safety_score=10.0,
+                memory_safety_details="",
+                divergence_count=0,
+                divergence_examples=[
+                    DivergenceEvent(
+                        session_id=uuid4(),
+                        speech_intent="a",
+                        actual_action="b",
+                        severity=DivergenceSeverity.HIGH,
+                        explanation="e",
+                        confidence_score=1.0
+                    )
+                ],
+                overall_agent_risk=0.0
+            )
+        assert "divergence_count" in str(excinfo.value)
