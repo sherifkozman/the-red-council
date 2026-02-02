@@ -1,62 +1,87 @@
 import inspect
-import time
-import random
-import threading
 import logging
-import reprlib
+import random
 import re
+import reprlib
+import threading
+import time
 from collections import deque
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, List, Optional, TypeVar, Dict, Union, Awaitable, Protocol, runtime_checkable
-from uuid import uuid4, UUID
+from typing import (
+    Any,
+    Protocol,
+    TypeVar,
+    runtime_checkable,
+)
+from uuid import UUID, uuid4
 
+from src.agents.divergence import DivergenceDetector
+from src.agents.errors import InstrumentationFailureError, ToolInterceptionError
 from src.core.agent_schemas import (
+    ActionRecord,
     AgentEvent,
     AgentInstrumentationConfig,
-    ToolCallEvent,
-    MemoryAccessEvent,
-    ActionRecord,
-    SpeechRecord,
     DivergenceEvent,
+    MemoryAccessEvent,
     MemoryAccessOperation,
+    SpeechRecord,
+    ToolCallEvent,
 )
-from src.agents.errors import ToolInterceptionError, InstrumentationFailureError
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
 # TRC-005: Sensitive patterns for memory monitoring
-SECRET_PATTERNS = frozenset({
-    "password", "secret", "api_key", "token", "credential", "auth", "private_key",
-    "bearer", "session", "jwt", "oauth", "ssn", "credit_card", "access_key"
-})
+SECRET_PATTERNS = frozenset(
+    {
+        "password",
+        "secret",
+        "api_key",
+        "token",
+        "credential",
+        "auth",
+        "private_key",
+        "bearer",
+        "session",
+        "jwt",
+        "oauth",
+        "ssn",
+        "credit_card",
+        "access_key",
+    }
+)
 SYSTEM_KEY_PATTERNS = frozenset({"__", "system_", "config_", "env_"})
 
 MAX_RECORDING_FAILURES = 10
 MAX_INTERNAL_MEMORY_KEYS = 10000
-KEY_VALIDATION_PATTERN = re.compile(r'^[a-zA-Z0-9_./:-]+$')
+KEY_VALIDATION_PATTERN = re.compile(r"^[a-zA-Z0-9_./:-]+$")
+
 
 @runtime_checkable
 class MemoryBackend(Protocol):
     """
     Protocol for external memory backends (Redis, VectorDB, etc).
-    
-    SECURITY WARNING: 
+
+    SECURITY WARNING:
     - Implementations MUST validate inputs to prevent injection attacks.
     - Implementations SHOULD NOT use unsafe serialization (pickle/dill) for values.
     """
+
     def get(self, key: str) -> Any: ...
     def set(self, key: str, value: Any) -> None: ...
     def delete(self, key: str) -> None: ...
-    def keys(self) -> List[str]: ...
+    def keys(self) -> list[str]: ...
+
 
 @dataclass
 class ToolRegistration:
     func: Callable[..., Any]
     description: str
-    sensitive_args: List[str] = field(default_factory=list)
+    sensitive_args: list[str] = field(default_factory=list)
+
 
 @dataclass
 class ToolCallStats:
@@ -66,20 +91,21 @@ class ToolCallStats:
     total_duration_ms: float = 0.0
     error_count: int = 0
 
+
 class InstrumentedAgent:
     """
     Wrapper class to instrument any agent with security monitoring.
     Records tool calls, memory access, speech, and actions.
-    
+
     Usage:
         config = AgentInstrumentationConfig(...)
         agent = InstrumentedAgent(my_agent, "my-agent", config)
-        
+
         # Wrapping tool calls
         result = agent.wrap_tool_call("tool_name", tool_func, arg1, kw=val)
         if inspect.iscoroutine(result):
             result = await result
-            
+
         # Recording events
         agent.record_speech("Hello world")
     """
@@ -89,7 +115,7 @@ class InstrumentedAgent:
         agent: Any,
         name: str,
         config: AgentInstrumentationConfig,
-        memory_backend: Optional[MemoryBackend] = None
+        memory_backend: MemoryBackend | None = None,
     ):
         if config.max_events <= 0:
             raise ValueError("max_events must be positive")
@@ -104,40 +130,41 @@ class InstrumentedAgent:
         self._session_id = uuid4()
         self._lock = threading.RLock()
         self._rng = random.SystemRandom()
-        self.tool_registry: Dict[str, ToolRegistration] = {}
+        self.tool_registry: dict[str, ToolRegistration] = {}
         self._recording_failures = 0
-        
+
         # Memory storage: use provided backend or internal dict
         self._memory_backend = memory_backend
-        self._internal_memory: Dict[str, Any] = {}
-        
+        self._internal_memory: dict[str, Any] = {}
+
         # Determine if wrapped agent is async
+        # Note: We check __call__ specifically for coroutine detection, not callability
         self.is_async = (
-            inspect.iscoroutinefunction(getattr(agent, "run", None)) or 
-            inspect.iscoroutinefunction(getattr(agent, "__call__", None)) or
-            inspect.iscoroutinefunction(getattr(agent, "arun", None))
+            inspect.iscoroutinefunction(getattr(agent, "run", None))
+            or inspect.iscoroutinefunction(getattr(agent, "__call__", None))  # noqa: B004
+            or inspect.iscoroutinefunction(getattr(agent, "arun", None))
         )
 
     @property
-    def events(self) -> List[AgentEvent]:
+    def events(self) -> list[AgentEvent]:
         """Get all recorded events in order."""
         with self._lock:
             return list(self._events)
 
     @property
-    def tool_calls(self) -> List[ToolCallEvent]:
+    def tool_calls(self) -> list[ToolCallEvent]:
         """Get all tool call events."""
         with self._lock:
             return [e for e in self._events if isinstance(e, ToolCallEvent)]
 
     @property
-    def memory_accesses(self) -> List[MemoryAccessEvent]:
+    def memory_accesses(self) -> list[MemoryAccessEvent]:
         """Get all memory access events."""
         with self._lock:
             return [e for e in self._events if isinstance(e, MemoryAccessEvent)]
 
     @property
-    def divergences(self) -> List[DivergenceEvent]:
+    def divergences(self) -> list[DivergenceEvent]:
         """Get all divergence events."""
         with self._lock:
             return [e for e in self._events if isinstance(e, DivergenceEvent)]
@@ -147,14 +174,14 @@ class InstrumentedAgent:
         with self._lock:
             self._events.clear()
 
-    def get_events_since(self, timestamp: datetime) -> List[AgentEvent]:
+    def get_events_since(self, timestamp: datetime) -> list[AgentEvent]:
         """Get events that occurred after the given timestamp."""
         with self._lock:
             return [e for e in self._events if e.timestamp > timestamp]
 
     def _add_event(self, event: AgentEvent) -> None:
         """Add event to buffer, respecting sampling."""
-        # Lock entire operation to prevent race conditions in sampling or buffer mutation
+        # Lock to prevent race conditions in sampling or buffer mutation
         with self._lock:
             if self._rng.random() >= self.config.sampling_rate:
                 return
@@ -176,16 +203,14 @@ class InstrumentedAgent:
         name: str,
         func: Callable[..., Any],
         description: str,
-        sensitive_args: Optional[List[str]] = None
+        sensitive_args: list[str] | None = None,
     ) -> None:
         """Register a tool for interception."""
         if sensitive_args is None:
             sensitive_args = []
         with self._lock:
             self.tool_registry[name] = ToolRegistration(
-                func=func,
-                description=description,
-                sensitive_args=sensitive_args
+                func=func, description=description, sensitive_args=sensitive_args
             )
 
     def intercept_tool_call(self, tool_name: str, *args: Any, **kwargs: Any) -> Any:
@@ -195,19 +220,19 @@ class InstrumentedAgent:
         """
         if tool_name not in self.tool_registry:
             raise ToolInterceptionError(f"Tool '{tool_name}' not registered")
-            
+
         registration = self.tool_registry[tool_name]
         return self.wrap_tool_call(tool_name, registration.func, *args, **kwargs)
 
-    def get_tool_call_stats(self) -> Dict[str, ToolCallStats]:
+    def get_tool_call_stats(self) -> dict[str, ToolCallStats]:
         """Get usage statistics for all tools."""
-        stats: Dict[str, ToolCallStats] = {}
-        
+        stats: dict[str, ToolCallStats] = {}
+
         with self._lock:
             # Initialize with registered tools
             for name in self.tool_registry:
                 stats[name] = ToolCallStats(0, 0.0, 0.0)
-            
+
             # Aggregate events
             for event in self._events:
                 if isinstance(event, ToolCallEvent):
@@ -215,50 +240,47 @@ class InstrumentedAgent:
                     # Only track stats for registered tools to prevent unbounded growth
                     if name not in stats:
                         continue
-                    
+
                     s = stats[name]
                     s.count += 1
                     s.total_duration_ms += event.duration_ms
                     if not event.success:
                         s.error_count += 1
-            
+
             # Compute averages
             for s in stats.values():
                 if s.count > 0:
                     s.avg_duration_ms = s.total_duration_ms / s.count
                     s.error_rate = s.error_count / s.count
-                    
+
         return stats
 
     def _get_masked_arguments(
-        self,
-        tool_name: str,
-        args: tuple,
-        kwargs: dict
-    ) -> Dict[str, Any]:
+        self, tool_name: str, args: tuple, kwargs: dict
+    ) -> dict[str, Any]:
         """Prepare arguments for logging, masking sensitive values."""
         # Default representation
         full_args = {
             "positional": [self._safe_repr(a) for a in args],
-            "keyword": {k: self._safe_repr(v) for k, v in kwargs.items()}
+            "keyword": {k: self._safe_repr(v) for k, v in kwargs.items()},
         }
-        
+
         if tool_name not in self.tool_registry:
             return full_args
-            
+
         registration = self.tool_registry[tool_name]
         if not registration.sensitive_args:
             return full_args
-            
+
         try:
             # Bind arguments to parameter names
             sig = inspect.signature(registration.func)
             # Check binding to detect mismatch
             sig.bind_partial(*args, **kwargs)
-            
+
             masked_pos = []
             masked_kw = {}
-            
+
             # Mask positional args
             params = list(sig.parameters.keys())
             for i, arg in enumerate(args):
@@ -270,24 +292,21 @@ class InstrumentedAgent:
                         masked_pos.append(self._safe_repr(arg))
                 else:
                     masked_pos.append(self._safe_repr(arg))
-            
+
             # Mask keyword args
             for k, v in kwargs.items():
                 if k in registration.sensitive_args:
                     masked_kw[k] = "******"
                 else:
                     masked_kw[k] = self._safe_repr(v)
-                    
-            return {
-                "positional": masked_pos,
-                "keyword": masked_kw
-            }
+
+            return {"positional": masked_pos, "keyword": masked_kw}
 
         except Exception as e:
             logger.warning(f"Failed to bind arguments for masking; masking all: {e}")
             return {
                 "positional": ["******"] * len(args),
-                "keyword": {k: "******" for k in kwargs}
+                "keyword": dict.fromkeys(kwargs, "******"),
             }
 
     def _record_tool_call_event(
@@ -298,7 +317,7 @@ class InstrumentedAgent:
         kwargs: dict,
         result: Any,
         success: bool,
-        exception_type: Optional[str]
+        exception_type: str | None,
     ) -> None:
         """Helper to record tool call event with error handling."""
         try:
@@ -313,29 +332,35 @@ class InstrumentedAgent:
                     result=self._safe_repr(result) if success else None,
                     duration_ms=duration_ms,
                     success=success,
-                    exception_type=exception_type
+                    exception_type=exception_type,
                 )
                 self._add_event(event)
         except Exception as e:
             with self._lock:
                 self._recording_failures += 1
-            # Security: Log only exception type to avoid leaking sensitive data in message
-            logger.error(f"Failed to record tool call event (failures: {self._recording_failures}): {type(e).__name__}")
+            # Security: Log exception type only to avoid leaking data
+            logger.error(
+                f"Failed to record tool call (failures: "
+                f"{self._recording_failures}): {type(e).__name__}"
+            )
             if self._recording_failures > MAX_RECORDING_FAILURES:
-                raise InstrumentationFailureError(f"Instrumentation failed too many times ({self._recording_failures})") from e
+                raise InstrumentationFailureError(
+                    f"Instrumentation failed too many times "
+                    f"({self._recording_failures})"
+                ) from e
 
     def record_speech(
         self,
         content: str,
-        intent: Optional[str] = None,
-        is_response_to_user: bool = True
+        intent: str | None = None,
+        is_response_to_user: bool = True,
     ) -> None:
         """Record an agent speech event."""
         event = SpeechRecord(
             session_id=self._session_id,
             content=content,
             intent=intent,
-            is_response_to_user=is_response_to_user
+            is_response_to_user=is_response_to_user,
         )
         self._add_event(event)
 
@@ -344,7 +369,7 @@ class InstrumentedAgent:
         action_type: str,
         description: str,
         target: str,
-        related_tool_calls: Optional[List[UUID]] = None
+        related_tool_calls: list[UUID] | None = None,
     ) -> None:
         """Record an agent action event."""
         event = ActionRecord(
@@ -352,21 +377,17 @@ class InstrumentedAgent:
             action_type=action_type,
             description=description,
             target=target,
-            related_tool_calls=related_tool_calls if related_tool_calls else []
+            related_tool_calls=related_tool_calls if related_tool_calls else [],
         )
         self._add_event(event)
 
     def wrap_tool_call(
-        self,
-        tool_name: str,
-        func: Callable[..., Any],
-        *args: Any,
-        **kwargs: Any
-    ) -> Union[Any, Awaitable[Any]]:
+        self, tool_name: str, func: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> Any | Awaitable[Any]:
         """
         Execute a tool function and record the event.
         Handles both sync and async functions.
-        
+
         WARNING: If func is async, this returns a coroutine that MUST be awaited.
         """
         if inspect.iscoroutinefunction(func):
@@ -375,17 +396,13 @@ class InstrumentedAgent:
             return self._wrap_sync_tool_call(tool_name, func, *args, **kwargs)
 
     def _wrap_sync_tool_call(
-        self,
-        tool_name: str,
-        func: Callable[..., T],
-        *args: Any,
-        **kwargs: Any
+        self, tool_name: str, func: Callable[..., T], *args: Any, **kwargs: Any
     ) -> T:
         start_time = time.perf_counter()
         success = True
         exception_type = None
         result = None
-        
+
         try:
             result = func(*args, **kwargs)
             return result
@@ -395,27 +412,17 @@ class InstrumentedAgent:
             raise e
         finally:
             self._record_tool_call_event(
-                tool_name,
-                start_time,
-                args,
-                kwargs,
-                result,
-                success,
-                exception_type
+                tool_name, start_time, args, kwargs, result, success, exception_type
             )
 
     async def _wrap_async_tool_call(
-        self,
-        tool_name: str,
-        func: Callable[..., Any],
-        *args: Any,
-        **kwargs: Any
+        self, tool_name: str, func: Callable[..., Any], *args: Any, **kwargs: Any
     ) -> Any:
         start_time = time.perf_counter()
         success = True
         exception_type = None
         result = None
-        
+
         try:
             result = await func(*args, **kwargs)
             return result
@@ -425,13 +432,7 @@ class InstrumentedAgent:
             raise e
         finally:
             self._record_tool_call_event(
-                tool_name,
-                start_time,
-                args,
-                kwargs,
-                result,
-                success,
-                exception_type
+                tool_name, start_time, args, kwargs, result, success, exception_type
             )
 
     def wrap_memory_access(
@@ -440,19 +441,19 @@ class InstrumentedAgent:
         key: str,
         value: Any = None,
         success: bool = True,
-        exception_type: Optional[str] = None
+        exception_type: str | None = None,
     ) -> None:
         """
-        Record a memory access event. 
+        Record a memory access event.
         Does not execute the operation, just records it.
         """
         if not self.config.enable_memory_monitoring:
             return
-            
+
         # Detect sensitive access patterns
         sensitive = False
         lower_key = key.lower()
-        
+
         if operation == MemoryAccessOperation.READ:
             # Check for reading secrets
             if any(p in lower_key for p in SECRET_PATTERNS):
@@ -461,7 +462,7 @@ class InstrumentedAgent:
             # Check for writing to system keys
             if any(lower_key.startswith(p) for p in SYSTEM_KEY_PATTERNS):
                 sensitive = True
-        
+
         value_preview = None
         if value is not None:
             if sensitive:
@@ -477,32 +478,43 @@ class InstrumentedAgent:
                 value_preview=value_preview,
                 sensitive_detected=sensitive,
                 success=success,
-                exception_type=exception_type
+                exception_type=exception_type,
             )
             self._add_event(event)
         except Exception as e:
             with self._lock:
                 self._recording_failures += 1
-            # Security: Log only exception type to avoid leaking sensitive data in message
-            logger.error(f"Failed to record memory access event (failures: {self._recording_failures}): {type(e).__name__}")
+            # Security: Log exception type only to avoid leaking data
+            logger.error(
+                f"Failed to record memory access (failures: "
+                f"{self._recording_failures}): {type(e).__name__}"
+            )
             if self._recording_failures > MAX_RECORDING_FAILURES:
-                 raise InstrumentationFailureError(f"Instrumentation failed too many times ({self._recording_failures})") from e
+                raise InstrumentationFailureError(
+                    f"Instrumentation failed too many times "
+                    f"({self._recording_failures})"
+                ) from e
 
     def _validate_key(self, key: str) -> None:
         """Validate memory key to prevent injection attacks."""
         if not KEY_VALIDATION_PATTERN.match(key):
-            raise ValueError(f"Invalid memory key '{key}': must match pattern {KEY_VALIDATION_PATTERN.pattern}")
+            pattern = KEY_VALIDATION_PATTERN.pattern
+            raise ValueError(
+                f"Invalid memory key '{key}': must match pattern {pattern}"
+            )
         if ".." in key:
             raise ValueError(f"Invalid memory key '{key}': traversal detected")
         if key.startswith(".") or key.startswith("_"):
-            raise ValueError(f"Invalid memory key '{key}': cannot start with '.' or '_'")
+            raise ValueError(
+                f"Invalid memory key '{key}': cannot start with '.' or '_'"
+            )
 
     def get_memory(self, key: str) -> Any:
         """Retrieve a value from memory and record the access."""
         value = None
         success = True
         exception_type = None
-        
+
         with self._lock:
             try:
                 self._validate_key(key)
@@ -516,11 +528,11 @@ class InstrumentedAgent:
                 raise e
             finally:
                 self.wrap_memory_access(
-                    MemoryAccessOperation.READ, 
-                    key, 
-                    value, 
-                    success=success, 
-                    exception_type=exception_type
+                    MemoryAccessOperation.READ,
+                    key,
+                    value,
+                    success=success,
+                    exception_type=exception_type,
                 )
         return value
 
@@ -528,16 +540,22 @@ class InstrumentedAgent:
         """Set a value in memory and record the access."""
         success = True
         exception_type = None
-        
+
         with self._lock:
             try:
                 self._validate_key(key)
-                
+
                 # Check memory limit for internal memory
                 if not self._memory_backend:
-                    if len(self._internal_memory) >= MAX_INTERNAL_MEMORY_KEYS and key not in self._internal_memory:
-                        raise ValueError(f"Internal memory limit reached ({MAX_INTERNAL_MEMORY_KEYS} keys)")
-                
+                    if (
+                        len(self._internal_memory) >= MAX_INTERNAL_MEMORY_KEYS
+                        and key not in self._internal_memory
+                    ):
+                        limit = MAX_INTERNAL_MEMORY_KEYS
+                        raise ValueError(
+                            f"Internal memory limit reached ({limit} keys)"
+                        )
+
                 if self._memory_backend:
                     self._memory_backend.set(key, value)
                 else:
@@ -548,18 +566,18 @@ class InstrumentedAgent:
                 raise e
             finally:
                 self.wrap_memory_access(
-                    MemoryAccessOperation.WRITE, 
-                    key, 
+                    MemoryAccessOperation.WRITE,
+                    key,
                     value,
                     success=success,
-                    exception_type=exception_type
+                    exception_type=exception_type,
                 )
 
     def delete_memory(self, key: str) -> None:
         """Delete a value from memory and record the access."""
         success = True
         exception_type = None
-        
+
         with self._lock:
             try:
                 self._validate_key(key)
@@ -573,13 +591,13 @@ class InstrumentedAgent:
                 raise e
             finally:
                 self.wrap_memory_access(
-                    MemoryAccessOperation.DELETE, 
+                    MemoryAccessOperation.DELETE,
                     key,
                     success=success,
-                    exception_type=exception_type
+                    exception_type=exception_type,
                 )
 
-    def list_memory_keys(self) -> List[str]:
+    def list_memory_keys(self) -> list[str]:
         """List all keys in memory."""
         with self._lock:
             if self._memory_backend:
@@ -587,15 +605,34 @@ class InstrumentedAgent:
             return list(self._internal_memory.keys())
 
     def detect_divergence(
-        self,
-        speech: str,
-        actions: List[ActionRecord]
-    ) -> Optional[DivergenceEvent]:
+        self, speech: str, actions: list[ActionRecord]
+    ) -> DivergenceEvent | None:
         """
-        Detect divergence between speech and actions.
-        Implementation deferred to TRC-006.
+        Detect divergence between agent speech and actions.
+
+        Uses semantic similarity to identify when an agent's stated intentions
+        don't match its actual behavior (potential deception).
+
+        Args:
+            speech: What the agent said it would do.
+            actions: List of actions the agent actually performed.
+
+        Returns:
+            DivergenceEvent if divergence detected, None otherwise.
         """
-        raise NotImplementedError("Divergence detection not yet implemented (TRC-006)")
+        if not speech or not actions:
+            return None
+
+        detector = DivergenceDetector(self.config)
+
+        # Check each action for divergence from speech
+        for action in actions:
+            divergence = detector.analyze_divergence(speech, action)
+            if divergence:
+                self._add_event(divergence)
+                return divergence
+
+        return None
 
     def __enter__(self):
         return self

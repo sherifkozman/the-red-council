@@ -9,30 +9,40 @@ Supports two testing modes:
 The mode is determined by state.testing_mode at graph entry.
 """
 
-from typing import Union
+from typing import TYPE_CHECKING
 
-from langgraph.graph import StateGraph, END
+# Conditional import - allows package to work without langgraph installed
+try:
+    from langgraph.graph import END, StateGraph
+
+    LANGGRAPH_AVAILABLE = True
+except ImportError:
+    LANGGRAPH_AVAILABLE = False
+    StateGraph = None  # type: ignore[misc, assignment]
+    END = None  # type: ignore[misc, assignment]
+
+if TYPE_CHECKING:
+    from langgraph.graph import END, StateGraph
 
 from src.core.schemas import ArenaState
-from src.orchestrator.state import AgentArenaState
+from src.orchestrator.agent_nodes import (
+    agent_attack_node,
+    agent_done_node,
+    agent_judge_node,
+    instrument_node,
+)
 from src.orchestrator.nodes import (
     attack_node,
-    judge_node,
     defend_node,
-    verify_node,
-    next_round_node,
     done_node,
+    judge_node,
+    next_round_node,
+    verify_node,
 )
-from src.orchestrator.agent_nodes import (
-    instrument_node,
-    agent_attack_node,
-    agent_judge_node,
-    agent_done_node,
-)
-
+from src.orchestrator.state import AgentArenaState
 
 # Type alias for state that can be either LLM or Agent mode
-AnyArenaState = Union[ArenaState, AgentArenaState]
+AnyArenaState = ArenaState | AgentArenaState
 
 
 def route_entry(state: AnyArenaState) -> str:
@@ -119,6 +129,15 @@ def route_after_agent_judge(state: AgentArenaState) -> str:
     return "agent_done"
 
 
+def _check_langgraph() -> None:
+    """Raise ImportError if langgraph is not installed."""
+    if not LANGGRAPH_AVAILABLE:
+        raise ImportError(
+            "langgraph is required for arena graph functionality. "
+            "Install it with: pip install the-red-council[langgraph]"
+        )
+
+
 def build_arena_graph():
     """
     Build the original LLM-mode arena graph.
@@ -129,6 +148,7 @@ def build_arena_graph():
     Returns:
         Compiled StateGraph for LLM testing.
     """
+    _check_langgraph()
     graph = StateGraph(ArenaState)
 
     graph.add_node("attack", attack_node)
@@ -171,6 +191,7 @@ def build_agent_arena_graph():
     Returns:
         Compiled StateGraph for agent security testing.
     """
+    _check_langgraph()
     graph = StateGraph(AgentArenaState)
 
     # Agent mode nodes
@@ -212,6 +233,7 @@ def build_unified_arena_graph():
     Returns:
         Compiled StateGraph supporting both testing modes.
     """
+    _check_langgraph()
     # Use AgentArenaState as it's a superset of ArenaState
     graph = StateGraph(AgentArenaState)
 

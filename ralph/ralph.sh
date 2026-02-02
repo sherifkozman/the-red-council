@@ -726,6 +726,31 @@ main() {
       exit 0
     fi
 
+    # For --story mode: check if target story was marked complete (even if no exit signal)
+    # This handles CLIs like Gemini that complete work but don't exit cleanly
+    if [[ -n "$TARGET_STORY" ]]; then
+      local target_passes_now
+      target_passes_now=$(jq -r --arg id "$TARGET_STORY" '.userStories[] | select(.id == $id) | .passes' "$PRD_FILE" 2>/dev/null)
+      if [[ "$target_passes_now" == "true" ]]; then
+        echo ""
+        echo "╔════════════════════════════════════════════════════════════════════╗"
+        echo "║ Target story $TARGET_STORY completed (detected via PRD)!           ║"
+        echo "║ Duration: $(( $(date +%s) - LOOP_START_TIME ))s"
+        echo "╚════════════════════════════════════════════════════════════════════╝"
+
+        {
+          echo ""
+          echo "## STORY COMPLETED - $(date)"
+          echo "Story $TARGET_STORY passed after $i iterations."
+          echo "Total duration: $(( $(date +%s) - LOOP_START_TIME ))s"
+        } >> "$PROGRESS_FILE"
+
+        update_state "completed" "$i" "$remaining"
+        trap - EXIT
+        exit 0
+      fi
+    fi
+
     echo ""
     log_info "Iteration $i complete. Cooling down ${COOLDOWN_BETWEEN_ITERATIONS}s before next..."
     sleep $COOLDOWN_BETWEEN_ITERATIONS
