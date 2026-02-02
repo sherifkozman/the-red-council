@@ -247,3 +247,26 @@ Stopped at iteration 1 by EXIT
   - **Export Size Limits**: Always cap export size to prevent memory exhaustion.
   - **Error Messages**: Show generic errors to users, log details server-side.
 ---
+
+## 2026-02-02 - TRC-018
+- Implemented tool call chain visualization in `src/ui/components/tool_chain.py`.
+- Features:
+  - `render_tool_chain(tool_calls: List[ToolCallEvent])` visualizes tool call sequences
+  - Loop detection (same tool >3x consecutively = potential infinite loop)
+  - Excessive calls detection (>10 total calls = ASI01 violation)
+  - Node and edge analysis with call counts, success/error rates, durations
+  - Three-tier fallback: streamlit-agraph -> networkx+matplotlib -> text sequence
+  - XSS protection: html.escape() for all tool names, st.code() for tool results
+  - Result truncation to 500 chars to prevent DoS
+  - Color-coded nodes: blue (normal), orange (errors), red (ASI01 violation)
+  - Summary metrics (total calls, unique tools, error rate, violation count)
+  - Legend explaining color coding
+- 26 tests with 87% coverage on source file.
+- Reviews completed: council code-review, council security audit.
+- **Learnings for future iterations:**
+  - **Fallback Chain**: Always implement graceful degradation for optional dependencies.
+  - **Pattern Detection**: Use consecutive-count tracking for loop detection, not just total counts.
+  - **Graph Libraries**: streamlit-agraph for interactive, matplotlib for static, text for universal fallback.
+  - **Dataclasses**: Use frozen dataclasses for immutable analysis results.
+  - **Security in Graphs**: Even node labels need XSS protection via html.escape().
+---

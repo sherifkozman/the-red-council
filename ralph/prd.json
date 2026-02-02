@@ -454,7 +454,7 @@
       ],
       "priority": 19,
       "phaseId": 5,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-002"],
       "notes": "Tool chain visualization for ASI01 detection. Uses streamlit-agraph with graceful fallbacks.",
       "files": ["src/ui/components/tool_chain.py", "tests/ui/test_tool_chain.py"]
