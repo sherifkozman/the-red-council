@@ -28,16 +28,17 @@ from src.ui.state_utils import reset_agent_state
 
 logger = logging.getLogger(__name__)
 
+
 async def run_agent_evaluation():
     """Run OWASP evaluation on captured agent events."""
     events = st.session_state.get(AGENT_EVENTS_KEY, [])
     if not events:
         st.warning("No events to evaluate.")
         return
-        
+
     if not isinstance(events, list):
-         st.error("Invalid events data.")
-         return
+        st.error("Invalid events data.")
+        return
 
     # Initialize components
     try:
@@ -58,7 +59,7 @@ async def run_agent_evaluation():
         agent_judge = AgentJudge(judge=judge_agent, config=judge_config)
 
         with st.spinner("Running OWASP Agentic Security Evaluation..."):
-            # Passing None for context/target_secret as they are not currently tracked in UI session
+            # Context/target_secret not tracked in UI session yet
             score = await agent_judge.evaluate_agent_async(events)
             st.session_state[AGENT_SCORE_KEY] = score
             st.success("Evaluation complete!")
@@ -166,8 +167,8 @@ def render_agent_mode():
     score = st.session_state.get(AGENT_SCORE_KEY)
 
     # Tabs for different views
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["Timeline", "Tool Chain", "OWASP Coverage", "Events"]
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        ["Timeline", "Tool Chain", "OWASP Coverage", "Events", "SDK Integration"]
     )
 
     with tab1:
@@ -187,9 +188,7 @@ def render_agent_mode():
         st.subheader("Tool Call Chain")
         # Filter for tool call events with safety check
         tool_calls = [
-            e
-            for e in events
-            if getattr(e, "event_type", None) == "tool_call"
+            e for e in events if getattr(e, "event_type", None) == "tool_call"
         ]
         if tool_calls:
             from src.ui.components.tool_chain import render_tool_chain
@@ -218,15 +217,21 @@ def render_agent_mode():
             for i, event in enumerate(display_events):
                 # Calculate correct index for expander label
                 actual_index = len(events) - len(display_events) + i + 1
-                label = getattr(event, 'event_type', 'unknown')
+                label = getattr(event, "event_type", "unknown")
                 with st.expander(f"Event {actual_index}: {label}"):
                     if hasattr(event, "model_dump"):
                         st.json(event.model_dump(mode="json"))
                     else:
-                        # Fallback for non-model objects - show type only to prevent RCE via __str__
+                        # Fallback for non-model objects - show type only
                         st.text(f"<Non-Pydantic Object: {type(event).__name__}>")
         else:
             st.info("No events to display.")
+
+    with tab5:
+        # SDK Integration tab
+        from src.ui.components.sdk_connection import render_sdk_connection
+
+        render_sdk_connection()
 
     # Agent testing actions
     st.divider()
