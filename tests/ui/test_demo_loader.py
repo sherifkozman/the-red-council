@@ -5,6 +5,8 @@ import sys
 # Mock streamlit globally
 mock_st = MagicMock()
 sys.modules["streamlit"] = mock_st
+if "src.ui.components.demo_loader" in sys.modules:
+    del sys.modules["src.ui.components.demo_loader"]
 
 from src.ui.components.demo_loader import (
     DEMO_CONFIRM_KEY,
@@ -14,6 +16,7 @@ from src.ui.components.demo_loader import (
     render_demo_loader,
 )
 from src.ui.components.mode_selector import AGENT_EVENTS_KEY, AGENT_SCORE_KEY
+import src.ui.components.demo_loader as demo_loader
 
 
 class TestDemoLoader(unittest.TestCase):
@@ -26,6 +29,10 @@ class TestDemoLoader(unittest.TestCase):
         mock_st.session_state = self.session_state
         mock_st.sidebar = MagicMock()
         mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.sidebar.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.button.side_effect = None
+        mock_st.sidebar.button.side_effect = None
+        demo_loader.st = mock_st
 
     @patch("src.ui.components.demo_loader.VulnerableTestAgent")
     def test_load_demo_data(self, MockAgent):
@@ -61,8 +68,18 @@ class TestDemoLoader(unittest.TestCase):
         self.session_state["agent_report"] = "old_report"
         self.session_state[DEMO_CONFIRM_KEY] = True
 
-        # Run function
-        clear_demo_data()
+        def reset_side_effect(full_reset=False):
+            self.session_state[AGENT_EVENTS_KEY] = []
+            self.session_state[AGENT_SCORE_KEY] = None
+            if full_reset:
+                self.session_state.pop(DEMO_MODE_KEY, None)
+            self.session_state.pop("agent_report", None)
+            self.session_state.pop(DEMO_CONFIRM_KEY, None)
+
+        with patch("src.ui.components.demo_loader.reset_agent_state") as mock_reset:
+            mock_reset.side_effect = reset_side_effect
+            # Run function
+            clear_demo_data()
 
         # Verify session state cleared
         self.assertEqual(self.session_state[AGENT_EVENTS_KEY], [])
@@ -97,6 +114,7 @@ class TestDemoLoader(unittest.TestCase):
         self.session_state[DEMO_CONFIRM_KEY] = False
         
         mock_st.sidebar.button.return_value = True # Click load
+        mock_st.button.return_value = False
 
         render_demo_loader()
         
@@ -125,7 +143,7 @@ class TestDemoLoader(unittest.TestCase):
             mock_load.assert_called_once()
             
         # Verify warning shown
-        mock_st.sidebar.warning.assert_called_with("This will overwrite existing events.")
+        mock_st.sidebar.warning.assert_called_with("Overwrite existing events?")
 
     def test_render_demo_loader_active(self):
         # Setup: Demo mode active

@@ -6,6 +6,8 @@ import pytest
 # Mock streamlit before importing dashboard
 mock_st = MagicMock()
 sys.modules["streamlit"] = mock_st
+if "src.ui.dashboard" in sys.modules:
+    del sys.modules["src.ui.dashboard"]
 
 # Mock other dependencies that might cause issues
 sys.modules["src.core.security"] = MagicMock()
@@ -45,6 +47,8 @@ def mock_session_state():
     state = SessionState()
     mock_st.session_state = state
     mock_st.get = state.get  # helper
+    sys.modules["src.ui.components.event_stream"] = MagicMock()
+    sys.modules["src.ui.components.remote_agent_config"] = MagicMock()
     return state
 
 
@@ -253,7 +257,13 @@ def test_clear_events(mock_session_state):
         patch("src.ui.components.agent_timeline.render_agent_timeline"),
         patch("src.ui.components.tool_chain.render_tool_chain"),
         patch("src.ui.components.owasp_coverage.render_owasp_coverage"),
+        patch("src.ui.dashboard.reset_agent_state") as mock_reset,
     ):
+        def reset_side_effect(full_reset=False):
+            mock_session_state[AGENT_EVENTS_KEY] = []
+            mock_session_state[AGENT_SCORE_KEY] = None
+
+        mock_reset.side_effect = reset_side_effect
         render_agent_mode()
 
     assert mock_session_state[AGENT_EVENTS_KEY] == []
@@ -313,6 +323,7 @@ def test_main_agent_mode(mock_session_state):
     """Test main function dispatching to agent mode."""
     with (
         patch("src.ui.dashboard.render_mode_selector", return_value="agent"),
+        patch("src.ui.dashboard.is_first_time_user", return_value=False),
         patch("src.ui.dashboard.render_agent_mode") as mock_render_agent,
     ):
         main()
@@ -324,6 +335,7 @@ def test_main_llm_mode(mock_session_state):
     """Test main function dispatching to llm mode."""
     with (
         patch("src.ui.dashboard.render_mode_selector", return_value="llm"),
+        patch("src.ui.dashboard.is_first_time_user", return_value=False),
         patch("src.ui.dashboard.render_llm_mode") as mock_render_llm,
     ):
         main()

@@ -381,7 +381,12 @@ class TestSessionManager:
             mock_streamlit.columns.side_effect = mock_columns
             
             # Test 1: Save Button
-            mock_streamlit.text_input.side_effect = ["New Name", "tag1,tag2"]
+            def text_input_side_effect(label, **_kwargs):
+                if label == "Name":
+                    return "New Name"
+                return "tag1,tag2"
+
+            mock_streamlit.text_input.side_effect = text_input_side_effect
             mock_streamlit.button.side_effect = lambda label, **kwargs: label == "Save"
             
             # Mock active session

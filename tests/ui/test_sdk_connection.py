@@ -1,10 +1,19 @@
 # tests/ui/test_sdk_connection.py
+# ruff: noqa: E402
 """Tests for SDK Connection Panel component."""
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Mock streamlit before importing module
+mock_st = MagicMock()
+mock_st.session_state = {}
+sys.modules["streamlit"] = mock_st
+sys.modules.pop("src.ui.components.sdk_connection", None)
+
+import src.ui.components.sdk_connection as sdk_connection
 from src.ui.components.sdk_connection import (
     FRAMEWORK_DOCS,
     FRAMEWORK_NAMES,
@@ -33,7 +42,7 @@ def mock_session_state():
 @pytest.fixture
 def mock_st(mock_session_state):
     """Create mock streamlit with session state."""
-    with patch("src.ui.components.sdk_connection.st") as mock:
+    with patch.object(sdk_connection, "st") as mock:
         mock.session_state = mock_session_state
         mock.sidebar = MagicMock()
         yield mock

@@ -18,6 +18,10 @@ from unittest.mock import MagicMock, patch
 mock_st = MagicMock()
 mock_st.session_state = {}
 sys.modules["streamlit"] = mock_st
+if "src.ui.components.attack_selector" in sys.modules:
+    del sys.modules["src.ui.components.attack_selector"]
+if "src.ui.components.campaign_runner" in sys.modules:
+    del sys.modules["src.ui.components.campaign_runner"]
 
 from src.orchestrator.agent_campaign import (
     AttackResult,
@@ -45,6 +49,7 @@ from src.ui.components.campaign_runner import (
     get_campaign_results,
     is_campaign_running,
 )
+import src.ui.components.campaign_runner as campaign_runner
 
 # ============================================================================
 # Constants Tests
@@ -246,8 +251,10 @@ class TestRenderFunctions:
         col_mock.__enter__ = MagicMock(return_value=col_mock)
         col_mock.__exit__ = MagicMock(return_value=None)
 
-        def columns_side_effect(n):
-            return [col_mock for _ in range(n)]
+        def columns_side_effect(spec):
+            if isinstance(spec, int):
+                return [col_mock for _ in range(spec)]
+            return [col_mock for _ in range(len(spec))]
 
         mock_st.columns.side_effect = columns_side_effect
 
@@ -293,12 +300,14 @@ class TestRenderFunctions:
     def test_render_prerequisites_check_both_missing(self) -> None:
         """Test prerequisites check when both are missing."""
         with (
-            patch(
-                "src.ui.components.campaign_runner.is_remote_agent_configured",
+            patch.object(
+                campaign_runner,
+                "is_remote_agent_configured",
                 return_value=False,
             ),
-            patch(
-                "src.ui.components.campaign_runner.is_templates_selected",
+            patch.object(
+                campaign_runner,
+                "is_templates_selected",
                 return_value=False,
             ),
         ):
@@ -310,12 +319,14 @@ class TestRenderFunctions:
     def test_render_prerequisites_check_all_met(self) -> None:
         """Test prerequisites check when all are met."""
         with (
-            patch(
-                "src.ui.components.campaign_runner.is_remote_agent_configured",
+            patch.object(
+                campaign_runner,
+                "is_remote_agent_configured",
                 return_value=True,
             ),
-            patch(
-                "src.ui.components.campaign_runner.is_templates_selected",
+            patch.object(
+                campaign_runner,
+                "is_templates_selected",
                 return_value=True,
             ),
         ):
@@ -328,12 +339,14 @@ class TestRenderFunctions:
         mock_st.button.return_value = False
 
         with (
-            patch(
-                "src.ui.components.campaign_runner.is_remote_agent_configured",
+            patch.object(
+                campaign_runner,
+                "is_remote_agent_configured",
                 return_value=False,
             ),
-            patch(
-                "src.ui.components.campaign_runner.is_templates_selected",
+            patch.object(
+                campaign_runner,
+                "is_templates_selected",
                 return_value=False,
             ),
         ):
@@ -348,12 +361,14 @@ class TestRenderFunctions:
         mock_st.button.return_value = False
 
         with (
-            patch(
-                "src.ui.components.campaign_runner.is_remote_agent_configured",
+            patch.object(
+                campaign_runner,
+                "is_remote_agent_configured",
                 return_value=True,
             ),
-            patch(
-                "src.ui.components.campaign_runner.is_templates_selected",
+            patch.object(
+                campaign_runner,
+                "is_templates_selected",
                 return_value=True,
             ),
         ):
@@ -482,20 +497,24 @@ class TestIntegration:
         future = asyncio.Future()
 
         with (
-            patch(
-                "src.ui.components.campaign_runner.is_remote_agent_configured",
+            patch.object(
+                campaign_runner,
+                "is_remote_agent_configured",
                 return_value=True,
             ),
-            patch(
-                "src.ui.components.campaign_runner.is_templates_selected",
+            patch.object(
+                campaign_runner,
+                "is_templates_selected",
                 return_value=True,
             ),
-            patch(
-                "src.ui.components.campaign_runner._get_template_data_for_campaign",
+            patch.object(
+                campaign_runner,
+                "_get_template_data_for_campaign",
                 return_value=[{"id": "t1", "prompt_template": "p"}],
             ),
-            patch(
-                "src.ui.components.campaign_runner.safe_run_async",
+            patch.object(
+                campaign_runner,
+                "safe_run_async",
                 return_value=future,
             ),
         ):

@@ -1,10 +1,13 @@
 # tests/ui/test_polling.py
 """Tests for the polling provider module."""
 
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+
+sys.modules.pop("src.ui.providers.polling", None)
 
 from src.ui.providers.polling import (
     DEFAULT_API_TIMEOUT_SECONDS,

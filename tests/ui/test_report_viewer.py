@@ -10,6 +10,8 @@ import pytest
 # Mock streamlit before importing the module
 mock_st = MagicMock()
 sys.modules["streamlit"] = mock_st
+if "src.ui.components.report_viewer" in sys.modules:
+    del sys.modules["src.ui.components.report_viewer"]
 
 from src.ui.components.report_viewer import (
     MAX_HISTORY_SIZE,

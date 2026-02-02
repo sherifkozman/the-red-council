@@ -1,8 +1,11 @@
 """Tests for mode selector component."""
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+sys.modules.pop("src.ui.components.mode_selector", None)
 
 from src.core.agent_schemas import AgentInstrumentationConfig
 from src.ui.components.mode_selector import (

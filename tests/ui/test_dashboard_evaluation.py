@@ -1,12 +1,12 @@
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
-from src.ui.dashboard import run_agent_evaluation
+import src.ui.dashboard as dashboard
 from src.ui.components.mode_selector import AGENT_EVENTS_KEY, AGENT_SCORE_KEY, AGENT_CONFIG_KEY
 from src.core.agent_schemas import AgentInstrumentationConfig, AgentJudgeScore, AgentEvent
 
 @pytest.fixture
 def mock_streamlit():
-    with patch("src.ui.dashboard.st") as mock_st:
+    with patch.object(dashboard, "st") as mock_st:
         mock_st.session_state = {}
         mock_st.spinner = MagicMock()
         mock_st.success = MagicMock()
@@ -16,17 +16,17 @@ def mock_streamlit():
 
 @pytest.fixture
 def mock_gemini_client():
-    with patch("src.ui.dashboard.GeminiClient") as mock_client:
+    with patch.object(dashboard, "GeminiClient") as mock_client:
         yield mock_client
 
 @pytest.fixture
 def mock_judge_agent():
-    with patch("src.ui.dashboard.JudgeAgent") as mock_judge:
+    with patch.object(dashboard, "JudgeAgent") as mock_judge:
         yield mock_judge
 
 @pytest.fixture
 def mock_agent_judge():
-    with patch("src.ui.dashboard.AgentJudge") as mock_agent_judge:
+    with patch.object(dashboard, "AgentJudge") as mock_agent_judge:
         instance = mock_agent_judge.return_value
         instance.evaluate_agent_async = AsyncMock()
         yield mock_agent_judge
@@ -36,7 +36,7 @@ async def test_run_agent_evaluation_no_events(mock_streamlit):
     """Test that evaluation stops if no events are present."""
     mock_streamlit.session_state[AGENT_EVENTS_KEY] = []
     
-    await run_agent_evaluation()
+    await dashboard.run_agent_evaluation()
     
     mock_streamlit.warning.assert_called_with("No events to evaluate.")
     assert AGENT_SCORE_KEY not in mock_streamlit.session_state or mock_streamlit.session_state[AGENT_SCORE_KEY] is None
@@ -58,7 +58,7 @@ async def test_run_agent_evaluation_success(
     expected_score = MagicMock(spec=AgentJudgeScore)
     mock_agent_judge.return_value.evaluate_agent_async.return_value = expected_score
     
-    await run_agent_evaluation()
+    await dashboard.run_agent_evaluation()
     
     # Verify AgentJudge was initialized (check if config is passed correctly if we fix it)
     mock_agent_judge.assert_called()
@@ -80,7 +80,7 @@ async def test_run_agent_evaluation_failure(
     # Mock exception
     mock_agent_judge.return_value.evaluate_agent_async.side_effect = Exception("API Error")
     
-    await run_agent_evaluation()
+    await dashboard.run_agent_evaluation()
     
-    mock_streamlit.error.assert_called_with("Evaluation failed: API Error")
+    mock_streamlit.error.assert_called_with("Evaluation failed. Please check server logs.")
     assert AGENT_SCORE_KEY not in mock_streamlit.session_state or mock_streamlit.session_state[AGENT_SCORE_KEY] is None

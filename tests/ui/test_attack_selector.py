@@ -19,6 +19,8 @@ from unittest.mock import MagicMock, patch
 mock_st = MagicMock()
 mock_st.session_state = {}
 sys.modules["streamlit"] = mock_st
+if "src.ui.components.attack_selector" in sys.modules:
+    del sys.modules["src.ui.components.attack_selector"]
 
 from src.ui.components.attack_selector import (
     ATTACK_FILTER_KEY,
@@ -42,6 +44,7 @@ from src.ui.components.attack_selector import (
     get_selected_templates,
     is_templates_selected,
 )
+import src.ui.components.attack_selector as attack_selector
 
 # ============================================================================
 # AttackTemplateFilters Tests
@@ -796,79 +799,70 @@ class TestRenderFunctions:
 
     def setup_method(self) -> None:
         """Reset session state and mocks before each test."""
-        mock_st.session_state = {}
-        mock_st.reset_mock()
+        self.st = MagicMock()
+        self.st.session_state = {}
+        attack_selector.st = self.st
 
     def test_render_owasp_filters_calls_checkbox(self) -> None:
         """Test that OWASP filter rendering calls checkboxes."""
-        from src.ui.components.attack_selector import _render_owasp_filters
-
         filters = AttackTemplateFilters()
         counts = dict.fromkeys(OWASP_DISPLAY_NAMES, 1)
+        assert len(OWASP_DISPLAY_NAMES) == 10
+        assert attack_selector.st is self.st
 
         # Mock columns
         col_mock = MagicMock()
         col_mock.__enter__ = MagicMock(return_value=col_mock)
         col_mock.__exit__ = MagicMock(return_value=None)
-        mock_st.columns.return_value = [col_mock, col_mock]
-        mock_st.checkbox.return_value = True
+        self.st.columns.return_value = [col_mock, col_mock]
+        self.st.checkbox.return_value = True
 
-        result = _render_owasp_filters(filters, counts)
+        result = attack_selector._render_owasp_filters(filters, counts)
 
         # Should call checkbox for each OWASP category
-        assert mock_st.checkbox.call_count >= 10
+        assert self.st.checkbox.call_count >= 10
         assert isinstance(result, AttackTemplateFilters)
 
     def test_render_capability_filters_calls_radio(self) -> None:
         """Test that capability filter rendering calls radio buttons."""
-        from src.ui.components.attack_selector import _render_capability_filters
-
         filters = AttackTemplateFilters()
-        mock_st.radio.return_value = "Any"
+        self.st.radio.return_value = "Any"
 
-        result = _render_capability_filters(filters)
+        result = attack_selector._render_capability_filters(filters)
 
         # Should call radio for tool and memory access
-        assert mock_st.radio.call_count >= 2
+        assert self.st.radio.call_count >= 2
         assert isinstance(result, AttackTemplateFilters)
 
     def test_render_capability_filters_required_selection(self) -> None:
         """Test capability filter with 'Required' selection."""
-        from src.ui.components.attack_selector import _render_capability_filters
-
         filters = AttackTemplateFilters()
-        mock_st.radio.return_value = "Required"
+        self.st.radio.return_value = "Required"
 
-        result = _render_capability_filters(filters)
+        result = attack_selector._render_capability_filters(filters)
 
         assert result.requires_tool_access is True
         assert result.requires_memory_access is True
 
     def test_render_capability_filters_not_required_selection(self) -> None:
         """Test capability filter with 'Not Required' selection."""
-        from src.ui.components.attack_selector import _render_capability_filters
-
         filters = AttackTemplateFilters()
-        mock_st.radio.return_value = "Not Required"
+        self.st.radio.return_value = "Not Required"
 
-        result = _render_capability_filters(filters)
+        result = attack_selector._render_capability_filters(filters)
 
         assert result.requires_tool_access is False
         assert result.requires_memory_access is False
 
     def test_render_template_list_empty(self) -> None:
         """Test rendering empty template list."""
-        from src.ui.components.attack_selector import _render_template_list
+        result = attack_selector._render_template_list([], set())
 
-        result = _render_template_list([], set())
-
-        mock_st.info.assert_called_once()
+        self.st.info.assert_called_once()
         assert isinstance(result, set)
 
     def test_render_template_list_with_templates(self) -> None:
         """Test rendering template list with templates."""
-        from src.ui.components.attack_selector import _render_template_list
-
         templates = [
             TemplatePreview(
                 id="t1",
@@ -890,26 +884,24 @@ class TestRenderFunctions:
         def columns_side_effect(spec, **kwargs):
             return [col_mock for _ in range(len(spec))]
 
-        mock_st.columns.side_effect = columns_side_effect
+        self.st.columns.side_effect = columns_side_effect
 
         expander_mock = MagicMock()
         expander_mock.__enter__ = MagicMock(return_value=expander_mock)
         expander_mock.__exit__ = MagicMock(return_value=None)
-        mock_st.expander.return_value = expander_mock
+        self.st.expander.return_value = expander_mock
 
-        mock_st.button.return_value = False
-        mock_st.checkbox.return_value = False
+        self.st.button.return_value = False
+        self.st.checkbox.return_value = False
 
-        result = _render_template_list(templates, set())
+        result = attack_selector._render_template_list(templates, set())
 
         # Should have called expander for template
-        assert mock_st.expander.call_count >= 1
+        assert self.st.expander.call_count >= 1
         assert isinstance(result, set)
 
     def test_render_template_list_select_all(self) -> None:
         """Test Select All button functionality."""
-        from src.ui.components.attack_selector import _render_template_list
-
         templates = [
             TemplatePreview(
                 id=f"t{i}",
@@ -931,27 +923,25 @@ class TestRenderFunctions:
         def columns_side_effect(spec, **kwargs):
             return [col_mock for _ in range(len(spec))]
 
-        mock_st.columns.side_effect = columns_side_effect
+        self.st.columns.side_effect = columns_side_effect
 
         expander_mock = MagicMock()
         expander_mock.__enter__ = MagicMock(return_value=expander_mock)
         expander_mock.__exit__ = MagicMock(return_value=None)
-        mock_st.expander.return_value = expander_mock
+        self.st.expander.return_value = expander_mock
 
         # First button (Select All) returns True, second (Deselect) False
-        mock_st.button.side_effect = [True, False]
+        self.st.button.side_effect = [True, False]
         # Checkbox returns True so templates stay selected after Select All
-        mock_st.checkbox.return_value = True
+        self.st.checkbox.return_value = True
 
-        result = _render_template_list(templates, set())
+        result = attack_selector._render_template_list(templates, set())
 
         # All templates should be selected
         assert len(result) == 3
 
     def test_render_template_list_deselect_all(self) -> None:
         """Test Deselect All button functionality."""
-        from src.ui.components.attack_selector import _render_template_list
-
         templates = [
             TemplatePreview(
                 id=f"t{i}",
@@ -973,34 +963,30 @@ class TestRenderFunctions:
         def columns_side_effect(spec, **kwargs):
             return [col_mock for _ in range(len(spec))]
 
-        mock_st.columns.side_effect = columns_side_effect
+        self.st.columns.side_effect = columns_side_effect
 
         expander_mock = MagicMock()
         expander_mock.__enter__ = MagicMock(return_value=expander_mock)
         expander_mock.__exit__ = MagicMock(return_value=None)
-        mock_st.expander.return_value = expander_mock
+        self.st.expander.return_value = expander_mock
 
         # Second button (Deselect All) returns True
-        mock_st.button.side_effect = [False, True]
-        mock_st.checkbox.return_value = False
+        self.st.button.side_effect = [False, True]
+        self.st.checkbox.return_value = False
 
-        result = _render_template_list(templates, {"t0", "t1", "t2"})
+        result = attack_selector._render_template_list(templates, {"t0", "t1", "t2"})
 
         # All templates should be deselected
         assert len(result) == 0
 
     def test_render_selection_summary_empty(self) -> None:
         """Test rendering selection summary with no selection."""
-        from src.ui.components.attack_selector import _render_selection_summary
+        attack_selector._render_selection_summary([], set())
 
-        _render_selection_summary([], set())
-
-        mock_st.warning.assert_called_once()
+        self.st.warning.assert_called_once()
 
     def test_render_selection_summary_with_selection(self) -> None:
         """Test rendering selection summary with templates."""
-        from src.ui.components.attack_selector import _render_selection_summary
-
         templates = [
             TemplatePreview(
                 id="t1",
@@ -1034,12 +1020,12 @@ class TestRenderFunctions:
                 return [col_mock for _ in range(spec)]
             return [col_mock for _ in range(len(spec))]
 
-        mock_st.columns.side_effect = columns_side_effect
+        self.st.columns.side_effect = columns_side_effect
 
-        _render_selection_summary(templates, {"t1", "t2"})
+        attack_selector._render_selection_summary(templates, {"t1", "t2"})
 
         # Should call metric for totals
-        assert mock_st.metric.call_count >= 3
+        assert self.st.metric.call_count >= 3
 
 
 # ============================================================================
@@ -1057,8 +1043,6 @@ class TestLoadTemplates:
     @patch("src.knowledge.agent_attacks.AgentAttackKnowledgeBase")
     def test_load_templates_from_kb_success(self, mock_kb_class: MagicMock) -> None:
         """Test successful template loading from KB."""
-        from src.ui.components.attack_selector import _load_templates_from_kb
-
         # Setup mock KB
         mock_kb = MagicMock()
         mock_kb_class.return_value = mock_kb
@@ -1079,7 +1063,7 @@ class TestLoadTemplates:
 
         mock_kb.get_attacks_for_owasp.return_value = [mock_template]
 
-        templates = _load_templates_from_kb()
+        templates = attack_selector._load_templates_from_kb()
 
         assert len(templates) >= 1
         # First template should be kb-001
@@ -1088,19 +1072,15 @@ class TestLoadTemplates:
     @patch("src.knowledge.agent_attacks.AgentAttackKnowledgeBase")
     def test_load_templates_from_kb_failure(self, mock_kb_class: MagicMock) -> None:
         """Test handling KB initialization failure."""
-        from src.ui.components.attack_selector import _load_templates_from_kb
-
         mock_kb_class.side_effect = Exception("KB init failed")
 
-        templates = _load_templates_from_kb()
+        templates = attack_selector._load_templates_from_kb()
 
         assert templates == []
 
     @patch("src.knowledge.agent_attacks.AgentAttackKnowledgeBase")
     def test_load_templates_deduplication(self, mock_kb_class: MagicMock) -> None:
         """Test that duplicate templates are deduplicated."""
-        from src.ui.components.attack_selector import _load_templates_from_kb
-
         mock_kb = MagicMock()
         mock_kb_class.return_value = mock_kb
 
@@ -1123,7 +1103,7 @@ class TestLoadTemplates:
         # Same template returned for multiple categories
         mock_kb.get_attacks_for_owasp.return_value = [mock_template]
 
-        templates = _load_templates_from_kb()
+        templates = attack_selector._load_templates_from_kb()
 
         # Should only have one instance despite appearing in multiple queries
         ids = [t.id for t in templates]
@@ -1137,12 +1117,11 @@ class TestRenderAttackSelector:
         """Reset session state and mocks before each test."""
         mock_st.session_state = {}
         mock_st.reset_mock()
+        attack_selector.st = mock_st
 
-    @patch("src.ui.components.attack_selector._load_templates_from_kb")
+    @patch.object(attack_selector, "_load_templates_from_kb")
     def test_render_attack_selector_no_templates(self, mock_load: MagicMock) -> None:
         """Test rendering with no templates available."""
-        from src.ui.components.attack_selector import render_attack_selector
-
         mock_load.return_value = []
         # Use list for multiple button calls (warning button + refresh button)
         mock_st.button.side_effect = [False, False, False]
@@ -1153,17 +1132,15 @@ class TestRenderAttackSelector:
         spinner_mock.__exit__ = MagicMock(return_value=None)
         mock_st.spinner.return_value = spinner_mock
 
-        render_attack_selector()
+        attack_selector.render_attack_selector()
 
         mock_st.warning.assert_called()
 
-    @patch("src.ui.components.attack_selector._load_templates_from_kb")
+    @patch.object(attack_selector, "_load_templates_from_kb")
     def test_render_attack_selector_with_cached_templates(
         self, mock_load: MagicMock
     ) -> None:
         """Test rendering with cached templates."""
-        from src.ui.components.attack_selector import render_attack_selector
-
         # Pre-populate cache
         mock_st.session_state[TEMPLATE_CACHE_KEY] = [
             TemplatePreview(
@@ -1199,18 +1176,16 @@ class TestRenderAttackSelector:
         mock_st.radio.return_value = "Any"
         mock_st.button.return_value = False
 
-        render_attack_selector()
+        attack_selector.render_attack_selector()
 
         # Should not call load since cache exists
         mock_load.assert_not_called()
         # Should render header
         mock_st.header.assert_called_with("Attack Templates")
 
-    @patch("src.ui.components.attack_selector._load_templates_from_kb")
+    @patch.object(attack_selector, "_load_templates_from_kb")
     def test_render_attack_selector_refresh_button(self, mock_load: MagicMock) -> None:
         """Test refresh button when no templates available."""
-        from src.ui.components.attack_selector import render_attack_selector
-
         mock_load.return_value = []
 
         # Mock spinner
@@ -1222,7 +1197,7 @@ class TestRenderAttackSelector:
         # Refresh button clicked (True for the refresh button)
         mock_st.button.side_effect = [True, True, True]
 
-        render_attack_selector()
+        attack_selector.render_attack_selector()
 
         # Should call load twice (initial + refresh)
         assert mock_load.call_count == 2

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.ui.components.mode_selector import AGENT_EVENTS_KEY, AGENT_SCORE_KEY
-from src.ui.dashboard import render_agent_mode
+import src.ui.dashboard as dashboard
 
 
 @pytest.fixture
@@ -11,12 +11,12 @@ def mock_session_state():
     return {AGENT_EVENTS_KEY: ["event1", "event2"], AGENT_SCORE_KEY: MagicMock()}
 
 
-@patch("src.ui.dashboard.st")
-@patch("src.ui.dashboard.get_agent_config")
-@patch("src.ui.dashboard.render_agent_config_panel")
-@patch("src.ui.dashboard.render_tool_registration_form")
-@patch("src.ui.dashboard.render_memory_config")
-@patch("src.ui.dashboard.render_demo_loader")
+@patch.object(dashboard, "st")
+@patch.object(dashboard, "get_agent_config")
+@patch.object(dashboard, "render_agent_config_panel")
+@patch.object(dashboard, "render_tool_registration_form")
+@patch.object(dashboard, "render_memory_config")
+@patch.object(dashboard, "render_demo_loader")
 @patch("src.reports.agent_report_generator.AgentReportGenerator")
 @patch("src.ui.components.report_viewer.render_report_viewer")
 @patch("src.ui.components.owasp_coverage.render_owasp_coverage")
@@ -64,7 +64,7 @@ def test_generate_report_button(
     mock_gen_instance.render.return_value = "# MD"
 
     # Execute
-    render_agent_mode()
+    dashboard.render_agent_mode()
 
     # Verify generator called
     mock_gen_instance.generate.assert_called_once()
@@ -79,12 +79,12 @@ def test_generate_report_button(
     mock_render_viewer.assert_called_once_with("# MD", '{"id": "123"}', "report-123")
 
 
-@patch("src.ui.dashboard.st")
-@patch("src.ui.dashboard.get_agent_config")
-@patch("src.ui.dashboard.render_agent_config_panel")
-@patch("src.ui.dashboard.render_tool_registration_form")
-@patch("src.ui.dashboard.render_memory_config")
-@patch("src.ui.dashboard.render_demo_loader")
+@patch.object(dashboard, "st")
+@patch.object(dashboard, "get_agent_config")
+@patch.object(dashboard, "render_agent_config_panel")
+@patch.object(dashboard, "render_tool_registration_form")
+@patch.object(dashboard, "render_memory_config")
+@patch.object(dashboard, "render_demo_loader")
 @patch("src.reports.agent_report_generator.AgentReportGenerator")
 @patch("src.ui.components.owasp_coverage.render_owasp_coverage")
 @patch("src.ui.components.agent_timeline.render_agent_timeline")
@@ -126,7 +126,7 @@ def test_generate_report_error(
     mock_gen_instance.generate.side_effect = Exception("Gen error")
 
     # Execute
-    render_agent_mode()
+    dashboard.render_agent_mode()
 
     # Verify error shown
     mock_st.error.assert_called_with("Failed to generate report: Gen error")

@@ -13,6 +13,7 @@ def test_render_keyboard_shortcuts(mock_components, mock_st):
     # Setup mocks
     mock_expander = MagicMock()
     mock_st.sidebar.expander.return_value.__enter__.return_value = mock_expander
+    mock_st.sidebar.button.return_value = False
     mock_st.session_state = {SHORTCUTS_PANEL_KEY: True}
     
     # Run function

@@ -1,9 +1,12 @@
 # tests/ui/test_remote_agent_config.py
 """Tests for Remote Agent Configuration component."""
 
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+sys.modules.pop("src.ui.components.remote_agent_config", None)
 
 from src.ui.components.remote_agent_config import (
     AUTH_TYPE_NAMES,
@@ -26,6 +29,7 @@ from src.ui.components.remote_agent_config import (
     render_remote_agent_config,
     check_connection_async,
 )
+import src.ui.components.remote_agent_config as remote_agent_config
 
 
 @pytest.fixture
@@ -37,7 +41,7 @@ def mock_session_state():
 @pytest.fixture
 def mock_st(mock_session_state):
     """Create mock streamlit with session state."""
-    with patch("src.ui.components.remote_agent_config.st") as mock:
+    with patch.object(remote_agent_config, "st") as mock:
         mock.session_state = mock_session_state
         mock.sidebar = MagicMock()
         yield mock
@@ -660,6 +664,8 @@ async def test_check_connection_async_success():
         # Reload module to pick up mocked httpx
         import src.ui.components.remote_agent_config as module
 
+        import sys
+        sys.modules["src.ui.components.remote_agent_config"] = module
         importlib.reload(module)
 
         mock_response = MagicMock()
@@ -690,6 +696,8 @@ async def test_check_connection_async_auth_failure():
 
         import src.ui.components.remote_agent_config as module
 
+        import sys
+        sys.modules["src.ui.components.remote_agent_config"] = module
         importlib.reload(module)
 
         mock_response = MagicMock()
@@ -720,6 +728,8 @@ async def test_check_connection_async_forbidden():
 
         import src.ui.components.remote_agent_config as module
 
+        import sys
+        sys.modules["src.ui.components.remote_agent_config"] = module
         importlib.reload(module)
 
         mock_response = MagicMock()
@@ -750,6 +760,8 @@ async def test_check_connection_async_not_found():
 
         import src.ui.components.remote_agent_config as module
 
+        import sys
+        sys.modules["src.ui.components.remote_agent_config"] = module
         importlib.reload(module)
 
         mock_response = MagicMock()
