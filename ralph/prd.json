@@ -909,10 +909,10 @@
       ],
       "priority": 5,
       "phaseId": 7,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TRC-019"],
       "notes": "Similar to existing LLM model configuration pattern. Remote agent acts as target for attack campaigns.",
-      "files": ["src/ui/components/remote_agent_config.py", "src/ui/dashboard.py"]
+      "files": ["src/ui/components/remote_agent_config.py", "src/ui/dashboard.py", "tests/ui/test_remote_agent_config.py"]
     },
     {
       "id": "TRC-038",

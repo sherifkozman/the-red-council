@@ -44,3 +44,26 @@
   - **Type Safety**: Use explicit casts (e.g., `str()`) when returning from session_state to satisfy mypy.
   - **Code Snippets**: Use f-strings with doubled braces `{{}}` for dict literals in generated code.
 ---
+
+## 2026-02-02 - TRC-037
+- Implemented `src/ui/components/remote_agent_config.py` with Remote Agent Configuration panel.
+- Added "Remote Agent" tab (6th tab) to Agent Testing mode in `src/ui/dashboard.py`.
+- Features implemented:
+  - Agent endpoint URL input with regex validation
+  - Auth configuration: Bearer token, API key header, or None
+  - Request format selector: OpenAI-compatible or custom JSON template with validation
+  - Response format selector: text or JSON path extraction
+  - Test connection button with async HTTP client (httpx)
+  - Configuration summary display with metrics
+  - Session state persistence
+- Created `tests/ui/test_remote_agent_config.py` with 81 tests, 88% coverage.
+- Updated `tests/ui/test_dashboard_wiring.py` and `tests/ui/test_dashboard_report.py` for 6-tab layout.
+- Reviews completed: ruff lint (all checks passed), mypy (all issues resolved).
+- **Learnings for future iterations:**
+  - **Function Naming**: Avoid `test_` prefix in source code function names to prevent pytest from collecting them as tests (renamed `test_connection_async` to `check_connection_async`).
+  - **Tab Count Updates**: Systematic grep for `st.tabs.return_value` across all test files when adding tabs.
+  - **Columns Mocking**: Use `side_effect` with different return values when `st.columns()` is called multiple times with different specs.
+  - **Type Safety**: Use explicit type casts or annotations (e.g., `result: dict[str, Any]`) to avoid mypy "Returning Any" errors.
+  - **Modern Python Types**: Use `str | None` instead of `Optional[str]` for UP045 compliance.
+  - **JSON Path Validation**: Simple validation patterns work well for basic JSONPath expressions.
+---

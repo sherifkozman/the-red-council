@@ -167,8 +167,15 @@ def render_agent_mode():
     score = st.session_state.get(AGENT_SCORE_KEY)
 
     # Tabs for different views
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        ["Timeline", "Tool Chain", "OWASP Coverage", "Events", "SDK Integration"]
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+        [
+            "Timeline",
+            "Tool Chain",
+            "OWASP Coverage",
+            "Events",
+            "SDK Integration",
+            "Remote Agent",
+        ]
     )
 
     with tab1:
@@ -232,6 +239,12 @@ def render_agent_mode():
         from src.ui.components.sdk_connection import render_sdk_connection
 
         render_sdk_connection()
+
+    with tab6:
+        # Remote Agent Configuration tab
+        from src.ui.components.remote_agent_config import render_remote_agent_config
+
+        render_remote_agent_config()
 
     # Agent testing actions
     st.divider()

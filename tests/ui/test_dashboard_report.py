@@ -22,7 +22,9 @@ def mock_session_state():
 @patch("src.ui.components.owasp_coverage.render_owasp_coverage")
 @patch("src.ui.components.agent_timeline.render_agent_timeline")
 @patch("src.ui.components.sdk_connection.render_sdk_connection")
+@patch("src.ui.components.remote_agent_config.render_remote_agent_config")
 def test_generate_report_button(
+    mock_render_remote,
     mock_render_sdk,
     mock_render_timeline,
     mock_render_owasp,
@@ -44,8 +46,8 @@ def test_generate_report_button(
     mock_st.button.side_effect = [False, False, True]
     mock_col = MagicMock()
     mock_st.columns.return_value = [mock_col, mock_col, mock_col]
-    # 5 tabs including SDK Integration
-    mock_st.tabs.return_value = [MagicMock() for _ in range(5)]
+    # 6 tabs including Remote Agent
+    mock_st.tabs.return_value = [MagicMock() for _ in range(6)]
 
     # Setup Generator
     mock_gen_instance = MockGenerator.return_value
@@ -81,7 +83,9 @@ def test_generate_report_button(
 @patch("src.ui.components.owasp_coverage.render_owasp_coverage")
 @patch("src.ui.components.agent_timeline.render_agent_timeline")
 @patch("src.ui.components.sdk_connection.render_sdk_connection")
+@patch("src.ui.components.remote_agent_config.render_remote_agent_config")
 def test_generate_report_error(
+    mock_render_remote,
     mock_render_sdk,
     mock_render_timeline,
     mock_render_owasp,
@@ -103,8 +107,8 @@ def test_generate_report_error(
     mock_st.button.side_effect = [False, False, True]
     mock_col = MagicMock()
     mock_st.columns.return_value = [mock_col, mock_col, mock_col]
-    # 5 tabs including SDK Integration
-    mock_st.tabs.return_value = [MagicMock() for _ in range(5)]
+    # 6 tabs including Remote Agent
+    mock_st.tabs.return_value = [MagicMock() for _ in range(6)]
 
     mock_gen_instance = MockGenerator.return_value
     mock_gen_instance.generate.side_effect = Exception("Gen error")
