@@ -614,3 +614,47 @@
   - Use consistent XSS protection across all user-facing content including orphan/error displays
   - Development-only logging (process.env.NODE_ENV check) helps debugging without cluttering production
 
+---
+## 2026-02-03 - UI-024 - Section-based Report Viewer
+- Implemented comprehensive section-based report viewer for security assessments.
+- Files created:
+  - `frontend/components/reports/ReportSection.tsx` - Collapsible section component with print mode
+  - `frontend/components/reports/ReportSection.test.tsx` - 27 tests
+  - `frontend/components/reports/RiskGauge.tsx` - Gauge, badge, and card components for risk visualization
+  - `frontend/components/reports/RiskGauge.test.tsx` - 49 tests
+  - `frontend/components/reports/ReportViewer.tsx` - Main viewer with navigation sidebar
+  - `frontend/components/reports/ReportViewer.test.tsx` - 45 tests
+  - `frontend/app/reports/[id]/page.tsx` - Dynamic report page with mock data
+- Features:
+  - 5 report sections: Executive Summary, Risk Score, OWASP Findings, Recommendations, Event Analysis
+  - Collapsible/expandable sections with controlled/uncontrolled state
+  - Navigation sidebar with active section tracking (scroll observer)
+  - Print-friendly layout option (removes interactive elements)
+  - Risk score visualization: semi-circular gauge, badge, and comprehensive card
+  - Risk levels: critical (>=9), high (>=7), medium (>=4), low (>=1), none (<1)
+  - XSS protection via escapeHtml for all user-provided content
+  - Defensive date parsing with safe fallback
+  - Defensive violations array validation
+- Technical highlights:
+  - `useId()` for unique accessibility IDs
+  - `React.memo` on all components for performance
+  - Controlled/uncontrolled expansion state pattern
+  - SVG-based gauge with arc path calculation
+  - Print CSS classes with Tailwind `print:` variants
+  - Retry mechanism using state counter instead of window.location.reload()
+- Post-implementation fixes:
+  - Added escapeHtml to executiveSummary
+  - Added formatDateSafe helper for invalid date handling
+  - Added defensive null/array checks for violations
+  - Fixed aria-current from "true" to "location" for nav items
+  - Removed unused Printer import
+  - Changed retry to use retryCount state
+- Test coverage: 121 tests, >88% coverage
+- Reviews completed: code-review, silent-failure-hunter (critical issues fixed)
+- **Learnings:**
+  - Sidebar with `hidden lg:block` classes won't be visible in JSDOM tests - use container.querySelector instead of role-based queries
+  - Radix Collapsible content uses `data-state="closed"` and keeps content in DOM
+  - Use `aria-current="location"` for in-page navigation, not `"true"`
+  - Retry mechanisms should use state counters to re-trigger useEffect, not window.location.reload()
+  - Always validate date strings before calling toLocaleString() - invalid dates produce "Invalid Date"
+
