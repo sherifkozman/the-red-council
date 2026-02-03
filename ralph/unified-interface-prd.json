@@ -10,7 +10,9 @@
     "total_stories": 37,
     "estimated_weeks": 5,
     "review_status": "Reviewed and updated based on independent code review",
-    "tracking_enabled": true
+    "tracking_enabled": true,
+    "branchName": "feature/unified-interface",
+    "project": "The Red Council - Unified Interface"
   },
   "epics": [
     {
