@@ -775,3 +775,38 @@
   - VALID_SESSION_ID_PATTERN matches UUID v4 (version 4 in position 3, variant 89ab in position 4)
   - BLOCKED_URL_PATTERNS array approach allows easy extension for SSRF protection
   - sanitizeTag lowercases + removes invalid chars; sanitizeTags dedupes after sanitization
+
+---
+## 2026-02-03 - UI-036 - Configuration Persistence Layer
+- Implemented versioned configuration persistence with migration support.
+- Files created:
+  - `frontend/lib/persistence/config.ts` - Typed AppConfig with remote agents, UI prefs, session prefs
+  - `frontend/lib/persistence/config.test.ts` - 71 tests
+  - `frontend/lib/persistence/atomic.ts` - Optimistic locking, batch writes, transactions for localStorage
+  - `frontend/lib/persistence/atomic.test.ts` - 30 tests
+  - `frontend/app/api/config/route.ts` - Server-side atomic writes (temp file + rename pattern)
+  - `frontend/app/api/config/__tests__/route.test.ts` - 25 tests (validation logic)
+- Features:
+  - **Config Types**: AppConfig, RemoteAgentConfig, UIPreferences, SessionPreferences
+  - **Schema Versioning**: CONFIG_SCHEMA_VERSION = '1.0.0', automatic migration support
+  - **Validation**: validateAppConfig, validateRemoteAgent, validateUIPreferences, validateSessionPreferences
+  - **Persistence**: loadConfig, saveConfig, clearConfig with graceful error handling
+  - **Partial Updates**: updateUIPreferences, updateSessionPreferences, upsertRemoteAgent, removeRemoteAgent
+  - **Atomic Writes**: writeVersioned (optimistic locking), batchWrite, StorageTransaction
+  - **Server Sync**: Optional API route with temp file + rename atomic write pattern
+- Security highlights:
+  - DoS protection: MAX_CONFIG_SIZE_BYTES (100KB), MAX_REMOTE_AGENTS (20)
+  - SSR-safe: All persistence functions check typeof window
+  - Graceful fallback to defaults on corruption/invalid config
+  - Environment variable override: RC_CONFIG_PATH
+- Technical highlights:
+  - compareVersions() for semver comparison
+  - migrateConfig() applies version-keyed migrations in order
+  - readModifyWrite() with retry for conflict resolution
+  - Server route uses os.homedir() + ~/.red-council/unified-config.json default
+- Test coverage: 126 tests total, >80% coverage
+- **Learnings:**
+  - localStorage mock setItem is called by both test setup AND function under test - find LAST matching call
+  - Type assertions with `as unknown as Record<string, unknown>` work better than direct cast for delete operations
+  - API route fs mocking in Vitest is complex due to module caching - validation logic tests are more reliable
+  - Atomic write pattern: write temp + fsync + chmod + rename is gold standard for crash safety
