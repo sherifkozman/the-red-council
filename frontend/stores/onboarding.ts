@@ -7,10 +7,12 @@ interface OnboardingState {
   hasSeenWelcome: boolean
   completedSteps: Record<TestingMode, Record<string, boolean>>
   isMinimized: boolean
+  isDismissed: boolean
   _hasHydrated: boolean
   setHasSeenWelcome: (seen: boolean) => void
   setStepCompleted: (mode: TestingMode, stepId: string, completed: boolean) => void
   setIsMinimized: (minimized: boolean) => void
+  dismissProgress: () => void
   setHasHydrated: (hydrated: boolean) => void
   reset: () => void
 }
@@ -23,6 +25,7 @@ function isValidState(state: unknown): state is Partial<OnboardingState> {
     const s = state as any
     if ('hasSeenWelcome' in s && typeof s.hasSeenWelcome !== 'boolean') return false
     if ('isMinimized' in s && typeof s.isMinimized !== 'boolean') return false
+    if ('isDismissed' in s && typeof s.isDismissed !== 'boolean') return false
     
     if ('completedSteps' in s) {
         if (typeof s.completedSteps !== 'object' || s.completedSteps === null) return false
@@ -47,6 +50,7 @@ const initialState = {
     'demo-mode': {},
   },
   isMinimized: false,
+  isDismissed: false,
 }
 
 export const useOnboardingStore = create<OnboardingState>()(
@@ -65,6 +69,9 @@ export const useOnboardingStore = create<OnboardingState>()(
       }),
       setIsMinimized: (minimized) => set((state) => {
         state.isMinimized = minimized
+      }),
+      dismissProgress: () => set((state) => {
+        state.isDismissed = true
       }),
       setHasHydrated: (hydrated) => set((state) => {
         state._hasHydrated = hydrated
@@ -100,6 +107,7 @@ export const useOnboardingStore = create<OnboardingState>()(
                   ...initialState,
                   hasSeenWelcome: typeof ps.hasSeenWelcome === 'boolean' ? ps.hasSeenWelcome : initialState.hasSeenWelcome,
                   isMinimized: typeof ps.isMinimized === 'boolean' ? ps.isMinimized : initialState.isMinimized,
+                  isDismissed: typeof ps.isDismissed === 'boolean' ? ps.isDismissed : initialState.isDismissed,
                   completedSteps: mergedSteps 
                }
           }
@@ -112,9 +120,31 @@ export const useOnboardingStore = create<OnboardingState>()(
       },
       merge: (persistedState: unknown, currentState) => {
         if (isValidState(persistedState)) {
-            // merge is used by Zustand for partial hydration, 
-            // isValidState already checked basic structure
-            return { ...currentState, ...persistedState }
+            const ps = persistedState as Partial<OnboardingState>
+            
+            // Explicitly merge strictly to prevent pollution
+            const safeCompletedSteps = { ...currentState.completedSteps }
+            if (ps.completedSteps) {
+                 // Only merge keys that exist in initial/current state (TestingMode)
+                 // This filters out unknown modes from localStorage
+                 const modes = Object.keys(currentState.completedSteps) as TestingMode[]
+                 for (const mode of modes) {
+                     if (ps.completedSteps[mode]) {
+                         safeCompletedSteps[mode] = {
+                             ...safeCompletedSteps[mode],
+                             ...ps.completedSteps[mode]
+                         }
+                     }
+                 }
+            }
+
+            return { 
+                ...currentState,
+                hasSeenWelcome: ps.hasSeenWelcome ?? currentState.hasSeenWelcome,
+                isMinimized: ps.isMinimized ?? currentState.isMinimized,
+                isDismissed: ps.isDismissed ?? currentState.isDismissed,
+                completedSteps: safeCompletedSteps
+            }
         }
         return currentState
       },

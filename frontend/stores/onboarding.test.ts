@@ -10,17 +10,25 @@ describe('useOnboardingStore', () => {
   it('initializes with default state', () => {
     const state = useOnboardingStore.getState()
     expect(state.hasSeenWelcome).toBe(false)
+    expect(state.isDismissed).toBe(false)
   })
 
   it('updates hasSeenWelcome', () => {
     useOnboardingStore.getState().setHasSeenWelcome(true)
     expect(useOnboardingStore.getState().hasSeenWelcome).toBe(true)
   })
+  
+  it('updates isDismissed', () => {
+    useOnboardingStore.getState().dismissProgress()
+    expect(useOnboardingStore.getState().isDismissed).toBe(true)
+  })
 
   it('resets state', () => {
     useOnboardingStore.getState().setHasSeenWelcome(true)
+    useOnboardingStore.getState().dismissProgress()
     useOnboardingStore.getState().reset()
     expect(useOnboardingStore.getState().hasSeenWelcome).toBe(false)
+    expect(useOnboardingStore.getState().isDismissed).toBe(false)
   })
 
   it('persists state to localStorage', () => {

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { safeLocalStorage } from '@/lib/persistence/safeLocalStorage'
+import { ProgressIndicator } from '@/components/onboarding/ProgressIndicator'
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     className?: string
@@ -171,6 +172,8 @@ export function Sidebar({ className, ...props }: SidebarProps) {
           })}
         </nav>
       </ScrollArea>
+
+      <ProgressIndicator isSidebarCollapsed={isCollapsed} />
     </div>
   )
 }
