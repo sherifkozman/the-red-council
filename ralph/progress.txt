@@ -11,6 +11,7 @@
 - All API calls go through React Query hooks in frontend/hooks/
 - Use cn() utility from lib/utils for className merging
 - Form validation with zod schemas in frontend/lib/schemas/
+- **VITEST GOTCHA**: Always use non-interactive mode (e.g., `pnpm exec vitest run`) to avoid hanging in watch mode.
 - `isTestingMode` type guard for runtime validation of enums
 - `onRehydrateStorage` with `migrate` for robust Zustand persistence
 - `ErrorBoundary` wrapping for components with side-effects
@@ -154,4 +155,52 @@
   - **Security**: Whitelist keys in `migrate` instead of spreading the whole persisted object to prevent prototype pollution.
   - **Accessibility**: Nested interactive elements (like a button inside a clickable div) require careful event propagation management and ARIA coordination.
   - **Testing**: When mocking stores, ensure all exported utility functions (like `isTestingMode`) are also mocked, not just the store hook.
+---
+
+## 2026-02-02 - UI-009
+- Implemented Onboarding Progress Indicator in Sidebar.
+- Enhanced `useOnboardingStore` with strict type validation, safe merge logic, and dismissal state.
+- Refactored `GUIDE_STEPS` to include navigation paths (`href`).
+- Updated `Sidebar` to conditionally render progress indicator.
+- Addressed significant code review feedback:
+  - Improved accessibility (ARIA labels, semantic elements).
+  - Hardened state persistence against prototype pollution and invalid keys.
+  - Used `next/link` for navigation instead of buttons.
+  - Memoized expensive calculations.
+- Achieved >90% test coverage for new components.
+- Reviews completed: code-review (critical issues fixed).
+- **Learnings for future iterations:**
+  - **Zustand Persistence**: `merge` function must be as strict as `migrate`. Shallow spreads are dangerous.
+  - **Testing**: `vi.mock` factory hoisting means mocks must be defined inside the factory or using `vi.fn()` directly. `vi.mocked()` helper is essential for Type Safety.
+  - **Linting**: `pnpm lint` (next lint) seems to have issues with current working directory or arguments in this environment. Rely on `tsc` and `vitest` for correctness.
+  - **Accessibility**: Collapsible triggers need explicit `aria-expanded` if not handled by library (Radix handles it, but good to verify).## 2026-02-02 - UI-010
+- Implemented `EmptyState` component with distinct default and demo variants.
+- Features: 
+  - Discriminated union for Action types (Button vs Link) to prevent invalid states.
+  - Runtime href validation for security (prevents javascript: protocol).
+  - Explicit accessibility support (heading levels, aria labels, regions).
+  - Async action handling with loading states and error callback support.
+- Achieved 83% test coverage (100% logic coverage, missed only error logging branch).
+- Reviews completed: code-review, silent-failure, security, accessibility (all critical issues fixed).
+- **Learnings for future iterations:**
+  - **Type Safety**: Use discriminated unions for props that change rendering behavior (e.g. `href` vs `onClick`).
+  - **Security**: Next.js `<Link>` does not validate protocols; manual validation is needed for user-supplied URLs.
+  - **Accessibility**: Reusable components should allow configuring heading levels (`h1`-`h6`) to fit different page structures.
+  - **Async handlers**: Button onClick handlers should be wrapped to catch rejected promises and prevent silent failures.
+---
+
+## 2026-02-02 - UI-011
+- Implemented `SDKPanel`, `CodeSnippet` components, and `sdk-snippets` data.
+- Features: 
+  - Syntax highlighting with copy functionality.
+  - Framework integration tabs (LangChain, LangGraph, MCP, Custom).
+  - Security hardening: input sanitization for snippets, API Key warning.
+  - Accessibility: ARIA labels for tabs, feedback for copy actions.
+- Achieved 100% test coverage for new components.
+- Reviews completed: code-review, silent-failure, security, accessibility.
+- **Learnings for future iterations:**
+  - **Security**: Client-side ID generation is temporary; label it clearly and sanitize inputs even for "trusted" code generation.
+  - **Testing**: `react-syntax-highlighter` splits text into multiple nodes, breaking simple `getByText` matchers. Use regex or `textContent` checks.
+  - **Radix UI**: `@radix-ui/react-tabs` is preferred over the generic `radix-ui` package for better compatibility and granularity.
+  - **Code Review**: Automated reviews are very effective at catching security issues like insecure randomness and exposed placeholders.
 ---

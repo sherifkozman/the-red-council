@@ -241,7 +241,7 @@
           "depends_on": [
             "UI-008"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 2
         },
         {
@@ -261,7 +261,7 @@
             "frontend/components/EmptyState.tsx"
           ],
           "depends_on": [],
-          "passes": false,
+          "passes": true,
           "phaseId": 2
         }
       ]
@@ -296,7 +296,7 @@
           "depends_on": [
             "UI-001"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 3
         },
         {
