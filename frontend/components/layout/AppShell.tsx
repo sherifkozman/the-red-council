@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { MobileNav } from '@/components/layout/MobileNav'
+import { BottomNav } from '@/components/layout/BottomNav'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { WelcomeModal } from '@/components/onboarding/WelcomeModal'
 import { QuickStartGuide } from '@/components/onboarding/QuickStartGuide'
@@ -23,14 +24,17 @@ export function AppShell({ children }: AppShellProps) {
                 <span className="ml-4 font-bold">The Red Council</span>
             </div>
 
-            {/* Main Content */}
-            <main id="main-content" className="flex-1 overflow-y-auto p-4 md:p-6 bg-background relative">
+            {/* Main Content - Add bottom padding on mobile for BottomNav */}
+            <main id="main-content" className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 bg-background relative">
                 <ErrorBoundary>
                     <WelcomeModal />
                     <QuickStartGuide />
                     {children}
                 </ErrorBoundary>
             </main>
+
+            {/* Mobile Bottom Navigation - Hidden on desktop */}
+            <BottomNav />
         </div>
     )
 }

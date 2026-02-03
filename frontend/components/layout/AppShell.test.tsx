@@ -28,9 +28,9 @@ describe('AppShell', () => {
             </AppShell>
         )
         // Check for Sidebar content (Dashboard link)
-        // Since MobileNav is also rendered but hidden (or trigger visible), 
-        // Sidebar's Dashboard link is always in DOM.
-        expect(screen.getByText('Dashboard')).toBeInTheDocument()
+        // Now both Sidebar and BottomNav render "Dashboard", so use getAllByText
+        const dashboardElements = screen.getAllByText('Dashboard')
+        expect(dashboardElements.length).toBeGreaterThanOrEqual(1)
     })
 
     it('renders children content', () => {
