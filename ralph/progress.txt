@@ -299,3 +299,40 @@
   - **Test Accessibility**: Match exact aria-label text in tests (case-insensitive regex helps).
   - **JSX Closing Tags**: Watch for mismatched closing tags in nested Radix components.
 ---
+
+## 2026-02-03 - UI-018
+- Implemented Attack Template Selector components for Next.js frontend.
+- Created `frontend/data/owasp-categories.ts` with:
+  - OWASP Agentic Top 10 categories (ASI01-ASI10) data definitions.
+  - `AttackTemplate` interface matching backend schema.
+  - `TemplateSource` union type for known sources.
+  - Helper functions: `getSeverityColor`, `getSeverityBadgeVariant`, `isValidTemplateId`.
+- Created `frontend/components/attack/TemplateCard.tsx` with:
+  - Grid and list view modes.
+  - Severity badges, OWASP category badges, source indicators.
+  - Checkbox selection with keyboard navigation (Enter/Space).
+  - XSS protection via `escapeHtml` utility.
+- Created `frontend/components/attack/TemplateFilters.tsx` with:
+  - Search input with length limit (200 chars).
+  - OWASP category toggles with counts.
+  - Source toggles with counts.
+  - Capability filters (tool access, memory access) using Radix Select.
+  - Active filter count and clear all functionality.
+- Created `frontend/components/attack/TemplateSelector.tsx` with:
+  - Grid/list view toggle.
+  - Selection summary with OWASP coverage and average severity.
+  - Template preview sheet with full details.
+  - Selection limit (100 templates max).
+- Created `frontend/app/agent/attack/page.tsx` with mock template data.
+- Test Coverage: 97 tests, 93% statements, 83% branches.
+- Reviews completed: code-review (approve_with_comments), silent-failure-hunter, type-design-analyzer.
+- Fixes applied:
+  - Added `relative` positioning to Card for absolute check icon.
+  - Extracted `escapeHtml` to shared `lib/utils.ts`.
+- **Learnings for future iterations:**
+  - **Radix Select**: Mock `Element.prototype.scrollIntoView = vi.fn()` for JSDOM tests.
+  - **Multiple Buttons**: Use exact match `{ name: 'Select All' }` when filter "All" buttons exist.
+  - **Sheet Close**: Multiple close buttons (X icon + text button) need specific selectors.
+  - **Git Gotcha**: `frontend/lib/` is ignored by root `.gitignore` - use `git add -f`.
+  - **Code Dedup**: Extract shared utilities like `escapeHtml` to `lib/utils.ts` to avoid duplication.
+---
