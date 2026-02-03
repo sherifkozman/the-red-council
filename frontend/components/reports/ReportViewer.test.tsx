@@ -184,6 +184,53 @@ describe('ReportViewer', () => {
 
       expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
     });
+
+    it('renders export markdown button', () => {
+      const report = createMockReport();
+      const { container } = render(<ReportViewer report={report} />);
+
+      const aside = container.querySelector('aside[aria-label="Report navigation"]');
+      expect(within(aside as HTMLElement).getByRole('button', { name: /Export Markdown/ })).toBeInTheDocument();
+    });
+
+    it('calls onExportMarkdown callback when export button clicked', () => {
+      const onExportMarkdown = vi.fn();
+      const report = createMockReport();
+      const { container } = render(
+        <ReportViewer report={report} onExportMarkdown={onExportMarkdown} />
+      );
+
+      const aside = container.querySelector('aside[aria-label="Report navigation"]');
+      const exportBtn = within(aside as HTMLElement).getByRole('button', { name: /Export Markdown/ });
+      fireEvent.click(exportBtn);
+
+      // The callback should be called with the filename
+      expect(onExportMarkdown).toHaveBeenCalledWith(expect.stringContaining('.md'));
+    });
+
+    it('handles export error gracefully', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // Mock URL.createObjectURL to throw
+      const originalCreateObjectURL = URL.createObjectURL;
+      URL.createObjectURL = vi.fn().mockImplementation(() => {
+        throw new Error('Blob error');
+      });
+
+      const report = createMockReport();
+      const { container } = render(<ReportViewer report={report} />);
+
+      const aside = container.querySelector('aside[aria-label="Report navigation"]');
+      const exportBtn = within(aside as HTMLElement).getByRole('button', { name: /Export Markdown/ });
+
+      // Should not throw, error is caught
+      expect(() => fireEvent.click(exportBtn)).not.toThrow();
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to export markdown:', expect.any(Error));
+
+      // Restore
+      URL.createObjectURL = originalCreateObjectURL;
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   describe('Executive Summary section', () => {

@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   BarChart3,
   CheckCircle,
+  Download,
   FileText,
   Grid3X3,
   Lightbulb,
@@ -29,6 +30,7 @@ import { OWASPGrid } from './OWASPGrid';
 import type { Violation } from './CategoryCard';
 import { escapeHtml } from '@/lib/utils';
 import { OWASP_CATEGORIES } from '@/data/owasp-categories';
+import { exportReportAsMarkdown } from '@/lib/export/markdown';
 
 /**
  * Recommendation data structure
@@ -91,6 +93,8 @@ export interface ReportViewerProps {
   printMode?: boolean;
   /** Callback when print is requested */
   onPrint?: () => void;
+  /** Callback when markdown export is requested (receives filename) */
+  onExportMarkdown?: (filename: string) => void;
   /** Additional class names */
   className?: string;
 }
@@ -292,6 +296,7 @@ export const ReportViewer = React.memo(function ReportViewer({
   showNav = true,
   printMode = false,
   onPrint,
+  onExportMarkdown,
   className,
 }: ReportViewerProps) {
   const [activeSection, setActiveSection] = useState<ReportSectionId>('executive-summary');
@@ -357,6 +362,17 @@ export const ReportViewer = React.memo(function ReportViewer({
     }
   }, [onPrint]);
 
+  // Handle markdown export
+  const handleExportMarkdown = useCallback(() => {
+    try {
+      const filename = exportReportAsMarkdown(report);
+      onExportMarkdown?.(filename);
+    } catch (error) {
+      // Log but don't crash - let the download fail gracefully
+      console.error('Failed to export markdown:', error);
+    }
+  }, [report, onExportMarkdown]);
+
   // Track active section on scroll
   useEffect(() => {
     if (printMode) return;
@@ -415,7 +431,16 @@ export const ReportViewer = React.memo(function ReportViewer({
 
               <Separator />
 
-              <div className="p-2">
+              <div className="p-2 space-y-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleExportMarkdown}
+                >
+                  <Download className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Export Markdown
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
