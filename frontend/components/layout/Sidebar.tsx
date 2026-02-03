@@ -24,6 +24,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { safeLocalStorage } from '@/lib/persistence/safeLocalStorage'
 import { ProgressIndicator } from '@/components/onboarding/ProgressIndicator'
+import { ModeSelector } from '@/components/ModeSelector'
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     className?: string
@@ -39,13 +40,23 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'LLM Testing', href: '/arena', icon: Swords },
+    {
+      name: 'LLM Testing',
+      href: '/llm',
+      icon: Swords,
+      isCollapsible: true,
+      children: [
+        { name: 'Demo Simulation', href: '/llm/demo', icon: Activity },
+        { name: 'Battle Arena', href: '/llm/arena', icon: Swords },
+      ]
+    },
     {
       name: 'Agent Testing',
       href: '/agent',
       icon: Bot,
       isCollapsible: true,
       children: [
+        { name: 'Demo Simulation', href: '/agent/demo', icon: Activity },
         { name: 'Connect', href: '/agent/connect', icon: Plug },
         { name: 'Monitor', href: '/agent/monitor', icon: Activity },
         { name: 'Attack', href: '/agent/attack', icon: ShieldAlert },
@@ -60,16 +71,19 @@ export function Sidebar({ className, ...props }: SidebarProps) {
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = React.useState(false)
   const [isAgentOpen, setIsAgentOpen] = React.useState(true)
+  const [isLLMOpen, setIsLLMOpen] = React.useState(true)
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
     setMounted(true)
-    // Safe hydration from localStorage
     const savedCollapsed = safeLocalStorage.getItem<boolean>('sidebar-collapsed')
     if (typeof savedCollapsed === 'boolean') setIsCollapsed(savedCollapsed)
-    
+
     const savedAgentOpen = safeLocalStorage.getItem<boolean>('sidebar-agent-open')
     if (typeof savedAgentOpen === 'boolean') setIsAgentOpen(savedAgentOpen)
+
+    const savedLLMOpen = safeLocalStorage.getItem<boolean>('sidebar-llm-open')
+    if (typeof savedLLMOpen === 'boolean') setIsLLMOpen(savedLLMOpen)
   }, [])
 
   const toggleCollapse = () => {
@@ -81,6 +95,11 @@ export function Sidebar({ className, ...props }: SidebarProps) {
   const toggleAgent = (open: boolean) => {
       setIsAgentOpen(open)
       safeLocalStorage.setItem('sidebar-agent-open', open)
+  }
+
+  const toggleLLM = (open: boolean) => {
+      setIsLLMOpen(open)
+      safeLocalStorage.setItem('sidebar-llm-open', open)
   }
 
   // Prevent hydration mismatch by rendering default structure
@@ -104,34 +123,36 @@ export function Sidebar({ className, ...props }: SidebarProps) {
             const isItemActive = pathname === item.href
             
             if (item.isCollapsible && !isCollapsed) {
+               const isOpen = item.name === 'LLM Testing' ? isLLMOpen : isAgentOpen
+               const toggleFn = item.name === 'LLM Testing' ? toggleLLM : toggleAgent
                return (
-                   <Collapsible key={item.href} open={isAgentOpen} onOpenChange={toggleAgent} className="group/collapsible">
+                   <Collapsible key={item.href} open={isOpen} onOpenChange={toggleFn} className="group/collapsible">
                        <CollapsibleTrigger asChild>
-                           <Button 
-                                variant="ghost" 
+                           <Button
+                                variant="ghost"
                                 className="w-full justify-between"
-                                aria-expanded={isAgentOpen}
+                                aria-expanded={isOpen}
                                 aria-controls={`${item.name.toLowerCase().replace(' ', '-')}-submenu`}
                            >
                                <div className="flex items-center">
                                    <item.icon className="mr-2 h-4 w-4" />
                                    {item.name}
                                </div>
-                               <ChevronDown className={cn("h-4 w-4 transition-transform", isAgentOpen ? "rotate-0" : "-rotate-90")} />
+                               <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen ? "rotate-0" : "-rotate-90")} />
                            </Button>
                        </CollapsibleTrigger>
-                       <CollapsibleContent 
-                            id={`${item.name.toLowerCase().replace(' ', '-')}-submenu`} 
-                            role="group" 
+                       <CollapsibleContent
+                            id={`${item.name.toLowerCase().replace(' ', '-')}-submenu`}
+                            role="group"
                             aria-label={`${item.name} submenu`}
                             className="pl-6 space-y-1 mt-1"
                        >
                            {item.children?.map((child) => (
-                               <Button 
+                               <Button
                                    key={child.href}
-                                   asChild 
-                                   variant={pathname === child.href ? "secondary" : "ghost"} 
-                                   size="sm" 
+                                   asChild
+                                   variant={pathname === child.href ? "secondary" : "ghost"}
+                                   size="sm"
                                    className="w-full justify-start"
                                >
                                    <Link href={child.href} aria-current={pathname === child.href ? 'page' : undefined}>
@@ -173,6 +194,12 @@ export function Sidebar({ className, ...props }: SidebarProps) {
         </nav>
       </ScrollArea>
 
+      {!isCollapsed && (
+        <div className="px-3 py-2 border-t">
+          <p className="text-xs text-muted-foreground mb-2">Mode</p>
+          <ModeSelector />
+        </div>
+      )}
       <ProgressIndicator isSidebarCollapsed={isCollapsed} />
     </div>
   )
