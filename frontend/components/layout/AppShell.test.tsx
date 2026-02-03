@@ -4,6 +4,7 @@ import { AppShell } from './AppShell'
 
 vi.mock('next/navigation', () => ({
   usePathname: vi.fn(),
+  useRouter: () => ({ push: vi.fn() }),
 }))
 
 import { usePathname } from 'next/navigation'

@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { WelcomeModal } from '@/components/onboarding/WelcomeModal'
 
 interface AppShellProps {
     children: React.ReactNode
@@ -24,6 +25,7 @@ export function AppShell({ children }: AppShellProps) {
             {/* Main Content */}
             <main id="main-content" className="flex-1 overflow-y-auto p-4 md:p-6 bg-background">
                 <ErrorBoundary>
+                    <WelcomeModal />
                     {children}
                 </ErrorBoundary>
             </main>
