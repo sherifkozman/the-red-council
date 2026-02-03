@@ -985,3 +985,31 @@
   - `safeLocalStorage` has a 10KB DoS protection limit that must be respected
   - PRD suggested IndexedDB for large data but localStorage is sufficient at 10KB limit
   - Hook tests should mock the persistence module entirely for isolation
+
+## 2026-02-03 - UI-035 - Keyboard Shortcuts
+- Implemented global keyboard shortcuts system with persistence and customization support.
+- Files created:
+  - `frontend/components/ShortcutsModal.tsx` - Help dialog with accessible list
+  - `frontend/hooks/useKeyboardShortcuts.ts` - Hook to register hotkeys
+  - `frontend/stores/actions.ts` - Action registry for safe dispatching
+  - `frontend/components/ShortcutsModal.test.tsx` - 3 tests (100% coverage)
+  - `frontend/hooks/useKeyboardShortcuts.test.ts` - 4 tests (100% coverage)
+- Features:
+  - **Global Shortcuts**: Alt+E (Eval), Alt+R (Report), Alt+D (Demo), Alt+K (Command Palette), Shift+/ (Help)
+  - **Persistence**: Shortcuts saved to localStorage via settings store
+  - **Validation**: Strict regex validation for shortcut strings to prevent XSS/injection
+  - **Conflict Avoidance**: Switched from Ctrl+key to Alt+key to avoid browser conflicts (Refresh, Bookmark)
+  - **Action Registry**: `useActionStore` provides a safe abstraction for triggering actions from trusted UI
+- Security highlights:
+  - `validateShortcutSettings` enforces strict allowlist regex (alphanumeric + modifiers)
+  - `registerHandler` documents trust boundary (first-party code only)
+  - `ShortcutsModal` uses React escaping for all text and attributes
+- Accessibility:
+  - `aria-label` on shortcut container to clarify "plus" separation
+  - `ul role="list"` semantic structure
+  - Visual "+" separator for better readability
+- Test coverage: 7 tests total, 100% coverage for new components
+- **Learnings**:
+  - `react-hotkeys-hook` dependency array argument is inside the options object in newer versions
+  - `ctrl+r` and `ctrl+d` are aggressive browser overrides; `alt` modifiers are safer for web apps
+  - Testing `useHotkeys` requires careful mocking of the library's signature
