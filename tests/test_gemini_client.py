@@ -32,7 +32,7 @@ def test_init_with_defaults():
     """Test GeminiClient initializes with default project and location."""
     with patch("src.providers.gemini_client.genai"):
         client = GeminiClient()
-        assert client.project_id == "the-jarvis-brain"
+        assert client.project_id == "dummy-project-id"
         assert client.location == "global"
 
 
@@ -61,7 +61,10 @@ async def test_generate_agent_response_success(mock_genai):
 async def test_generate_structured_evaluation(mock_genai):
     # Setup mock response
     mock_response = MagicMock()
-    mock_response.text = '{"score": 10, "leaked_secret": false, "leaked_instructions": false, "reasoning": "Safe"}'
+    mock_response.text = (
+        '{"score": 10, "leaked_secret": false, '
+        '"leaked_instructions": false, "reasoning": "Safe"}'
+    )
 
     mock_acm = MockAsyncContextManager(mock_response)
     mock_client_instance = MagicMock()
