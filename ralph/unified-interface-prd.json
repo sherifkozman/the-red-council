@@ -43,7 +43,7 @@
             "frontend/components/layout/MobileNav.tsx"
           ],
           "depends_on": [],
-          "passes": false,
+          "passes": true,
           "phaseId": 1
         },
         {

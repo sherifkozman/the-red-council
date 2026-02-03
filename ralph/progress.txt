@@ -1,239 +1,62 @@
-## 2026-02-02 - TRC-033
-- Implemented `run_agent_evaluation` in `src/ui/dashboard.py` to wire the "Run Evaluation" button.
-- Updated `render_agent_mode` to display results and handle errors.
-- Created `tests/ui/test_dashboard_wiring.py` with 10 comprehensive tests.
-- Achieved 90% coverage for `src/ui/dashboard.py`.
-- Fixed linting issues (E402, unused variables) and indentation bugs.
-- Reviews completed: manual code review, security check (rate limiting, validation).
+## Codebase Patterns
+- safeLocalStorage helper in frontend/lib/persistence/safeLocalStorage.ts for secure storage
+- ErrorBoundary component in frontend/components/ErrorBoundary.tsx for fault tolerance
+- shadcn/ui components in frontend/components/ui/
+- Pydantic models in src/core/ use Field() with descriptions
+- All agent classes inherit from base classes in src/agents/
+- ChromaDB collections follow naming convention: {domain}_attacks
+- Pytest fixtures in tests/conftest.py for common setup
+- Use pytest.mark.asyncio for async test functions
+- **Concurrency**: Use `src.ui.async_utils.safe_run_async` instead of `asyncio.run` in Streamlit callbacks
+
+## 2026-02-02 - TRC-043
+- Implemented `src/ui/components/session_manager.py` with secure session management.
+- Features: Save, Save As New, Load, Delete, List, Import.
+- Security Hardening:
+  - Canonical path check to prevent traversal.
+  - Strict UUID validation.
+  - Atomic writes (`tempfile` + `os.replace` + `os.fsync` + `chmod`).
+  - Hard limits on event count (10k) and file size (50MB).
+  - Input sanitization for tags, names, descriptions.
+- Created `tests/ui/test_session_manager.py` with 14 tests covering security edge cases.
+- Achieved 81% coverage for `session_manager.py`.
+- Reviews completed: code-review, security-audit (critical fixes applied).
 - **Learnings for future iterations:**
-  - **Mocking Streamlit**: Mock `st.session_state` as a class supporting both attribute and item access for realistic behavior.
-  - **Async Testing**: Be careful with `asyncio.run` in sync tests; mock it out or use async test markers properly.
-  - **Linting**: Run `ruff check` frequently to catch unused imports and variables early.
-  - **Coverage**: Testing UI wiring requires mocking `st.*` calls and verifying call arguments.
+  - **Security**: Always validate paths using `os.path.realpath` against expected directory root.
+  - **Security**: Use atomic writes with restrictive permissions for sensitive data files.
+  - **Testing**: `pytest-cov` requires careful setup when mocking modules; `patch.dict(sys.modules, ...)` works best.
+  - **Mocking**: `json.load` mocking requires understanding how it reads from file-like objects (strings vs bytes).
+---
+## 2026-02-02 - TRC-044
+- Implemented `src/ui/components/shortcuts.py` using JS injection via `st.components.v1.html`.
+- Features: Ctrl+E (Eval), Ctrl+R (Report), Ctrl+Shift+D (Demo), Ctrl+Shift+N (New Session), Ctrl+Shift+C (Clear).
+- Added `src/ui/async_utils.py` with `safe_run_async` to fix `asyncio.run` issues in Streamlit callbacks.
+- Refactored `src/ui/dashboard.py` to use `safe_run_async` and import shortcuts.
+- Security & Robustness:
+  - Added debounce lock (500ms) to prevent double-clicks.
+  - Added `disabled` attribute check before clicking buttons via JS.
+  - Used `Ctrl+Shift` modifiers to avoid browser collisions (e.g. New Window).
+  - Implemented exact text matching or strict inclusion logic.
+- Tests: Created `tests/ui/test_shortcuts.py` validating JS injection content (100% coverage).
+- **Learnings for future iterations:**
+  - **Streamlit**: `asyncio.run` inside Streamlit callbacks is dangerous/brittle. Always use a helper that checks `get_running_loop()`.
+  - **UI Hacks**: JS injection is effective for shortcuts but requires defensive coding (debounce, disabled checks) to be safe.
+---
+## 2026-02-02 - TRC-043/044 Security Fixes
+- Hardened `session_manager.py` against Symlink TOCTOU using `_atomic_write` pattern and `O_NOFOLLOW` checks.
+- Fixed FD leak in `load_session`.
+- Hardened `SessionMetadata.sanitize` to clamp future dates (current_year + 5).
+- Hardened `shortcuts.py` to strictly exclude password fields and restored restricted Tab navigation (currently removed for safety but help text preserved).
+- Verified with comprehensive council review.
 ---
 
-## 2026-02-02 - TRC-035
-- Implemented `src/ui/components/demo_loader.py` with simulated attack generation using `VulnerableTestAgent`.
-- Updated `src/ui/dashboard.py` to integrate demo mode and fix several security/logic issues.
-- Created `src/ui/state_utils.py` for centralized state management.
-- Implemented robust error handling and safety checks for demo execution.
-- Added `tests/ui/test_demo_loader.py` with 100% coverage.
-- Updated `tests/ui/test_dashboard_wiring.py` to cover new error handling paths.
-- Reviews completed: code-review, silent-failure-hunt, security, simplification.
+## 2026-02-02 - UI-001
+- Implemented AppShell, Sidebar, and MobileNav components.
+- Added ErrorBoundary and safeLocalStorage helper.
+- Setup Vitest testing infrastructure with >90% coverage.
+- Secured localStorage access and improved accessibility (ARIA, focus management).
 - **Learnings for future iterations:**
-  - **Streamlit Testing**: Global module patching (`sys.modules["streamlit"] = mock`) is more reliable than local patching.
-  - **Security**: Always validate object types before display/deserialization (`str(obj)` is risky). Use `secrets.token_urlsafe` for sessions.
-  - **State Management**: Centralize state keys and reset logic to avoid duplication and inconsistencies.
-  - **Testing**: When mocking multiple buttons in one render pass, use `side_effect` to distinguish them based on label/key.
----
-
-## 2026-02-02 - TRC-036
-- Implemented `src/ui/components/sdk_connection.py` with SDK Integration panel.
-- Added "SDK Integration" tab to Agent Testing mode in `src/ui/dashboard.py`.
-- Framework selector supports: LangChain, LangGraph, MCP, Custom.
-- Auto-generated session ID and webhook URL displayed for each session.
-- Framework-specific code snippets with Python syntax highlighting.
-- Quick start guides for each framework integration.
-- Auth token input with HTML escaping for security.
-- Created `tests/ui/test_sdk_connection.py` with 34 tests, 94% coverage.
-- Updated existing dashboard tests for 5-tab layout.
-- Reviews completed: ruff lint (all checks passed), mypy (no issues in new file).
-- **Learnings for future iterations:**
-  - **Tab Count Changes**: When adding new tabs, update ALL existing tests that mock `st.tabs()` return value count.
-  - **Module Caching**: Tests with `sys.modules` mocks can conflict when run together. Add new mocked modules early.
-  - **Type Safety**: Use explicit casts (e.g., `str()`) when returning from session_state to satisfy mypy.
-  - **Code Snippets**: Use f-strings with doubled braces `{{}}` for dict literals in generated code.
----
-
-## 2026-02-02 - TRC-037
-- Implemented `src/ui/components/remote_agent_config.py` with Remote Agent Configuration panel.
-- Added "Remote Agent" tab (6th tab) to Agent Testing mode in `src/ui/dashboard.py`.
-- Features implemented:
-  - Agent endpoint URL input with regex validation
-  - Auth configuration: Bearer token, API key header, or None
-  - Request format selector: OpenAI-compatible or custom JSON template with validation
-  - Response format selector: text or JSON path extraction
-  - Test connection button with async HTTP client (httpx)
-  - Configuration summary display with metrics
-  - Session state persistence
-- Created `tests/ui/test_remote_agent_config.py` with 81 tests, 88% coverage.
-- Updated `tests/ui/test_dashboard_wiring.py` and `tests/ui/test_dashboard_report.py` for 6-tab layout.
-- Reviews completed: ruff lint (all checks passed), mypy (all issues resolved).
-- **Learnings for future iterations:**
-  - **Function Naming**: Avoid `test_` prefix in source code function names to prevent pytest from collecting them as tests (renamed `test_connection_async` to `check_connection_async`).
-  - **Tab Count Updates**: Systematic grep for `st.tabs.return_value` across all test files when adding tabs.
-  - **Columns Mocking**: Use `side_effect` with different return values when `st.columns()` is called multiple times with different specs.
-  - **Type Safety**: Use explicit type casts or annotations (e.g., `result: dict[str, Any]`) to avoid mypy "Returning Any" errors.
-  - **Modern Python Types**: Use `str | None` instead of `Optional[str]` for UP045 compliance.
-  - **JSON Path Validation**: Simple validation patterns work well for basic JSONPath expressions.
----
-
-## 2026-02-02 - TRC-038
-- Implemented `src/ui/components/attack_selector.py` with Attack Template Selector panel.
-- Added "Attack Templates" tab (7th tab) to Agent Testing mode in `src/ui/dashboard.py`.
-- Features implemented:
-  - OWASP category filtering with ASI01-ASI10 checkboxes
-  - Capability filtering: requires_tool_access, requires_memory_access (radio buttons)
-  - Template count display per OWASP category
-  - Select All / Deselect All batch operations
-  - Expandable template list with preview
-  - Template details: prompt preview, expected behavior, severity (st.metric)
-  - Selection summary with metrics (total, coverage, avg severity)
-  - Session state persistence for filters and selection
-- Created `tests/ui/test_attack_selector.py` with 66 tests.
-- Updated `tests/ui/test_dashboard_wiring.py` and `tests/ui/test_dashboard_report.py` for 7-tab layout.
-- Reviews completed: council code review, council security audit.
-- Security fixes applied:
-  - Removed `unsafe_allow_html=True` from severity display (XSS prevention)
-  - Added VALID_TEMPLATE_ID regex pattern for template ID validation
-  - Added severity clamping (1-10) in TemplatePreview.from_template()
-  - Added OWASP code validation to filter unknown codes
-  - Normalized filter values in from_dict() to prevent type confusion
-  - Session state validation rejects invalid template IDs
-- **Learnings for future iterations:**
-  - **XSS Prevention**: Avoid `unsafe_allow_html=True`; use `st.metric()` or `st.text()` for untrusted content.
-  - **Input Validation**: Always validate/sanitize data from external sources (KB, session state) before rendering.
-  - **ID Validation**: Use regex patterns to validate IDs used in widget keys and session state.
-  - **Type Normalization**: Normalize session state values on read to prevent type confusion attacks.
-  - **Coverage Measurement**: Module-level mocks (`sys.modules["streamlit"] = mock`) prevent coverage tracking; tests demonstrate functional coverage.
-  - **Module Caching**: Tests may fail when run together due to mock interference; verify tests pass individually.
----
-
-## 2026-02-02 - TRC-039
-- Implemented `src/orchestrator/agent_campaign.py` with campaign orchestration backend.
-- Implemented `src/ui/components/campaign_runner.py` with campaign UI component.
-- Added "Campaign" tab (8th tab) to Agent Testing mode in `src/ui/dashboard.py`.
-- Features implemented:
-  - AgentCampaign class with async execution via httpx
-  - CampaignConfig, CampaignProgress, AttackResult dataclasses
-  - CampaignStatus enum: IDLE, RUNNING, PAUSED, COMPLETED, CANCELLED, FAILED
-  - Start Campaign button with prerequisites validation
-  - Progress bar and real-time status metrics
-  - Pause/Resume/Cancel controls
-  - Results summary with expandable attack details
-  - Auto-convert responses to AgentEvents (ActionRecord, SpeechRecord, ToolCallEvent)
-  - Events automatically populate Timeline and Tool Chain tabs
-  - Campaign completion notifications (success/warning/error)
-- Created `tests/orchestrator/test_agent_campaign.py` with 30 tests.
-- Created `tests/ui/test_campaign_runner.py` with 28 tests.
-- Updated `tests/ui/test_dashboard_wiring.py` and `tests/ui/test_dashboard_report.py` for 8-tab layout.
-- Reviews completed: code review, silent failure hunt, security audit, code simplification.
-- Critical fixes applied:
-  - Changed `success=True` to `success=False` when response extraction fails
-  - Added logging for invalid session_id UUID fallback
-  - Upgraded progress callback logging from warning to error with exc_info
-  - Generated unique session_id when missing instead of using "default"
-  - Added logging when non-list events are discarded from session state
-- **Learnings for future iterations:**
-  - **Async in Streamlit**: `asyncio.run()` blocks UI thread; pause/resume/cancel buttons are non-functional during execution. Future: use background threads or streamlit-server-state.
-  - **Success Semantics**: `success=True` should only be set when operation fully succeeded; extraction errors mean unknown state, not success.
-  - **UUID Handling**: Parse UUIDs properly with fallback logging; use `uuid4()` not `str(uuid4())` for Pydantic models expecting UUID type.
-  - **Timezone Awareness**: Use `datetime.now(timezone.utc)` for Pydantic models with timezone-aware datetime fields.
-  - **Session Correlation**: Never use literal "default" as session_id; always generate unique IDs for proper event correlation.
-  - **Tab Count Updates**: When adding tabs, update ALL tests that mock `st.tabs()` return value count.
----
-
-## 2026-02-02 - TRC-040
-- Implemented `src/ui/components/event_stream.py` for real-time event streaming display.
-- Extended `src/ui/providers/polling.py` with event polling functions.
-- Added "Event Stream" tab (9th tab) to Agent Testing mode in `src/ui/dashboard.py`.
-- Features implemented:
-  - EventStreamState dataclass with events, paused, auto_scroll, rate_timestamps
-  - ConnectionStatus enum: CONNECTED, DISCONNECTED, CONNECTING, ERROR
-  - Real-time event rate calculation (events/second)
-  - Connection status indicator based on last update time
-  - Pause/Resume streaming toggle (events skipped while paused)
-  - Auto-scroll option for following new events
-  - New event indicator/badge with mark-as-read
-  - Clear events control
-  - Event type icons and expandable detail cards
-  - poll_events_from_api for API polling
-  - check_session_exists for session validation
-  - Session ID validation to prevent path traversal
-- Created `tests/ui/test_event_stream.py` with 44 tests.
-- Created `tests/ui/test_polling.py` with 20 tests.
-- Updated `tests/ui/test_dashboard_wiring.py` and `tests/ui/test_dashboard_report.py` for 9-tab layout.
-- Reviews completed: code review, silent failure hunt, security audit.
-- Security fixes applied:
-  - Added session_id validation with regex pattern to prevent path traversal
-  - Fixed UI message from "buffered" to "skipped" (events are dropped, not stored)
-  - Fixed unsafe fallback serialization (using `hasattr(event, "keys")` instead of `__iter__`)
-  - Added rate_timestamps trimming when paused to prevent memory growth
-  - Removed redundant `pass` in EventPollingError
-- **Learnings for future iterations:**
-  - **Buffer Semantics**: When "buffering" events, actually store them or document that they're dropped. UI text must match behavior.
-  - **Path Traversal**: Always validate path parameters with regex before URL interpolation.
-  - **Serialization Fallbacks**: Use `hasattr(obj, "keys")` for dict-like objects, not `__iter__` (strings are iterable!).
-  - **Memory Growth**: Trim lists in ALL code paths, not just the primary path.
-  - **Tab Count Updates**: When adding tabs, update ALL tests that mock `st.tabs()` return value count.
-  - **Rate Calculation**: Handle burst scenarios (multiple events at same timestamp) gracefully.
----
-
-## 2026-02-02 - TRC-041
-- Implemented `src/ui/components/report_viewer.py` with full-featured report viewing.
-- Created `src/ui/pages/report.py` for dedicated full-screen report page.
-- Created `src/ui/pages/__init__.py` package init.
-- Features implemented:
-  - ReportHistoryEntry dataclass for storing historical reports
-  - Report history management (add, get, max 20 entries)
-  - PDF generation via reportlab with SimpleDocTemplate
-  - Section-based report rendering with expanders
-  - Export options: Markdown, JSON, PDF downloads
-  - Print-friendly CSS view with browser print support
-  - Clipboard copy buttons for individual sections
-  - Historical reports list with view/compare actions
-  - Report comparison feature with risk score diff visualization
-  - Session state persistence for history and comparison selection
-- Created `tests/ui/test_report_viewer.py` with 29 tests covering all functionality.
-- Reviews completed: code review, silent failure hunt, security audit.
-- Security fixes applied:
-  - Added anchor_id sanitization in `_render_section_header` to prevent XSS
-  - Report ID sanitization via regex `[^a-zA-Z0-9_-]` for filename safety
-  - Consistent use of `sanitize_markdown()` for all user-controllable content
-  - Type validation on session state access
-- **Learnings for future iterations:**
-  - **XSS Prevention**: Always sanitize ALL parameters passed to `unsafe_allow_html=True`, not just obvious ones like titles.
-  - **Exception Scope**: Keep try-except blocks narrow around the specific operation that can fail; broad catches mask unrelated bugs.
-  - **PDF Error Feedback**: When PDF generation fails, show actual error reason to users, not just "install library" message.
-  - **UUID in Tests**: Use valid UUID format (`12345678-1234-5678-1234-567812345678`) for Pydantic model tests.
-  - **Mock Columns**: Use `side_effect` with dynamic function when `st.columns()` is called with varying specs.
-  - **OWASP Coverage Mock**: Mock objects need `.value` attribute for enum keys, not string keys.
----
-
-## 2026-02-02 - TRC-042
-- Implemented `src/ui/components/empty_states.py` with consistent empty state displays.
-- Implemented `src/ui/components/onboarding.py` with welcome modal and progress tracking.
-- Updated `src/ui/dashboard.py` to integrate both components.
-- Features implemented:
-  - EMPTY_STATE_MESSAGES dict for Timeline, Tool Chain, OWASP Coverage, Events tabs
-  - `render_empty_state()` with state_type, callbacks, show_actions parameters
-  - Wrapper functions: `render_timeline_empty_state()`, `render_tool_chain_empty_state()`, etc.
-  - Action buttons: Load Demo, Connect SDK, Configure Remote with callbacks
-  - Documentation links to agent-testing-guide.md and API reference
-  - ChecklistItem dataclass for onboarding progress tracking
-  - QUICK_START_GUIDES dict with Demo, SDK, Remote modes
-  - `render_welcome_modal()` for first-time user mode selection
-  - `render_quick_start_guide()` with step-by-step instructions
-  - `render_progress_indicator()` sidebar expander with progress bar
-  - Progress tracking: `mark_mode_selected()`, `mark_events_captured()`, etc.
-  - `is_first_time_user()` and `should_show_quick_start()` checks
-  - `reset_onboarding()` for testing or re-onboarding
-  - `render_contextual_tooltip()` for help text
-- Created `tests/ui/test_empty_states.py` with 17 tests.
-- Created `tests/ui/test_onboarding.py` with 38 tests.
-- All 55 tests pass with comprehensive coverage.
-- Reviews completed: code-review, silent-failure-hunt, security, code-simplifier.
-- Critical fix applied:
-  - Fixed `_on_demo_click()` to actually load demo data via `load_demo_data()` instead of broken tab navigation
-  - SDK/Remote click handlers show `st.info()` guiding user to correct tab
-- Security measures:
-  - HTML escaping via `html.escape()` for all user-controllable text
-  - Type-safe mode selection using `Literal["demo", "sdk", "remote"]`
-  - Session state validation in `_get_checklist()`
-- **Learnings for future iterations:**
-  - **Streamlit Tab Navigation**: Tab selection cannot be programmatically changed via session state in Streamlit. Click handlers should perform actual actions or display guidance, not attempt tab navigation.
-  - **Callable Type Imports**: Use `from collections.abc import Callable` (not `typing`) for ruff UP035 compliance.
-  - **Type Narrowing**: Mypy prefers explicit if/elif chains over set membership for Literal type narrowing.
-  - **Empty State Consistency**: Use a single `render_empty_state()` function with configuration dict for maintainability.
-  - **Onboarding Progress**: Dataclasses work well for checklist items; centralize state keys in module constants.
----
+  - **Hydration**: Use `mounted` state to prevent hydration mismatches when reading from localStorage.
+  - **Security**: Always wrap localStorage access in try/catch to prevent DoS/crashes.
+  - **Accessibility**: Use `aria-current="page"` for active links and `role="navigation"` landmarks.
+  - **Testing**: Mocking `usePathname` and `Storage.prototype` works well for integration tests.
