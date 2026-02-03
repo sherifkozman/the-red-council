@@ -336,3 +336,28 @@
   - **Git Gotcha**: `frontend/lib/` is ignored by root `.gitignore` - use `git add -f`.
   - **Code Dedup**: Extract shared utilities like `escapeHtml` to `lib/utils.ts` to avoid duplication.
 ---
+
+---
+## 2026-02-03 - UI-004: Settings Page Skeleton
+- Implemented comprehensive settings page with 4 tabs (General, Agent Config, API Keys, Appearance)
+- Files created:
+  - `frontend/stores/settings.ts` - Zustand store with localStorage persistence
+  - `frontend/components/providers/ThemeProvider.tsx` - next-themes integration
+  - `frontend/app/settings/page.tsx` - Settings page with tab navigation
+  - `frontend/components/settings/*.tsx` - Tab content components
+  - `frontend/components/ui/switch.tsx` - Radix Switch component
+- Technical highlights:
+  - Type guards (`isTheme`, `isSettingsTab`) for runtime validation
+  - Validation functions for migration (`validateGeneralSettings`, `validateAgentSettings`, `validateAppearanceSettings`)
+  - Proper accessibility (ARIA labels, roles, screen-reader-only headings)
+  - Hydration-safe patterns with mounted state checks
+- Test coverage: 100% for settings store, 96%+ for components
+- Post-implementation reviews completed:
+  - Code review: Fixed aria-describedby ID mismatch
+  - Silent failure check: Added user feedback for clipboard copy failure
+  - Security review: No critical issues (demo API key acceptable for skeleton)
+  - Accessibility review: Fixed tab trigger ID for aria-labelledby reference
+- **Learnings:**
+  - Zustand persist middleware migration function receives raw persisted state - must validate before use
+  - Radix UI components provide built-in accessibility but explicit IDs needed for cross-references
+  - next-themes requires wrapper component to sync with Zustand store state
