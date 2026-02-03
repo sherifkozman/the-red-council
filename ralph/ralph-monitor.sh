@@ -247,7 +247,7 @@ show_dashboard() {
 
     # Show completed stories (last 3)
     local completed_stories
-    completed_stories=$(jq -r '.userStories[] | select(.passes == true) | "  ✅ \(.id): \(.title)"' "$PRD_FILE" 2>/dev/null | tail -3)
+    completed_stories=$(jq -r '[.epics[].stories[]][] | select(.passes == true) | "  ✅ \(.id): \(.title)"' "$PRD_FILE" 2>/dev/null | tail -3)
     if [[ -n "$completed_stories" ]]; then
       echo "│ Recently Completed:                                                 │"
       while IFS= read -r line; do
@@ -257,7 +257,7 @@ show_dashboard() {
 
     # Show next pending stories (first 3)
     local pending_stories
-    pending_stories=$(jq -r '.userStories[] | select(.passes == false) | "  ⏳ \(.id): \(.title)"' "$PRD_FILE" 2>/dev/null | head -3)
+    pending_stories=$(jq -r '[.epics[].stories[]][] | select(.passes == false) | "  ⏳ \(.id): \(.title)"' "$PRD_FILE" 2>/dev/null | head -3)
     if [[ -n "$pending_stories" ]]; then
       echo "│ Next Pending:                                                       │"
       while IFS= read -r line; do

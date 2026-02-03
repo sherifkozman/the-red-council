@@ -168,8 +168,8 @@ update_state() {
   "current_iteration": $iteration,
   "max_iterations": $MAX_ITERATIONS,
   "remaining_stories": $remaining,
-  "completed_stories": $(jq '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo 0),
-  "total_stories": $(jq '.userStories | length' "$PRD_FILE" 2>/dev/null || echo 0),
+  "completed_stories": $(jq '[[.epics[].stories[]][] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo 0),
+  "total_stories": $(jq '[.epics[].stories[]] | flatten | length' "$PRD_FILE" 2>/dev/null || echo 0),
   "elapsed_seconds": ${elapsed:-0},
   "last_update": "$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')",
   "pid": $$,
@@ -353,12 +353,12 @@ preflight_check() {
   # Validate target story if specified
   if [[ -n "$TARGET_STORY" ]]; then
     local story_exists story_passes
-    story_exists=$(jq -r --arg id "$TARGET_STORY" '.userStories[] | select(.id == $id) | .id' "$PRD_FILE" 2>/dev/null)
+    story_exists=$(jq -r --arg id "$TARGET_STORY" '[.epics[].stories[]][] | select(.id == $id) | .id' "$PRD_FILE" 2>/dev/null)
     if [[ -z "$story_exists" ]]; then
       log_error "Story $TARGET_STORY not found in PRD"
       ((errors++))
     else
-      story_passes=$(jq -r --arg id "$TARGET_STORY" '.userStories[] | select(.id == $id) | .passes' "$PRD_FILE" 2>/dev/null)
+      story_passes=$(jq -r --arg id "$TARGET_STORY" '[.epics[].stories[]][] | select(.id == $id) | .passes' "$PRD_FILE" 2>/dev/null)
       if [[ "$story_passes" == "true" ]]; then
         log_warn "Story $TARGET_STORY is already completed (passes: true)"
       fi
@@ -383,7 +383,7 @@ ensure_correct_branch() {
   fi
 
   local target_branch
-  target_branch=$(jq -r '.branchName // empty' "$PRD_FILE" 2>/dev/null)
+  target_branch=$(jq -r '.metadata.branchName // empty' "$PRD_FILE" 2>/dev/null)
 
   if [[ -z "$target_branch" ]]; then
     log_warn "No branchName specified in PRD"
@@ -433,7 +433,7 @@ archive_previous_run() {
   fi
 
   local current_branch last_branch
-  current_branch=$(jq -r '.branchName // empty' "$PRD_FILE" 2>/dev/null || echo "")
+  current_branch=$(jq -r '.metadata.branchName // empty' "$PRD_FILE" 2>/dev/null || echo "")
   last_branch=$(cat "$LAST_BRANCH_FILE" 2>/dev/null || echo "")
 
   if [[ -z "$current_branch" ]] || [[ -z "$last_branch" ]] || [[ "$current_branch" == "$last_branch" ]]; then
@@ -601,7 +601,7 @@ main() {
   # Track current branch
   if [[ -f "$PRD_FILE" ]]; then
     local current_branch
-    current_branch=$(jq -r '.branchName // empty' "$PRD_FILE" 2>/dev/null || echo "")
+    current_branch=$(jq -r '.metadata.branchName // empty' "$PRD_FILE" 2>/dev/null || echo "")
     if [[ -n "$current_branch" ]]; then
       echo "$current_branch" > "$LAST_BRANCH_FILE"
     fi
@@ -640,7 +640,7 @@ main() {
 
   # Initial state
   local remaining
-  remaining=$(jq '[.userStories[] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
+  remaining=$(jq '[[.epics[].stories[]][] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
   update_state "starting" 0 "$remaining"
 
   # Main loop
@@ -654,15 +654,15 @@ main() {
     echo "╚════════════════════════════════════════════════════════════════════╝"
 
     # Check remaining stories
-    remaining=$(jq '[.userStories[] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
+    remaining=$(jq '[[.epics[].stories[]][] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
     local completed
-    completed=$(jq '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
+    completed=$(jq '[[.epics[].stories[]][] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
     local total
-    total=$(jq '.userStories | length' "$PRD_FILE" 2>/dev/null || echo "0")
+    total=$(jq '[.epics[].stories[]] | flatten | length' "$PRD_FILE" 2>/dev/null || echo "0")
 
     # Get next story
     local next_story
-    next_story=$(jq -r '[.userStories[] | select(.passes == false)] | sort_by(.priority) | .[0] | "\(.id): \(.title)"' "$PRD_FILE" 2>/dev/null || echo "?")
+    next_story=$(jq -r '[[.epics[].stories[]][] | select(.passes == false)] | sort_by(.priority) | .[0] | "\(.id): \(.title)"' "$PRD_FILE" 2>/dev/null || echo "?")
 
     echo " Progress: $completed/$total stories complete, $remaining remaining"
     echo " Next:     $next_story"
@@ -682,7 +682,7 @@ main() {
     # If targeting a specific story, check if it's already complete
     if [[ -n "$TARGET_STORY" ]]; then
       local target_passes
-      target_passes=$(jq -r --arg id "$TARGET_STORY" '.userStories[] | select(.id == $id) | .passes' "$PRD_FILE" 2>/dev/null)
+      target_passes=$(jq -r --arg id "$TARGET_STORY" '[.epics[].stories[]][] | select(.id == $id) | .passes' "$PRD_FILE" 2>/dev/null)
       if [[ "$target_passes" == "true" ]]; then
         echo ""
         echo "╔════════════════════════════════════════════════════════════════════╗"
@@ -730,7 +730,7 @@ main() {
     # This handles CLIs like Gemini that complete work but don't exit cleanly
     if [[ -n "$TARGET_STORY" ]]; then
       local target_passes_now
-      target_passes_now=$(jq -r --arg id "$TARGET_STORY" '.userStories[] | select(.id == $id) | .passes' "$PRD_FILE" 2>/dev/null)
+      target_passes_now=$(jq -r --arg id "$TARGET_STORY" '[.epics[].stories[]][] | select(.id == $id) | .passes' "$PRD_FILE" 2>/dev/null)
       if [[ "$target_passes_now" == "true" ]]; then
         echo ""
         echo "╔════════════════════════════════════════════════════════════════════╗"
@@ -774,7 +774,7 @@ main() {
   echo "  ./ralph.sh --cli $CLI $((MAX_ITERATIONS * 2))"
   echo ""
 
-  remaining=$(jq '[.userStories[] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
+  remaining=$(jq '[[.epics[].stories[]][] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
   update_state "max_iterations" "$MAX_ITERATIONS" "$remaining" "Reached max iterations"
 
   # Disable exit trap for clean exit

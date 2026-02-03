@@ -137,7 +137,7 @@ is_all_complete() {
 
   if [[ -f "$PRD_FILE" ]]; then
     local remaining
-    remaining=$(jq '[.userStories[] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
+    remaining=$(jq '[[.epics[].stories[]][] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
     if [[ "$remaining" == "0" ]]; then
       return 0
     fi
@@ -252,8 +252,8 @@ while true; do
   # Status update
   if is_ralph_alive; then
     local completed remaining
-    completed=$(jq '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
-    remaining=$(jq '[.userStories[] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
+    completed=$(jq '[[.epics[].stories[]][] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
+    remaining=$(jq '[[.epics[].stories[]][] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
     log "📊 Status: $(get_status) | Progress: $completed done, $remaining remaining | Restarts: $restart_count/$MAX_RESTARTS"
   fi
 

@@ -32,11 +32,11 @@ log() {
 # Progress Tracking
 # =============================================================================
 get_completed_count() {
-  jq '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo 0
+  jq '[[.epics[].stories[]][] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo 0
 }
 
 get_remaining_stories() {
-  jq -r '[.userStories[] | select(.passes == false) | .id] | join(", ")' "$PRD_FILE" 2>/dev/null || echo "unknown"
+  jq -r '[[.epics[].stories[]][] | select(.passes == false) | .id] | join(", ")' "$PRD_FILE" 2>/dev/null || echo "unknown"
 }
 
 # =============================================================================
