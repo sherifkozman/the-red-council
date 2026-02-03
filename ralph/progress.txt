@@ -204,3 +204,75 @@
   - **Radix UI**: `@radix-ui/react-tabs` is preferred over the generic `radix-ui` package for better compatibility and granularity.
   - **Code Review**: Automated reviews are very effective at catching security issues like insecure randomness and exposed placeholders.
 ---
+
+## 2026-02-03 - UI-012
+- Implemented `RemoteAgentForm` with Shadcn UI and React Hook Form.
+- Implemented `useRemoteAgentStore` with persistent storage (excluding secrets).
+- Implemented `testConnection` mock.
+- Security Features:
+  - Excluded `authToken` from local storage persistence.
+  - Added warnings about memory-only secret handling.
+  - Validated Custom JSON templates.
+  - Added XSS protection via React standard escaping.
+- Accessibility:
+  - Added ARIA labels for Slider and Alerts.
+  - Managed focus and live regions for error states.
+  - Added `autoComplete="off"` for sensitive fields.
+- Test Coverage: 100% for new components and store.
+- Reviews completed: code-review, silent-failure, security, accessibility.
+- **Learnings for future iterations:**
+  - **Zustand Persistence**: Explicitly exclude sensitive fields using `partialize`.
+  - **React Hook Form**: Avoid resetting form in `useEffect` with `form` as dependency if possible; or accept it if stable.
+  - **Testing**: Use `fireEvent.submit(form)` if button clicks are flaky in JSDOM tests for complex forms.
+  - **Testing**: JSDOM + Radix UI Select interaction is tricky; mocking or setting state directly is often cleaner for logic tests.
+  - **Security**: Always validate JSON strings in Zod schema with `JSON.parse` check.
+---
+
+## 2026-02-03 - UI-013
+- Implemented persistent connection status in `useRemoteAgentStore`.
+- Enhanced `ConnectionTester` component with store-based status persistence.
+- Created standalone `ConnectionStatusIndicator` component for reuse in headers/sidebars.
+- Features:
+  - Connection status persists across sessions (untested/connected/failed).
+  - Relative time display for last tested timestamp.
+  - Status automatically resets when endpoint URL changes.
+  - Store migration from v1 to v2 for backward compatibility.
+- Security & Robustness:
+  - Type guard `isConnectionStatus` for runtime validation.
+  - Proper cleanup with AbortController for cancelled requests.
+  - URL normalization for consistent status tracking.
+- Test Coverage: 80% overall (90.69% for ConnectionTester.tsx), 50 tests passing.
+- Reviews completed: code-review, silent-failure, security, accessibility.
+- **Learnings for future iterations:**
+  - **Zustand Migration**: Use version numbers and migrate functions to handle schema changes gracefully.
+  - **Testing**: When Vitest module mocking interferes with dynamic imports, use static imports at the top of the file instead.
+  - **Git Gotcha**: `frontend/lib/` is ignored by root `.gitignore` - always use `git add -f` for files in this directory.
+---
+
+## 2026-02-03 - UI-014
+- Implemented `useEventStream` hook for real-time event polling from API.
+- Implemented `useEventStreamDemo` hook for demo mode with static data.
+- Created `EventStream` component with full UI:
+  - Connection status indicator with reconnecting/connected/disconnected states.
+  - Metrics display: total events, event rate, new event count.
+  - Event type filter buttons with counts.
+  - Event cards with type-specific rendering for tool_call, speech, divergence, memory_access, action.
+  - Auto-scroll with manual pause control.
+  - Export functionality with size limit warnings.
+  - Clear and mark-as-read controls.
+- Created `frontend/app/agent/monitor/page.tsx` with mode-specific content.
+- Fixed critical review issues:
+  - Added error logging with context for validation failures.
+  - Improved user-facing error messages with actionable guidance.
+  - Fixed nested setState by extracting max events check.
+  - Added useEffect sync for demo events prop changes.
+- Test Coverage: 80.56% overall (82.43% for useEventStream.ts), 221 tests passing.
+- Reviews completed: code-review, silent-failure-hunter.
+- **Learnings for future iterations:**
+  - **React 19 + Vitest**: Test isolation issues can cause "Target container is not a DOM element" errors. Use `cleanup()` in afterEach and consolidate renders.
+  - **Testing Labels**: When labels appear in multiple places (filters AND event cards), use `getAllByText` not `getByText`.
+  - **Silent Failures**: Always log validation errors even in fallback paths - silent catch blocks mask data quality issues.
+  - **useState vs Props**: Hooks using useState(prop) only capture initial value. Use useEffect to sync when props change.
+  - **ScrollArea Ref**: shadcn/radix ScrollArea wraps content in a viewport div - ref on outer component may not control scroll.
+  - **State Reset**: When config changes invalidate derived state (like connection status), reset it proactively in the setter.
+---

@@ -323,7 +323,7 @@
           "depends_on": [
             "UI-011"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 3
         },
         {
@@ -347,7 +347,7 @@
           "depends_on": [
             "UI-012"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 3
         },
         {
@@ -377,7 +377,7 @@
             "UI-001",
             "UI-011"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 3
         },
         {
