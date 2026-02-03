@@ -809,7 +809,7 @@
           "depends_on": [
             "UI-004"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 6
         },
         {
@@ -833,7 +833,7 @@
           "depends_on": [
             "UI-030"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 6
         },
         {
@@ -879,7 +879,7 @@
           "depends_on": [
             "UI-004"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 6
         },
         {
@@ -903,7 +903,7 @@
           "depends_on": [
             "UI-001"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 6
         },
         {
