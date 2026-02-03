@@ -276,3 +276,26 @@
   - **ScrollArea Ref**: shadcn/radix ScrollArea wraps content in a viewport div - ref on outer component may not control scroll.
   - **State Reset**: When config changes invalidate derived state (like connection status), reset it proactively in the setter.
 ---
+
+## 2026-02-03 - UI-015
+- Implemented `Timeline` and `TimelineEvent` components for agent event visualization.
+- Created `frontend/components/agent/Timeline.tsx` with:
+  - Vertical timeline view with pagination (20 events per page).
+  - Event type filter buttons with counts.
+  - JSON export with size limit validation (10MB max).
+  - Event limit handling (5000 events max with warning).
+  - Empty state and error handling.
+- Created `frontend/components/agent/TimelineEvent.tsx` with:
+  - Expandable/collapsible event cards using Radix Collapsible.
+  - Type-specific rendering for all 5 event types: tool_call, memory_access, action, speech, divergence.
+  - Relative time display from session start.
+  - Severity badges and status icons.
+- Test Coverage: 80.6% overall, 50+ tests passing.
+- Reviews completed: silent-failure-hunter (6 issues identified - 2 HIGH, 4 MEDIUM).
+- **Learnings for future iterations:**
+  - **Radix Collapsible**: Use `[data-state]` attribute selector for trigger elements, not `.closest('button')`.
+  - **Radix Content**: Radix keeps content in DOM but changes `data-state`. Check attribute instead of DOM presence.
+  - **Label Deduplication**: When labels appear in multiple places (filters AND cards), use `getAllByText` with count assertions.
+  - **Test Accessibility**: Match exact aria-label text in tests (case-insensitive regex helps).
+  - **JSX Closing Tags**: Watch for mismatched closing tags in nested Radix components.
+---
