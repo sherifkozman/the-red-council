@@ -18,6 +18,7 @@ import {
   Lightbulb,
   Printer,
   Activity,
+  FileOutput,
 } from 'lucide-react';
 import {
   ReportSection,
@@ -32,6 +33,7 @@ import { escapeHtml } from '@/lib/utils';
 import { OWASP_CATEGORIES } from '@/data/owasp-categories';
 import { exportReportAsMarkdown } from '@/lib/export/markdown';
 import { exportReportAsJSON } from '@/lib/export/json';
+import { exportReportAsPDF } from '@/lib/export/pdf';
 
 /**
  * Recommendation data structure
@@ -98,6 +100,8 @@ export interface ReportViewerProps {
   onExportMarkdown?: (filename: string) => void;
   /** Callback when JSON export is requested (receives filename) */
   onExportJSON?: (filename: string) => void;
+  /** Callback when PDF export is requested (receives suggested filename) */
+  onExportPDF?: (filename: string) => void;
   /** Additional class names */
   className?: string;
 }
@@ -301,6 +305,7 @@ export const ReportViewer = React.memo(function ReportViewer({
   onPrint,
   onExportMarkdown,
   onExportJSON,
+  onExportPDF,
   className,
 }: ReportViewerProps) {
   const [activeSection, setActiveSection] = useState<ReportSectionId>('executive-summary');
@@ -388,6 +393,17 @@ export const ReportViewer = React.memo(function ReportViewer({
     }
   }, [report, onExportJSON]);
 
+  // Handle PDF export
+  const handleExportPDF = useCallback(() => {
+    try {
+      const filename = exportReportAsPDF(report);
+      onExportPDF?.(filename);
+    } catch (error) {
+      // Log but don't crash - let the export fail gracefully
+      console.error('Failed to export PDF:', error);
+    }
+  }, [report, onExportPDF]);
+
   // Track active section on scroll
   useEffect(() => {
     if (printMode) return;
@@ -464,6 +480,15 @@ export const ReportViewer = React.memo(function ReportViewer({
                 >
                   <Download className="h-4 w-4 mr-2" aria-hidden="true" />
                   Export JSON
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleExportPDF}
+                >
+                  <FileOutput className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Export PDF
                 </Button>
                 <Button
                   variant="outline"
