@@ -578,3 +578,39 @@
   - When testing for HTML escaping/XSS prevention, verify absence of dangerous DOM elements rather than checking text content
   - Multiple elements with same text (e.g., "Close" button and sr-only span) - use getAllByText and filter by element type
   - Visual feedback for clipboard operations is sufficient for hackathon scope; console logging is optional enhancement
+---
+## 2026-02-03 - UI-023 - OWASP Coverage Grid
+- Implemented OWASP Agentic Top 10 coverage visualization.
+- Files created:
+  - `frontend/components/reports/CategoryCard.tsx` - Category card component with status/violation display
+  - `frontend/components/reports/CategoryCard.test.tsx` - 45 tests
+  - `frontend/components/reports/OWASPGrid.tsx` - Main grid component with stats and layout toggle
+  - `frontend/components/reports/OWASPGrid.test.tsx` - 35 tests
+  - `frontend/app/agent/results/page.tsx` - Results page with OWASP grid and risk summary
+- Features:
+  - 5x2 grid layout with compact category cards
+  - List layout with expandable category cards
+  - Coverage statistics: total tested, detected, warnings, passed, not tested
+  - Color coding: red (detected, severity >= 4), yellow (warning), green (passed), gray (not tested)
+  - Click category to view detailed findings in slide-out sheet
+  - Orphan violations alert for invalid OWASP categories
+  - Risk summary card with max/avg severity and risk level badge
+  - Critical vulnerability alert for severity >= 8
+- Technical highlights:
+  - Violation type interface matching backend ViolationResult schema
+  - Configurable WARNING_SEVERITY_THRESHOLD (default: 4)
+  - getCategoryStatus helper determines status from violation array
+  - Memoized components (CategoryCard, CompactCategoryCard, ViolationItem)
+  - XSS protection via escapeHtml for evidence/recommendation content
+  - Development-only console.warn for invalid OWASP categories
+- Post-implementation fixes:
+  - Added escapeHtml to OrphanViolationsAlert for consistent XSS protection
+  - Added dev-only logging for orphan violations debugging
+- Test coverage: 89.1% overall (98.47% for report components), 80 tests
+- Reviews completed: silent-failure-hunter (critical issues fixed)
+- **Learnings:**
+  - Radix Tooltip content may not be directly testable with getByText - check data attributes instead
+  - Multiple elements with same text (e.g., "Detected" in stats AND sheet) - use getAllByText
+  - Use consistent XSS protection across all user-facing content including orphan/error displays
+  - Development-only logging (process.env.NODE_ENV check) helps debugging without cluttering production
+
