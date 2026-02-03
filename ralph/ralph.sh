@@ -110,7 +110,7 @@ fi
 # =============================================================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PRD_FILE="$SCRIPT_DIR/prd.json"
+PRD_FILE="$SCRIPT_DIR/unified-interface-prd.json"
 PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
 PROMPT_FILE="$SCRIPT_DIR/prompt.md"
 STATE_FILE="$SCRIPT_DIR/state.json"
@@ -294,7 +294,7 @@ preflight_check() {
 
   # Check required files
   if [[ ! -f "$PRD_FILE" ]]; then
-    log_error "prd.json not found at $PRD_FILE"
+    log_error "unified-interface-prd.json not found at $PRD_FILE"
     ((errors++))
   fi
 

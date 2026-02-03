@@ -74,7 +74,7 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_FILE="$SCRIPT_DIR/state.json"
 HEARTBEAT_FILE="$SCRIPT_DIR/.heartbeat"
-PRD_FILE="$SCRIPT_DIR/prd.json"
+PRD_FILE="$SCRIPT_DIR/unified-interface-prd.json"
 WATCHDOG_LOG="$SCRIPT_DIR/logs/watchdog.log"
 
 mkdir -p "$SCRIPT_DIR/logs"

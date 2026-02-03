@@ -12,7 +12,7 @@ CHECK_INTERVAL_MINUTES=${1:-20}
 CHECK_INTERVAL_SECONDS=$((CHECK_INTERVAL_MINUTES * 60))
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-PRD_FILE="$SCRIPT_DIR/prd.json"
+PRD_FILE="$SCRIPT_DIR/unified-interface-prd.json"
 STATE_FILE="$SCRIPT_DIR/state.json"
 SUPERVISOR_LOG="$SCRIPT_DIR/logs/supervisor.log"
 TOTAL_STORIES=32
@@ -77,7 +77,7 @@ run_completeness_review() {
   cat << 'EOF' | claude -p --dangerously-skip-permissions 2>&1 | tee -a "$SUPERVISOR_LOG"
 Review the implementation for COMPLETENESS against the PRD.
 
-1. Read ralph/prd.json to get all user stories
+1. Read ralph/unified-interface-prd.json to get all user stories
 2. For each story, verify:
    - The described functionality exists in the codebase
    - Required files/modules are present
@@ -235,7 +235,7 @@ run_readiness_review() {
 Assess RELEASE READINESS for The Red Council.
 
 Check:
-1. All stories complete (verify ralph/prd.json)
+1. All stories complete (verify ralph/unified-interface-prd.json)
 2. All tests passing
 3. No critical/high security issues
 4. Documentation exists (README, setup instructions)

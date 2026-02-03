@@ -73,7 +73,7 @@ done
 # Directory Setup
 # =============================================================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PRD_FILE="$SCRIPT_DIR/prd.json"
+PRD_FILE="$SCRIPT_DIR/unified-interface-prd.json"
 STATE_FILE="$SCRIPT_DIR/state.json"
 PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
 HEARTBEAT_FILE="$SCRIPT_DIR/.heartbeat"

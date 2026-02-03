@@ -4,7 +4,7 @@ You are an autonomous coding agent working on The Red Council Agent Security fea
 
 ## Your Task
 
-1. Read the PRD at `ralph/prd.json`
+1. Read the PRD at `ralph/unified-interface-prd.json`
 2. Read the progress log at `ralph/progress.txt` (check **Codebase Patterns** section first)
 3. Check you're on the correct branch from PRD `branchName`. If not, check it out or create from trunk.
 4. Pick the **highest priority** user story where `passes: false`
@@ -77,12 +77,12 @@ async def test_async_function():
 
 After implementation passes tests, run these reviews **IN ORDER**. Do NOT commit until ALL pass.
 
-**IMPORTANT**: Use `council` commands for ALL reviews - works with both Claude and Gemini CLIs.
+**IMPORTANT**: Use `council` or `council-simple` commands for ALL reviews - works with both Claude and Gemini CLIs.
 
 ### 1. Code Review (Quality + Correctness)
 
 ```bash
-council run critic --mode review "Code review for [Story ID]: Check for logic errors, bugs, code quality, project pattern adherence, and edge case handling in [list files]" --json
+council-simple run critic --mode review "Code review for [Story ID]: Check for logic errors, bugs, code quality, project pattern adherence, and edge case handling in [list files]" --json
 ```
 
 **Fix ALL issues before proceeding.**
@@ -90,7 +90,7 @@ council run critic --mode review "Code review for [Story ID]: Check for logic er
 ### 2. Silent Failure Detection (Error Handling)
 
 ```bash
-council run critic --mode review "Silent failure hunt for [Story ID]: Check for empty except blocks, swallowed errors, missing error propagation, inappropriate fallbacks in [list files]" --json
+council-simple run critic --mode review "Silent failure hunt for [Story ID]: Check for empty except blocks, swallowed errors, missing error propagation, inappropriate fallbacks in [list files]" --json
 ```
 
 **Fix ALL silent failure issues before proceeding.**
@@ -98,7 +98,7 @@ council run critic --mode review "Silent failure hunt for [Story ID]: Check for 
 ### 3. Security Review (CRITICAL)
 
 ```bash
-council run critic --mode security "Security audit for [Story ID]: Check for injection vulnerabilities, unsafe deserialization, prompt injection risks, auth issues, OWASP violations in [list files]" --json
+council-simple run critic --mode security "Security audit for [Story ID]: Check for injection vulnerabilities, unsafe deserialization, prompt injection risks, auth issues, OWASP violations in [list files]" --json
 ```
 
 **Fix ALL security issues before proceeding.** This is an LLM security testing platform - security is critical.
@@ -106,7 +106,7 @@ council run critic --mode security "Security audit for [Story ID]: Check for inj
 ### 4. Code Simplification
 
 ```bash
-council run critic --mode review "Simplification review for [Story ID]: Identify unnecessary complexity, readability improvements, dead code, duplicate logic in [list files]" --json
+council-simple un critic --mode review "Simplification review for [Story ID]: Identify unnecessary complexity, readability improvements, dead code, duplicate logic in [list files]" --json
 ```
 
 **Apply simplifications that improve maintainability.**
