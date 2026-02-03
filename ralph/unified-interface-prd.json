@@ -571,7 +571,7 @@
           "depends_on": [
             "UI-020"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 4
         },
         {

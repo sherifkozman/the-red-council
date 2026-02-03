@@ -518,3 +518,37 @@
   - Race conditions in async hooks can be mitigated with `isStarting` state guards
   - localStorage persistence should use unique session keys to avoid conflicts
 
+---
+## 2026-02-03 - UI-021 - Campaign Progress Visualization
+- Implemented real-time campaign progress visualization component.
+- Files created:
+  - `frontend/components/attack/CampaignProgress.tsx` - Main progress visualization component
+  - `frontend/components/attack/CampaignProgress.test.tsx` - 44 tests for component
+- Features:
+  - Template list showing Pending, Running, Complete, Failed status with badges
+  - Current template highlighted during execution
+  - Expandable template items showing prompt, response, and error details
+  - Overall success/failure rate indicator (Defense Rate percentage)
+  - Estimated time remaining based on average completion time
+  - Progress bar with completion percentage
+  - Stats grid: Defended count, Jailbroken count, Errors count, Defense Rate
+  - Elapsed time display in human-readable format
+  - Duration display per template (ms, s, or m s format)
+- Technical highlights:
+  - Single-pass stats calculation with reduce() for efficiency
+  - Memoized sub-components (TemplateItem, OverallStats) to prevent unnecessary re-renders
+  - Collapsible template details with Radix Collapsible
+  - Text truncation for long template IDs (27 chars + ...)
+  - Proper TypeScript interfaces for TemplateProgress and TemplateStatus
+- Post-implementation fixes:
+  - Removed redundant handleToggle callback (Collapsible onOpenChange handles it)
+  - Added focus-visible styles for keyboard accessibility
+  - Optimized stats calculation from 6 filter passes to single reduce
+- Test coverage: 100% statements, 98.68% branches
+- Reviews completed: code-review, silent-failure-hunter
+- **Learnings:**
+  - Collapsible's onOpenChange handles toggle automatically - don't add redundant onClick handlers
+  - Use single reduce() instead of multiple filter() calls when calculating stats from arrays
+  - Add focus-visible styles for keyboard accessibility on custom interactive elements
+  - When text appears in multiple places (stats label AND badge), use getAllByText in tests
+
