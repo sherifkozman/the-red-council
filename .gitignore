@@ -30,7 +30,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# Note: lib/ excluded to avoid ignoring frontend/lib - Python dist uses site-packages
 lib64/
 parts/
 sdist/
@@ -166,7 +166,8 @@ AGENTS.md
 # Project Planning (Internal)
 # ============================
 # Internal planning docs not meant for public consumption
-plans/
+# Note: docs/plans/ is included - only root plans/ is ignored
+/plans/
 
 # Internal review reports (security audits, code reviews)
 /reports/
@@ -277,3 +278,4 @@ ralph/.last-branch
 *.pth
 *.bin
 *.safetensors
+

@@ -56,8 +56,10 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_VULNERABLE_AGENT_URL: http://localhost:8080
     depends_on:
       - api
+      - vulnerable-agent
 
   tests:
     build:
@@ -92,3 +94,21 @@ services:
       RC_ENV: development
     profiles:
       - seed
+
+  # Vulnerable Test Agent for agent security testing
+  # WARNING: Contains intentional security vulnerabilities!
+  vulnerable-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.vulnerable-agent
+    ports:
+      - "8080:8080"
+    environment:
+      LOG_LEVEL: INFO
+      PYTHONUNBUFFERED: "1"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
