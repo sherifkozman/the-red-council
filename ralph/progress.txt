@@ -361,3 +361,30 @@
   - Zustand persist middleware migration function receives raw persisted state - must validate before use
   - Radix UI components provide built-in accessibility but explicit IDs needed for cross-references
   - next-themes requires wrapper component to sync with Zustand store state
+---
+## 2026-02-03 - UI-005 - Responsive Mobile Navigation
+- Implemented mobile-responsive bottom navigation for the Next.js frontend.
+- Files created:
+  - `frontend/hooks/useMediaQuery.ts` - SSR-safe media query hook with convenience helpers
+  - `frontend/hooks/useMediaQuery.test.ts` - 18 tests covering all hook variants
+  - `frontend/components/layout/BottomNav.tsx` - Mobile bottom nav with "More" sheet menu
+  - `frontend/components/layout/BottomNav.test.tsx` - 25 tests for rendering, active states, accessibility
+- Files modified:
+  - `frontend/components/layout/AppShell.tsx` - Integrated BottomNav with mobile bottom padding
+  - `frontend/components/layout/AppShell.test.tsx` - Fixed duplicate element queries
+- Technical highlights:
+  - SSR-safe pattern with `mounted` state to avoid hydration mismatch
+  - Media query hooks: `useIsMobile()`, `useIsTablet()`, `useIsDesktop()`, `useIsTouchDevice()`
+  - Bottom nav with 4 main items + "More" sheet containing additional routes
+  - WCAG 2.1 compliant: 44px minimum touch targets, ARIA labels, focus management
+  - Defensive null check for `usePathname()` return value
+- Test coverage: useMediaQuery 91.66%, BottomNav 89.47%
+- Post-implementation reviews completed:
+  - Code review: Fixed duplicate navigation items (Agent Connect removed from More menu)
+  - Silent failure review: Added pathname null safety
+  - Security review: No issues found
+  - Accessibility review: Good touch targets and ARIA, no blocking issues
+- **Learnings:**
+  - `usePathname()` from next/navigation can return null - always provide fallback
+  - When testing components rendered in multiple places, use `getAllByText` instead of `getByText`
+  - Radix Sheet component provides accessible dialogs with built-in focus management
