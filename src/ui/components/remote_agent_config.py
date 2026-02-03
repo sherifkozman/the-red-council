@@ -512,10 +512,16 @@ def render_remote_agent_config() -> None:
     # Authentication Section
     st.markdown("**Authentication:**")
 
+    auth_options = ["none", "bearer", "api_key_header"]
+    try:
+        auth_index = auth_options.index(config.auth_type)
+    except ValueError:
+        auth_index = 0  # Default to "none"
+
     auth_type_str = st.radio(
         "Authentication Method",
-        options=["none", "bearer", "api_key_header"],
-        index=["none", "bearer", "api_key_header"].index(config.auth_type),
+        options=auth_options,
+        index=auth_index,
         format_func=lambda x: AUTH_TYPE_NAMES.get(x, x),
         key="remote_auth_type",
         horizontal=True,
@@ -556,10 +562,16 @@ def render_remote_agent_config() -> None:
     # Request Format Section
     st.markdown("**Request Format:**")
 
+    request_options = ["openai_compatible", "custom"]
+    try:
+        request_index = request_options.index(config.request_format)
+    except ValueError:
+        request_index = 0  # Default to "openai_compatible"
+
     request_format_str = st.radio(
         "Request Format",
-        options=["openai_compatible", "custom"],
-        index=["openai_compatible", "custom"].index(config.request_format),
+        options=request_options,
+        index=request_index,
         format_func=lambda x: REQUEST_FORMAT_NAMES.get(x, x),
         key="remote_request_format",
         horizontal=True,
@@ -595,10 +607,16 @@ def render_remote_agent_config() -> None:
     # Response Format Section
     st.markdown("**Response Format:**")
 
+    response_options = ["text", "json_path"]
+    try:
+        response_index = response_options.index(config.response_format)
+    except ValueError:
+        response_index = 0  # Default to "text"
+
     response_format_str = st.radio(
         "Response Extraction",
-        options=["text", "json_path"],
-        index=["text", "json_path"].index(config.response_format),
+        options=response_options,
+        index=response_index,
         format_func=lambda x: RESPONSE_FORMAT_NAMES.get(x, x),
         key="remote_response_format",
         horizontal=True,

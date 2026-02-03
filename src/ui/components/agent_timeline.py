@@ -205,8 +205,8 @@ def _render_event_card(event: AgentEvent, session_start: datetime) -> None:
         success = safe_get(event, "success", False)
         duration = safe_get(event, "duration_ms", 0)
 
-        status_icon = "✅" if success else "❌"
-        icon = "\ud83d\udee0\ufe0f"  # Tool
+        status_icon = "+" if success else "x"
+        icon = "[T]"  # Tool - using ASCII to avoid encoding issues
         title = f"Tool Call: {tool_name}"  # Sanitized below
         if isinstance(duration, (int, float)):
             header_suffix = f"{status_icon} ({duration:.1f}ms)"
@@ -219,25 +219,25 @@ def _render_event_card(event: AgentEvent, session_start: datetime) -> None:
         key = safe_get(event, "key", "unknown")
         sensitive = safe_get(event, "sensitive_detected", False)
 
-        icon = "\ud83d\udcbe"  # Floppy
+        icon = "[M]"  # Memory - using ASCII
         title = f"Memory {op}: {key}"
-        header_suffix = "\u26a0\ufe0f Sensitive" if sensitive else ""
+        header_suffix = "! Sensitive" if sensitive else ""
 
     elif etype == "action":
         action_type = safe_get(event, "action_type", "unknown")
-        icon = "\u2694\ufe0f"  # Swords/Action
+        icon = "[A]"  # Action - using ASCII
         title = f"Action: {action_type}"
 
     elif etype == "speech":
         is_response = safe_get(event, "is_response_to_user", True)
-        icon = "\ud83d\udcac"  # Speech bubble
+        icon = "[S]"  # Speech - using ASCII
         direction = "To User" if is_response else "Internal Monologue"
         title = f"Speech ({direction})"
 
     elif etype == "divergence":
         severity_enum = safe_get(event, "severity")
         severity = getattr(severity_enum, "value", str(severity_enum))
-        icon = "\ud83d\udea8"  # Siren
+        icon = "[!]"  # Divergence alert - using ASCII
         title = "DIVERGENCE DETECTED"
         header_suffix = f"Severity: {severity}"
 
@@ -252,11 +252,17 @@ def _render_event_card(event: AgentEvent, session_start: datetime) -> None:
     # Note: Streamlit markdown support is basic.
     def sanitize_for_header(s: str) -> str:
         # Basic sanitization: strip newlines, escape brackets
-        return s.replace("\n", " ").replace("[", "\\[").replace("]", "\\]")
+        # Also remove surrogate characters that can't be encoded to UTF-8
+        sanitized = s.replace("\n", " ").replace("[", "\\[").replace("]", "\\]")
+        # Remove surrogate characters (U+D800 to U+DFFF) that cause encoding errors
+        return sanitized.encode("utf-8", errors="surrogateescape").decode(
+            "utf-8", errors="replace"
+        )
 
+    safe_icon = sanitize_for_header(icon)
     safe_title = sanitize_for_header(title)
     safe_suffix = sanitize_for_header(header_suffix)
-    expander_label = f"{icon} [{rel_str}] {safe_title} {safe_suffix}"
+    expander_label = f"{safe_icon} [{rel_str}] {safe_title} {safe_suffix}"
 
     with st.expander(expander_label, expanded=(etype == "divergence")):
         _render_event_details(event)
