@@ -639,6 +639,94 @@ describe('ReportList - Delete', () => {
   });
 });
 
+describe('ReportList - Selection Mode', () => {
+  const onToggleSelection = vi.fn();
+  
+  beforeEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it('renders checkboxes in selection mode', () => {
+    render(
+      <ReportList 
+        reports={mockReports.slice(0, 3)} 
+        selectionMode={true} 
+        onToggleSelection={onToggleSelection} 
+      />
+    );
+    
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes.length).toBe(3);
+  });
+
+  it('hides delete buttons in selection mode', () => {
+    const onDelete = vi.fn();
+    render(
+      <ReportList 
+        reports={mockReports.slice(0, 1)} 
+        selectionMode={true} 
+        onDelete={onDelete} 
+      />
+    );
+    
+    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+  });
+  
+  it('calls onToggleSelection when checkbox clicked', () => {
+    render(
+      <ReportList 
+        reports={mockReports.slice(0, 1)} 
+        selectionMode={true} 
+        onToggleSelection={onToggleSelection} 
+      />
+    );
+    
+    const checkbox = screen.getByRole('checkbox');
+    fireEvent.click(checkbox);
+    
+    expect(onToggleSelection).toHaveBeenCalledWith('report-1');
+  });
+  
+  it('calls onToggleSelection when row clicked', () => {
+    render(
+      <ReportList 
+        reports={mockReports.slice(0, 1)} 
+        selectionMode={true} 
+        onToggleSelection={onToggleSelection} 
+      />
+    );
+    
+    const row = screen.getByTestId('report-item-report-1');
+    fireEvent.click(row);
+    
+    expect(onToggleSelection).toHaveBeenCalledWith('report-1');
+  });
+  
+  it('highlights selected items', () => {
+    render(
+      <ReportList 
+        reports={mockReports.slice(0, 1)} 
+        selectionMode={true} 
+        selectedIds={['report-1']} 
+        onToggleSelection={onToggleSelection} 
+      />
+    );
+    
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).toBeChecked();
+    
+    // Check if aria-selected is true on the row
+    const row = screen.getByTestId('report-item-report-1');
+    expect(row).toHaveAttribute('aria-selected', 'true');
+  });
+  
+  it('updates title in selection mode', () => {
+    render(<ReportList reports={mockReports} selectionMode={true} />);
+    expect(screen.getByText('Select Reports to Compare')).toBeInTheDocument();
+  });
+});
+
 describe('ReportList - Accessibility', () => {
   beforeEach(() => {
     cleanup();

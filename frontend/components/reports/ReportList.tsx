@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -93,6 +94,12 @@ export interface ReportListProps {
   onDelete?: (id: string) => void | Promise<void>;
   /** Whether delete operations are in progress */
   isDeleting?: boolean;
+  /** Enable selection mode for comparison */
+  selectionMode?: boolean;
+  /** Currently selected report IDs */
+  selectedIds?: string[];
+  /** Callback when selection is toggled */
+  onToggleSelection?: (id: string) => void;
   /** Additional class names */
   className?: string;
 }
@@ -317,10 +324,16 @@ const ReportItem = React.memo(function ReportItem({
   report,
   onDelete,
   isDeleting,
+  selectionMode,
+  isSelected,
+  onToggleSelection,
 }: {
   report: ReportSummary;
   onDelete?: (id: string) => void | Promise<void>;
   isDeleting?: boolean;
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: (id: string) => void;
 }) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -339,6 +352,17 @@ const ReportItem = React.memo(function ReportItem({
     }
   }, [onDelete, report.id]);
 
+  const handleSelectionClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (selectionMode && onToggleSelection) {
+        // Prevent clicking link or other actions
+        e.preventDefault();
+        onToggleSelection(report.id);
+      }
+    },
+    [selectionMode, onToggleSelection, report.id]
+  );
+
   const truncatedTitle = truncateText(escapeHtml(report.title), MAX_TITLE_DISPLAY);
   const truncatedSessionId = truncateText(escapeHtml(report.sessionId), MAX_SESSION_ID_DISPLAY);
   const safeSessionId = escapeHtml(report.sessionId);
@@ -346,46 +370,69 @@ const ReportItem = React.memo(function ReportItem({
 
   return (
     <li
-      className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+      className={cn(
+        'border rounded-lg p-4 transition-colors',
+        selectionMode ? 'cursor-pointer hover:bg-accent' : 'hover:bg-muted/50',
+        isSelected && 'bg-accent border-primary ring-1 ring-primary/20'
+      )}
       data-testid={`report-item-${report.id}`}
+      onClick={handleSelectionClick}
+      aria-selected={isSelected}
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Main info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-2 mb-2">
-            <FileText
-              className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5"
-              aria-hidden="true"
-            />
-            <div className="flex-1 min-w-0">
-              <Link
-                href={`/reports/${encodeURIComponent(report.id)}`}
-                className="font-medium hover:underline focus:underline focus:outline-none"
-                aria-label={`View report: ${report.title}`}
-              >
-                {truncatedTitle}
-              </Link>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mt-1">
-                <span className="flex items-center gap-1">
-                  <Shield className="h-3 w-3" aria-hidden="true" />
-                  {escapeHtml(report.targetAgent)}
-                </span>
-                <span
-                  className="font-mono text-xs"
-                  title={safeSessionId}
-                  aria-label={`Session ID: ${safeSessionId}`}
-                >
-                  {truncatedSessionId}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" aria-hidden="true" />
-                  <time
-                    dateTime={report.generatedAt}
-                    title={formatReportDate(report.generatedAt)}
+        <div className="flex-1 min-w-0 flex items-start gap-3">
+          {/* Selection checkbox */}
+          {selectionMode && (
+            <div className="flex-shrink-0 mt-1">
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={() => onToggleSelection?.(report.id)}
+                aria-label={`Select report ${report.title}`}
+              />
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-2 mb-2">
+              <FileText
+                className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5"
+                aria-hidden="true"
+              />
+              <div className="flex-1 min-w-0">
+                {selectionMode ? (
+                  <span className="font-medium block">{truncatedTitle}</span>
+                ) : (
+                  <Link
+                    href={`/reports/${encodeURIComponent(report.id)}`}
+                    className="font-medium hover:underline focus:underline focus:outline-none"
+                    aria-label={`View report: ${report.title}`}
                   >
-                    {relativeTime}
-                  </time>
-                </span>
+                    {truncatedTitle}
+                  </Link>
+                )}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mt-1">
+                  <span className="flex items-center gap-1">
+                    <Shield className="h-3 w-3" aria-hidden="true" />
+                    {escapeHtml(report.targetAgent)}
+                  </span>
+                  <span
+                    className="font-mono text-xs"
+                    title={safeSessionId}
+                    aria-label={`Session ID: ${safeSessionId}`}
+                  >
+                    {truncatedSessionId}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" aria-hidden="true" />
+                    <time
+                      dateTime={report.generatedAt}
+                      title={formatReportDate(report.generatedAt)}
+                    >
+                      {relativeTime}
+                    </time>
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -396,58 +443,63 @@ const ReportItem = React.memo(function ReportItem({
           <RiskBadge severity={report.maxSeverity} />
           <StatusBadge status={report.status} />
 
-          {/* View button */}
-          <Button variant="ghost" size="sm" asChild>
-            <Link
-              href={`/reports/${encodeURIComponent(report.id)}`}
-              aria-label={`Open report ${report.title}`}
-            >
-              <ExternalLink className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only">View</span>
-            </Link>
-          </Button>
-
-          {/* Delete button with confirmation */}
-          {onDelete && (
-            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  disabled={isDeleting}
-                  aria-label={`Delete report ${report.title}`}
+          {/* Actions - Only shown when NOT in selection mode */}
+          {!selectionMode && (
+            <>
+              {/* View button */}
+              <Button variant="ghost" size="sm" asChild>
+                <Link
+                  href={`/reports/${encodeURIComponent(report.id)}`}
+                  aria-label={`Open report ${report.title}`}
                 >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  <span className="sr-only">Delete</span>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Report</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete this report? This action cannot be
-                    undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDelete}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only">View</span>
+                </Link>
+              </Button>
+
+              {/* Delete button with confirmation */}
+              {onDelete && (
+                <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      disabled={isDeleting}
+                      aria-label={`Delete report ${report.title}`}
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Report</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete this report? This action cannot be
+                        undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDelete}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </>
           )}
         </div>
       </div>
 
       {/* Violation count */}
       {report.violationCount > 0 && (
-        <div className="mt-2 text-sm text-muted-foreground">
+        <div className={cn("mt-2 text-sm text-muted-foreground", selectionMode && "pl-8")}>
           {report.violationCount} violation{report.violationCount !== 1 ? 's' : ''}{' '}
           detected
         </div>
@@ -639,6 +691,9 @@ export const ReportList = React.memo(function ReportList({
   pageSize = DEFAULT_PAGE_SIZE,
   onDelete,
   isDeleting = false,
+  selectionMode = false,
+  selectedIds = [],
+  onToggleSelection,
   className,
 }: ReportListProps) {
   // State
@@ -684,7 +739,7 @@ export const ReportList = React.memo(function ReportList({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileText className="h-5 w-5" aria-hidden="true" />
-          Report History
+          {selectionMode ? 'Select Reports to Compare' : 'Report History'}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -710,6 +765,9 @@ export const ReportList = React.memo(function ReportList({
                 report={report}
                 onDelete={onDelete}
                 isDeleting={isDeleting}
+                selectionMode={selectionMode}
+                isSelected={selectedIds.includes(report.id)}
+                onToggleSelection={onToggleSelection}
               />
             ))}
           </ul>
