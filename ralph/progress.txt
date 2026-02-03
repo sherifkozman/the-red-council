@@ -552,3 +552,29 @@
   - Add focus-visible styles for keyboard accessibility on custom interactive elements
   - When text appears in multiple places (stats label AND badge), use getAllByText in tests
 
+---
+## 2026-02-03 - UI-022
+- Implemented `frontend/components/attack/TemplatePreview.tsx` - slide-out panel for full template details
+- Features:
+  - Sheet component (shadcn/ui) for slide-out preview panel
+  - Template metadata: ID, severity badge, source badge, OWASP categories with tooltips
+  - Full prompt content with copy-to-clipboard functionality
+  - Expected behavior section (conditionally rendered)
+  - Tool/memory access requirements display
+  - Add to selection toggle button (controlled via props)
+  - XSS prevention via escapeHtml utility for prompt and expected behavior content
+  - Responsive design with ScrollArea for long prompts
+  - Truncation for prompts >5000 characters with indicator
+- Sub-components: CopyButton (memoized), Section (memoized)
+- Technical highlights:
+  - Memoized main component and sub-components to prevent unnecessary re-renders
+  - useCallback for all event handlers with proper dependency arrays
+  - Visual feedback states for copy operation (idle/copied/error)
+  - TooltipProvider wrapping for OWASP category descriptions
+  - Graceful fallback for unknown sources to "Custom"
+- Test coverage: 92.85% (38 tests)
+- Reviews completed: code-review (passed), silent-failure-hunter (observations noted for future enhancement)
+- **Learnings:**
+  - When testing for HTML escaping/XSS prevention, verify absence of dangerous DOM elements rather than checking text content
+  - Multiple elements with same text (e.g., "Close" button and sr-only span) - use getAllByText and filter by element type
+  - Visual feedback for clipboard operations is sufficient for hackathon scope; console logging is optional enhancement
