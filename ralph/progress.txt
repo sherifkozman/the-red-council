@@ -388,3 +388,34 @@
   - `usePathname()` from next/navigation can return null - always provide fallback
   - When testing components rendered in multiple places, use `getAllByText` instead of `getByText`
   - Radix Sheet component provides accessible dialogs with built-in focus management
+---
+## 2026-02-03 - UI-016 - Tool Chain Visualization
+- Ported tool chain analysis from `src/ui/components/tool_chain.py` to React
+- Files created:
+  - `frontend/components/agent/ToolStats.tsx` - Summary statistics component with cards for Total Calls, Unique Tools, Error Rate, ASI01 Violations
+  - `frontend/components/agent/ToolStats.test.tsx` - 19 tests for analyzeToolChain and ToolStats component
+  - `frontend/components/agent/ToolChain.tsx` - Main visualization with 3 modes: Chart (Recharts), SVG Diagram, Text List
+  - `frontend/components/agent/ToolChain.test.tsx` - 25 tests for all visualization modes and interactions
+- Dependencies added:
+  - `recharts` for bar chart visualization
+- Technical highlights:
+  - `analyzeToolChain()` detects loops (>3 consecutive) and excessive calls (>10 total)
+  - ASI01 violations automatically flagged for both patterns
+  - ErrorBoundary wraps chart to handle Recharts failures gracefully
+  - `safeStringify()` handles circular refs, BigInt, with dev logging
+  - `formatTime()` safely handles invalid timestamps
+  - Defensive date sorting maintains order for invalid timestamps
+  - All decorative icons have `aria-hidden="true"`
+  - Toggle buttons have `aria-pressed` state
+  - Status icons have `aria-label` for screen readers
+- Test coverage: ToolStats 100%, ToolChain 84%+
+- Post-implementation reviews completed:
+  - Code review: Fixed accessibility (aria-pressed, replaced emojis with icons)
+  - Silent failure review: Added ErrorBoundary, safe date/JSON utilities
+  - Security review: No XSS vulnerabilities, proper React escaping
+  - Accessibility review: Added aria-hidden to decorative icons
+- **Learnings:**
+  - Recharts BarChart doesn't support onError prop - use ErrorBoundary instead
+  - Always handle NaN from `new Date().getTime()` in sort comparisons
+  - Use `safeStringify` for untrusted data that could have circular refs or BigInt
+  - Decorative icons inside Alert components should have `aria-hidden="true"`
