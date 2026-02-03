@@ -7,12 +7,16 @@ import { BottomNav } from '@/components/layout/BottomNav'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { WelcomeModal } from '@/components/onboarding/WelcomeModal'
 import { QuickStartGuide } from '@/components/onboarding/QuickStartGuide'
+import { ShortcutsModal } from '@/components/ShortcutsModal'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 interface AppShellProps {
     children: React.ReactNode
 }
 
 export function AppShell({ children }: AppShellProps) {
+    const { isHelpOpen, setIsHelpOpen } = useKeyboardShortcuts()
+
     return (
         <div className="flex min-h-screen flex-col md:flex-row">
             {/* Desktop Sidebar - Hidden on mobile */}
@@ -29,6 +33,7 @@ export function AppShell({ children }: AppShellProps) {
                 <ErrorBoundary>
                     <WelcomeModal />
                     <QuickStartGuide />
+                    <ShortcutsModal open={isHelpOpen} onOpenChange={setIsHelpOpen} />
                     {children}
                 </ErrorBoundary>
             </main>

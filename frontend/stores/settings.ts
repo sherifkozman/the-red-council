@@ -42,6 +42,15 @@ interface AppearanceSettings {
   compactMode: boolean
 }
 
+// Shortcut settings
+export interface ShortcutSettings {
+  runEvaluation: string
+  generateReport: string
+  loadDemo: string
+  commandPalette: string
+  help: string
+}
+
 // Store state
 interface SettingsState {
   // Tab state
@@ -51,12 +60,14 @@ interface SettingsState {
   general: GeneralSettings
   agent: AgentSettings
   appearance: AppearanceSettings
+  shortcuts: ShortcutSettings
 
   // Actions
   setActiveTab: (tab: SettingsTab) => void
   updateGeneralSettings: (settings: Partial<GeneralSettings>) => void
   updateAgentSettings: (settings: Partial<AgentSettings>) => void
   updateAppearanceSettings: (settings: Partial<AppearanceSettings>) => void
+  updateShortcutSettings: (settings: Partial<ShortcutSettings>) => void
   resetToDefaults: () => void
 }
 
@@ -78,6 +89,14 @@ const DEFAULT_APPEARANCE: AppearanceSettings = {
   theme: 'system',
   fontSize: 'medium',
   compactMode: false,
+}
+
+const DEFAULT_SHORTCUTS: ShortcutSettings = {
+  runEvaluation: 'alt+e',
+  generateReport: 'alt+r',
+  loadDemo: 'alt+d',
+  commandPalette: 'alt+k',
+  help: 'shift+/', // shifted ? key
 }
 
 // Validation helpers (exported for testing)
@@ -121,6 +140,32 @@ export const validateAppearanceSettings = (settings: unknown): AppearanceSetting
   }
 }
 
+export const validateShortcutSettings = (settings: unknown): ShortcutSettings => {
+  if (!settings || typeof settings !== 'object') {
+    return DEFAULT_SHORTCUTS
+  }
+  const s = settings as Record<string, unknown>
+  
+  // Validate shortcut format: optional modifiers + key
+  // Supports:
+  // - Modifiers: ctrl, alt, shift, meta
+  // - Keys: a-z, 0-9, F1-F12
+  // - Symbols: ? (as \?), /
+  // - Named keys: enter, esc, escape, tab, space, delete, backspace, up, down, left, right, home, end, pageup, pagedown
+  const SHORTCUT_REGEX = /^(?:(?:ctrl|alt|shift|meta)\+)*(?:[a-z0-9]|f\d{1,2}|\?|\/|enter|esc|escape|tab|space|delete|backspace|up|down|left|right|home|end|pageup|pagedown)$/i
+
+  const isValid = (val: unknown): val is string => 
+    typeof val === 'string' && val.length > 0 && SHORTCUT_REGEX.test(val)
+  
+  return {
+    runEvaluation: isValid(s.runEvaluation) ? s.runEvaluation : DEFAULT_SHORTCUTS.runEvaluation,
+    generateReport: isValid(s.generateReport) ? s.generateReport : DEFAULT_SHORTCUTS.generateReport,
+    loadDemo: isValid(s.loadDemo) ? s.loadDemo : DEFAULT_SHORTCUTS.loadDemo,
+    commandPalette: isValid(s.commandPalette) ? s.commandPalette : DEFAULT_SHORTCUTS.commandPalette,
+    help: isValid(s.help) ? s.help : DEFAULT_SHORTCUTS.help,
+  }
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     immer((set) => ({
@@ -128,6 +173,7 @@ export const useSettingsStore = create<SettingsState>()(
       general: DEFAULT_GENERAL,
       agent: DEFAULT_AGENT,
       appearance: DEFAULT_APPEARANCE,
+      shortcuts: DEFAULT_SHORTCUTS,
 
       setActiveTab: (tab) =>
         set((state) => {
@@ -165,37 +211,64 @@ export const useSettingsStore = create<SettingsState>()(
           state.appearance = { ...state.appearance, ...settings }
         }),
 
+      updateShortcutSettings: (settings) =>
+        set((state) => {
+          const merged = { ...state.shortcuts, ...settings }
+          state.shortcuts = validateShortcutSettings(merged)
+        }),
+
       resetToDefaults: () =>
         set((state) => {
           state.general = DEFAULT_GENERAL
           state.agent = DEFAULT_AGENT
           state.appearance = DEFAULT_APPEARANCE
+          state.shortcuts = DEFAULT_SHORTCUTS
         }),
     })),
     {
       name: 'settings-storage',
-      version: 1,
+      version: 2, // Bump version for new field
       partialize: (state) => ({
         general: state.general,
         agent: state.agent,
         appearance: state.appearance,
+        shortcuts: state.shortcuts,
       }),
       migrate: (persistedState: unknown, version) => {
-        if (!persistedState || typeof persistedState !== 'object') {
+        const state = persistedState as Record<string, unknown>
+        
+        // Initial migration or corrupted state
+        if (!state || typeof state !== 'object') {
+           return {
+             activeTab: 'general' as SettingsTab,
+             general: DEFAULT_GENERAL,
+             agent: DEFAULT_AGENT,
+             appearance: DEFAULT_APPEARANCE,
+             shortcuts: DEFAULT_SHORTCUTS,
+           }
+        }
+
+        // Preserve activeTab if valid
+        const preservedTab = isSettingsTab(state.activeTab) ? state.activeTab : 'general'
+
+        // Migration from version 1 to 2
+        if (version === 1) {
           return {
-            activeTab: 'general' as SettingsTab,
-            general: DEFAULT_GENERAL,
-            agent: DEFAULT_AGENT,
-            appearance: DEFAULT_APPEARANCE,
+            activeTab: preservedTab,
+            general: validateGeneralSettings(state.general),
+            agent: validateAgentSettings(state.agent),
+            appearance: validateAppearanceSettings(state.appearance),
+            shortcuts: DEFAULT_SHORTCUTS, // New field default
           }
         }
 
-        const state = persistedState as Record<string, unknown>
+        // Standard validation for current version
         return {
-          activeTab: 'general' as SettingsTab,
+          activeTab: preservedTab,
           general: validateGeneralSettings(state.general),
           agent: validateAgentSettings(state.agent),
           appearance: validateAppearanceSettings(state.appearance),
+          shortcuts: validateShortcutSettings(state.shortcuts),
         }
       },
       onRehydrateStorage: () => (state) => {
