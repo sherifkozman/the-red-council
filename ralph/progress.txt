@@ -658,3 +658,44 @@
   - Retry mechanisms should use state counters to re-trigger useEffect, not window.location.reload()
   - Always validate date strings before calling toLocaleString() - invalid dates produce "Invalid Date"
 
+
+---
+## 2026-02-03 - UI-025 - Markdown Export
+- Implemented comprehensive markdown export functionality for security reports.
+- Files created:
+  - `frontend/lib/export/markdown.ts` - Export utility with configurable options
+  - `frontend/lib/export/markdown.test.ts` - 55 tests (98% coverage)
+- Files modified:
+  - `frontend/components/reports/ReportViewer.tsx` - Added Export Markdown button
+  - `frontend/components/reports/ReportViewer.test.tsx` - Added 3 tests for export
+- Features:
+  - Configurable export options: includeToc, includeMetadata, includeEvents, maxEvents
+  - YAML frontmatter with metadata (title, date, agent, ID)
+  - Table of Contents with section links
+  - Risk score summary table
+  - OWASP findings table with category status + detailed findings
+  - Recommendations sorted by priority with [CRITICAL], [HIGH], [MEDIUM], [LOW] indicators
+  - Event analysis with truncation support for large datasets
+  - Footer with generation info
+- Security features:
+  - escapeMarkdown() prevents markdown injection attacks
+  - UTF-8 BOM for cross-platform compatibility
+  - Proper cleanup of blob URLs in finally block
+  - Defensive checks for browser environment
+- Error handling improvements (from silent-failure-hunter review):
+  - console.warn for invalid date strings (dev mode)
+  - console.warn for invalid violations data (always - security critical)
+  - Proper error propagation in downloadMarkdown with logging
+  - Input validation in exportReportAsMarkdown (report, report.id checks)
+- Technical highlights:
+  - Generated filename format: `security-report_{id}_{timestamp}.md`
+  - Timestamp format: YYYYMMDDHHMMSS (14 digits)
+  - Blob type: text/markdown;charset=utf-8
+  - Uses code blocks for evidence (preserves formatting)
+- Test coverage: 55 tests, 98% coverage
+- Reviews completed: silent-failure-hunter
+- **Learnings:**
+  - Use `git add -f` for files in `frontend/lib/` (gitignored directory)
+  - Test cleanup with parentNode check requires mock appendChild to set parentNode
+  - Escaping underscores in markdown affects test assertions (UNKNOWN_CAT → UNKNOWN\_CAT)
+  - ISO date strings have varying lengths - use regex `.replace(/\D/g, '')` for safe digit extraction
