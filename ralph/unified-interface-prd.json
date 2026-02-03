@@ -11,7 +11,7 @@
     "estimated_weeks": 5,
     "review_status": "Reviewed and updated based on independent code review",
     "tracking_enabled": true,
-    "branchName": "feature/unified-interface",
+    "branchName": "feature/agent-security-v0.5.0",
     "project": "The Red Council - Unified Interface"
   },
   "epics": [
