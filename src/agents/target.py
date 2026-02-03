@@ -1,10 +1,14 @@
 # src/agents/target.py
 
+import logging
 from typing import List
 from pydantic import SecretStr
 from src.providers.gemini_client import GeminiClient
+from src.providers.errors import SafetyBlockedError
 from src.providers.types import AgentRole, Message, ROLE_CONFIGS
 from src.agents.errors import TargetLLMError
+
+logger = logging.getLogger(__name__)
 
 
 class TargetLLM:
@@ -32,6 +36,9 @@ class TargetLLM:
     async def respond(self, history: List[Message]) -> str:
         """
         Generate a response from the target LLM.
+
+        If safety filters block the response, return a refusal message
+        rather than crashing the battle - this allows the judge to evaluate.
         """
         try:
             # GeminiClient handles conversation history conversion
@@ -39,5 +46,12 @@ class TargetLLM:
                 role=AgentRole.TARGET, messages=history, override_config=self.config
             )
             return response
+        except SafetyBlockedError as e:
+            # Safety filter triggered - return refusal for judge to evaluate
+            logger.warning("Target response blocked by safety filters: %s", e)
+            return (
+                "I cannot process that request. "
+                "It appears to violate my safety guidelines."
+            )
         except Exception as e:
             raise TargetLLMError(f"Target LLM failed: {e}")

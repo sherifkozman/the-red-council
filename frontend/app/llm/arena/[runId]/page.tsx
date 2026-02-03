@@ -7,7 +7,7 @@ import { useArenaState } from "@/hooks/useArenaState";
 import { BattleArena } from "@/components/arena/BattleArena";
 import { FinalOutcome } from "@/components/arena/FinalOutcome";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Shield, XCircle } from "lucide-react";
+import { AlertCircle, Shield, XCircle, CheckCircle2, FileText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RoundProgress } from "@/components/arena/RoundProgress";
@@ -17,6 +17,7 @@ export default function ArenaPage() {
   const { runId } = useParams() as { runId: string };
   const { state, error, isComplete } = useArenaState(runId);
   const [knownSecret, setKnownSecret] = useState<string | undefined>(undefined);
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     // Retrieve secret for masking
@@ -70,15 +71,26 @@ export default function ArenaPage() {
             currentRound={state.current_round}
             maxRounds={state.max_rounds}
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-all flex gap-2"
-            onClick={() => router.push("/llm/arena")}
-          >
-            <XCircle className="w-4 h-4" />
-            <span className="text-[10px] font-bold uppercase">Abort</span>
-          </Button>
+          {isComplete ? (
+            <Button
+              size="sm"
+              className="bg-green-600 hover:bg-green-500 text-white flex gap-2"
+              onClick={() => setShowReport(true)}
+            >
+              <FileText className="w-4 h-4" />
+              <span className="text-[10px] font-bold uppercase">View Report</span>
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-all flex gap-2"
+              onClick={() => router.push("/llm/arena")}
+            >
+              <XCircle className="w-4 h-4" />
+              <span className="text-[10px] font-bold uppercase">Abort</span>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -87,8 +99,28 @@ export default function ArenaPage() {
         <BattleArena state={state} knownSecret={knownSecret} />
       </div>
 
-      {/* Final Outcome Overlay */}
-      {isComplete && <FinalOutcome state={state} />}
+      {/* Campaign Complete Banner */}
+      {isComplete && !showReport && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom duration-500">
+          <div className="flex items-center gap-4 px-6 py-3 bg-green-500/10 border border-green-500/30 rounded-lg backdrop-blur-sm">
+            <CheckCircle2 className="w-5 h-5 text-green-500" />
+            <span className="text-sm font-bold text-green-400">
+              Campaign Complete
+            </span>
+            <Button
+              size="sm"
+              className="bg-green-600 hover:bg-green-500 text-white ml-2"
+              onClick={() => setShowReport(true)}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              View Report
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Final Outcome Overlay - Only shown when user clicks View Report */}
+      {showReport && state && <FinalOutcome state={state} />}
     </main>
   );
 }
