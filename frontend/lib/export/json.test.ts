@@ -348,19 +348,19 @@ describe('exportEventsToJSON', () => {
 });
 
 describe('downloadJSON', () => {
-  let createObjectURLMock: ReturnType<typeof vi.fn>;
-  let revokeObjectURLMock: ReturnType<typeof vi.fn>;
-  let appendChildMock: ReturnType<typeof vi.fn>;
-  let removeChildMock: ReturnType<typeof vi.fn>;
-  let clickMock: ReturnType<typeof vi.fn>;
+  let createObjectURLMock: any;
+  let revokeObjectURLMock: any;
+  let appendChildMock: any;
+  let removeChildMock: any;
+  let clickMock: any;
   let originalCreateElement: typeof document.createElement;
 
   beforeEach(() => {
-    createObjectURLMock = vi.fn().mockReturnValue('blob:test-url');
-    revokeObjectURLMock = vi.fn();
-    appendChildMock = vi.fn();
-    removeChildMock = vi.fn();
-    clickMock = vi.fn();
+    createObjectURLMock = vi.fn().mockReturnValue('blob:test-url') as any;
+    revokeObjectURLMock = vi.fn() as any;
+    appendChildMock = vi.fn() as any;
+    removeChildMock = vi.fn() as any;
+    clickMock = vi.fn() as any;
 
     global.URL.createObjectURL = createObjectURLMock;
     global.URL.revokeObjectURL = revokeObjectURLMock;
@@ -369,13 +369,13 @@ describe('downloadJSON', () => {
     vi.spyOn(document.body, 'removeChild').mockImplementation(removeChildMock);
 
     originalCreateElement = document.createElement.bind(document);
-    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+    vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
       const element = originalCreateElement(tagName);
       if (tagName === 'a') {
         element.click = clickMock;
       }
       return element;
-    });
+    }) as any);
   });
 
   afterEach(() => {
@@ -437,19 +437,19 @@ describe('downloadJSON', () => {
 });
 
 describe('exportReportAsJSON', () => {
-  let createObjectURLMock: ReturnType<typeof vi.fn>;
-  let revokeObjectURLMock: ReturnType<typeof vi.fn>;
-  let appendChildMock: ReturnType<typeof vi.fn>;
-  let removeChildMock: ReturnType<typeof vi.fn>;
-  let clickMock: ReturnType<typeof vi.fn>;
+  let createObjectURLMock: any;
+  let revokeObjectURLMock: any;
+  let appendChildMock: any;
+  let removeChildMock: any;
+  let clickMock: any;
   let originalCreateElement: typeof document.createElement;
 
   beforeEach(() => {
-    createObjectURLMock = vi.fn().mockReturnValue('blob:test-url');
-    revokeObjectURLMock = vi.fn();
-    appendChildMock = vi.fn();
-    removeChildMock = vi.fn();
-    clickMock = vi.fn();
+    createObjectURLMock = vi.fn().mockReturnValue('blob:test-url') as any;
+    revokeObjectURLMock = vi.fn() as any;
+    appendChildMock = vi.fn() as any;
+    removeChildMock = vi.fn() as any;
+    clickMock = vi.fn() as any;
 
     global.URL.createObjectURL = createObjectURLMock;
     global.URL.revokeObjectURL = revokeObjectURLMock;
@@ -458,13 +458,13 @@ describe('exportReportAsJSON', () => {
     vi.spyOn(document.body, 'removeChild').mockImplementation(removeChildMock);
 
     originalCreateElement = document.createElement.bind(document);
-    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+    vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
       const element = originalCreateElement(tagName);
       if (tagName === 'a') {
         element.click = clickMock;
       }
       return element;
-    });
+    }) as any);
   });
 
   afterEach(() => {
@@ -514,19 +514,19 @@ describe('exportReportAsJSON', () => {
 });
 
 describe('exportEventsAsJSON', () => {
-  let createObjectURLMock: ReturnType<typeof vi.fn>;
-  let revokeObjectURLMock: ReturnType<typeof vi.fn>;
-  let appendChildMock: ReturnType<typeof vi.fn>;
-  let removeChildMock: ReturnType<typeof vi.fn>;
-  let clickMock: ReturnType<typeof vi.fn>;
+  let createObjectURLMock: any;
+  let revokeObjectURLMock: any;
+  let appendChildMock: any;
+  let removeChildMock: any;
+  let clickMock: any;
   let originalCreateElement: typeof document.createElement;
 
   beforeEach(() => {
-    createObjectURLMock = vi.fn().mockReturnValue('blob:test-url');
-    revokeObjectURLMock = vi.fn();
-    appendChildMock = vi.fn();
-    removeChildMock = vi.fn();
-    clickMock = vi.fn();
+    createObjectURLMock = vi.fn().mockReturnValue('blob:test-url') as any;
+    revokeObjectURLMock = vi.fn() as any;
+    appendChildMock = vi.fn() as any;
+    removeChildMock = vi.fn() as any;
+    clickMock = vi.fn() as any;
 
     global.URL.createObjectURL = createObjectURLMock;
     global.URL.revokeObjectURL = revokeObjectURLMock;
@@ -535,13 +535,13 @@ describe('exportEventsAsJSON', () => {
     vi.spyOn(document.body, 'removeChild').mockImplementation(removeChildMock);
 
     originalCreateElement = document.createElement.bind(document);
-    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+    vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
       const element = originalCreateElement(tagName);
       if (tagName === 'a') {
         element.click = clickMock;
       }
       return element;
-    });
+    }) as any);
   });
 
   afterEach(() => {

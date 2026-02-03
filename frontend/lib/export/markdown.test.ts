@@ -455,11 +455,11 @@ describe('exportToMarkdown', () => {
 });
 
 describe('downloadMarkdown', () => {
-  let createObjectURLMock: ReturnType<typeof vi.fn>;
-  let revokeObjectURLMock: ReturnType<typeof vi.fn>;
-  let appendChildMock: ReturnType<typeof vi.fn>;
-  let removeChildMock: ReturnType<typeof vi.fn>;
-  let clickMock: ReturnType<typeof vi.fn>;
+  let createObjectURLMock: any;
+  let revokeObjectURLMock: any;
+  let appendChildMock: any;
+  let removeChildMock: any;
+  let clickMock: any;
   let originalCreateElement: typeof document.createElement;
 
   beforeEach(() => {
@@ -548,11 +548,11 @@ describe('downloadMarkdown', () => {
 });
 
 describe('exportReportAsMarkdown', () => {
-  let createObjectURLMock: ReturnType<typeof vi.fn>;
-  let revokeObjectURLMock: ReturnType<typeof vi.fn>;
-  let appendChildMock: ReturnType<typeof vi.fn>;
-  let removeChildMock: ReturnType<typeof vi.fn>;
-  let clickMock: ReturnType<typeof vi.fn>;
+  let createObjectURLMock: any;
+  let revokeObjectURLMock: any;
+  let appendChildMock: any;
+  let removeChildMock: any;
+  let clickMock: any;
   let originalCreateElement: typeof document.createElement;
 
   beforeEach(() => {

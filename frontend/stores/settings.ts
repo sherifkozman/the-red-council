@@ -28,11 +28,56 @@ interface GeneralSettings {
 }
 
 // Agent config settings
+export type AccessLevel = 'read' | 'write' | 'delete'
+export type PolicyAction = 'allow' | 'deny' | 'alert'
+
+export interface MemoryPolicy {
+  id: string
+  name: string
+  pattern: string
+  accessLevels: AccessLevel[]
+  action: PolicyAction
+  enabled: boolean
+}
+
+export const isAccessLevel = (val: unknown): val is AccessLevel =>
+  typeof val === 'string' && ['read', 'write', 'delete'].includes(val)
+
+export const isPolicyAction = (val: unknown): val is PolicyAction =>
+  typeof val === 'string' && ['allow', 'deny', 'alert'].includes(val)
+
+export const validateMemoryPolicy = (policy: unknown): MemoryPolicy | null => {
+  if (!policy || typeof policy !== 'object') return null
+  const p = policy as Record<string, unknown>
+  
+  if (typeof p.id !== 'string' || typeof p.name !== 'string' || typeof p.pattern !== 'string') return null
+  if (typeof p.enabled !== 'boolean') return null
+  if (!isPolicyAction(p.action)) return null
+  if (!Array.isArray(p.accessLevels) || !p.accessLevels.every(isAccessLevel)) return null
+  
+  // Validate regex compilation
+  try {
+    new RegExp(p.pattern)
+  } catch {
+    return null
+  }
+  
+  return {
+    id: p.id,
+    name: p.name,
+    pattern: p.pattern,
+    accessLevels: p.accessLevels,
+    action: p.action,
+    enabled: p.enabled
+  }
+}
+
 interface AgentSettings {
   defaultToolInterception: boolean
   defaultMemoryMonitoring: boolean
   defaultDivergenceThreshold: number
   autoStartEvaluation: boolean
+  memoryPolicies: MemoryPolicy[]
 }
 
 // Appearance settings
@@ -83,6 +128,24 @@ const DEFAULT_AGENT: AgentSettings = {
   defaultMemoryMonitoring: true,
   defaultDivergenceThreshold: 0.5,
   autoStartEvaluation: false,
+  memoryPolicies: [
+    {
+      id: 'default-api-keys',
+      name: 'Block API Keys',
+      pattern: '(sk-[a-zA-Z0-9]{20,})|(ghp_[a-zA-Z0-9]{20,})',
+      accessLevels: ['read', 'write'],
+      action: 'deny',
+      enabled: true
+    },
+    {
+      id: 'default-pii',
+      name: 'Alert on PII (Email)',
+      pattern: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}',
+      accessLevels: ['read', 'write'],
+      action: 'alert',
+      enabled: true
+    }
+  ],
 }
 
 const DEFAULT_APPEARANCE: AppearanceSettings = {
@@ -117,6 +180,17 @@ export const validateAgentSettings = (settings: unknown): AgentSettings => {
     return DEFAULT_AGENT
   }
   const s = settings as Record<string, unknown>
+  
+  let policies: MemoryPolicy[] = DEFAULT_AGENT.memoryPolicies
+  if (Array.isArray(s.memoryPolicies)) {
+    const validPolicies = s.memoryPolicies
+      .map(validateMemoryPolicy)
+      .filter((p): p is MemoryPolicy => p !== null)
+    if (validPolicies.length > 0) {
+      policies = validPolicies
+    }
+  }
+
   return {
     defaultToolInterception: typeof s.defaultToolInterception === 'boolean' ? s.defaultToolInterception : DEFAULT_AGENT.defaultToolInterception,
     defaultMemoryMonitoring: typeof s.defaultMemoryMonitoring === 'boolean' ? s.defaultMemoryMonitoring : DEFAULT_AGENT.defaultMemoryMonitoring,
@@ -124,6 +198,7 @@ export const validateAgentSettings = (settings: unknown): AgentSettings => {
       ? s.defaultDivergenceThreshold
       : DEFAULT_AGENT.defaultDivergenceThreshold,
     autoStartEvaluation: typeof s.autoStartEvaluation === 'boolean' ? s.autoStartEvaluation : DEFAULT_AGENT.autoStartEvaluation,
+    memoryPolicies: policies,
   }
 }
 
@@ -227,7 +302,7 @@ export const useSettingsStore = create<SettingsState>()(
     })),
     {
       name: 'settings-storage',
-      version: 2, // Bump version for new field
+      version: 3, // Bump version for memoryPolicies
       partialize: (state) => ({
         general: state.general,
         agent: state.agent,
@@ -256,9 +331,20 @@ export const useSettingsStore = create<SettingsState>()(
           return {
             activeTab: preservedTab,
             general: validateGeneralSettings(state.general),
-            agent: validateAgentSettings(state.agent),
+            agent: validateAgentSettings(state.agent), // Adds defaults for memoryPolicies
             appearance: validateAppearanceSettings(state.appearance),
-            shortcuts: DEFAULT_SHORTCUTS, // New field default
+            shortcuts: DEFAULT_SHORTCUTS,
+          }
+        }
+
+        // Migration from version 2 to 3
+        if (version === 2) {
+          return {
+            activeTab: preservedTab,
+            general: validateGeneralSettings(state.general),
+            agent: validateAgentSettings(state.agent), // Adds defaults for memoryPolicies
+            appearance: validateAppearanceSettings(state.appearance),
+            shortcuts: validateShortcutSettings(state.shortcuts),
           }
         }
 

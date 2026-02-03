@@ -8,6 +8,8 @@ import { GeneralSettings } from '@/components/settings/GeneralSettings'
 import { AgentConfigSettings } from '@/components/settings/AgentConfigSettings'
 import { APIKeysSettings } from '@/components/settings/APIKeysSettings'
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
+import { MemoryPolicy } from '@/components/settings/MemoryPolicy'
+import { Separator } from '@/components/ui/separator'
 import { Settings, Bot, Key, Palette } from 'lucide-react'
 
 const TAB_CONFIG: Record<SettingsTab, { icon: React.ElementType; title: string; description: string }> = {
@@ -108,7 +110,13 @@ export default function SettingsPage() {
                   </CardHeader>
                   <CardContent>
                     {tab === 'general' && <GeneralSettings />}
-                    {tab === 'agent' && <AgentConfigSettings />}
+                    {tab === 'agent' && (
+                      <div className="space-y-8">
+                        <AgentConfigSettings />
+                        <Separator />
+                        <MemoryPolicy />
+                      </div>
+                    )}
                     {tab === 'api-keys' && <APIKeysSettings />}
                     {tab === 'appearance' && <AppearanceSettings />}
                   </CardContent>

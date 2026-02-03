@@ -42,7 +42,7 @@ function createViolation(overrides: Partial<Violation> = {}): Violation {
     detected: true,
     severity: 7,
     evidence: 'Test evidence',
-    description: 'Test description',
+    recommendation: 'Test recommendation',
     ...overrides,
   };
 }

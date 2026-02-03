@@ -222,7 +222,7 @@ export const CompareView = React.memo(function CompareView({
                   <div className="col-span-6 md:col-span-4 font-medium flex flex-col">
                     <span className="flex items-center gap-2">
                       <Badge variant="outline" className="font-mono text-xs">{cat.code}</Badge>
-                      <span className="truncate" title={cat.title}>{cat.title}</span>
+                      <span className="truncate" title={cat.name}>{cat.name}</span>
                     </span>
                   </div>
 
