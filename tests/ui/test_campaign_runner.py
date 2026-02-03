@@ -494,34 +494,40 @@ class TestIntegration:
 
     def test_start_campaign_background(self) -> None:
         """Test background campaign start returns early."""
-        future = asyncio.Future()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        future = loop.create_future()
         def _close_and_return_future(coro):
             coro.close()
             return future
 
-        with (
-            patch.object(
-                campaign_runner,
-                "is_remote_agent_configured",
-                return_value=True,
-            ),
-            patch.object(
-                campaign_runner,
-                "is_templates_selected",
-                return_value=True,
-            ),
-            patch.object(
-                campaign_runner,
-                "_get_template_data_for_campaign",
-                return_value=[{"id": "t1", "prompt_template": "p"}],
-            ),
-            patch.object(
-                campaign_runner,
-                "safe_run_async",
-                side_effect=_close_and_return_future,
-            ),
-        ):
-            mock_st.session_state = {"session_id": "s1"}
-            _start_campaign()
+        try:
+            with (
+                patch.object(
+                    campaign_runner,
+                    "is_remote_agent_configured",
+                    return_value=True,
+                ),
+                patch.object(
+                    campaign_runner,
+                    "is_templates_selected",
+                    return_value=True,
+                ),
+                patch.object(
+                    campaign_runner,
+                    "_get_template_data_for_campaign",
+                    return_value=[{"id": "t1", "prompt_template": "p"}],
+                ),
+                patch.object(
+                    campaign_runner,
+                    "safe_run_async",
+                    side_effect=_close_and_return_future,
+                ),
+            ):
+                mock_st.session_state = {"session_id": "s1"}
+                _start_campaign()
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
 
         mock_st.info.assert_called_once()

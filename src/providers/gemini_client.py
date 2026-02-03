@@ -23,57 +23,71 @@ logger = logging.getLogger(__name__)
 class GeminiClient:
     def __init__(
         self,
-        project_id: str = "the-jarvis-brain",
-        location: str = "global",
+        project_id: Optional[str] = "dummy-project-id",
+        location: Optional[str] = "global",
         api_key: Optional[str] = None,
+        use_vertex_ai: bool = True,
     ):
         """
-        Initialize GeminiClient using Vertex AI authentication.
+        Initialize GeminiClient using either Vertex AI or Google AI Studio.
 
         Args:
-            project_id: Google Cloud project ID
+            project_id: Google Cloud project ID (required for Vertex AI)
             location: Vertex AI location (use 'global' for Gemini 3 models)
-            api_key: Optional API key (deprecated, uses Vertex AI by default)
+            api_key: API Key for Google AI Studio (required if use_vertex_ai=False)
+            use_vertex_ai: Whether to use Vertex AI (True) or Google AI Studio (False)
         """
         self.project_id = project_id
         self.location = location
-        self._use_vertexai = True
+        self.api_key = api_key
+        self._use_vertexai = use_vertex_ai
+
+        if not self._use_vertexai and not self.api_key:
+            # Fallback to env var if not provided explicitly
+            import os
+
+            self.api_key = os.getenv("GOOGLE_API_KEY")
+
+        if not self._use_vertexai and not self.api_key:
+            logger.warning(
+                "GeminiClient initialized without API Key for AI Studio mode."
+            )
 
         # Note: We create a fresh client per async call to avoid connection lifecycle issues
         # The google-genai SDK's async client can have connection pool issues when reused
         # across different event loop iterations (especially in Streamlit)
 
     def _create_client(self) -> genai.Client:
-        """Create a fresh client instance for each request using Vertex AI."""
-        return genai.Client(
-            vertexai=True, project=self.project_id, location=self.location
-        )
+        """Create a fresh client instance for each request."""
+        if self._use_vertexai:
+            return genai.Client(
+                vertexai=True, project=self.project_id, location=self.location
+            )
+        else:
+            return genai.Client(api_key=self.api_key)
 
-    def _should_retry(self, exception: Exception) -> bool:
-        """Determine if we should retry on this exception."""
-        # Don't retry on our own custom errors
-        if isinstance(
-            exception, (GeminiClientError, SafetyBlockedError, ConfigurationError)
-        ):
-            return False
-        # Retry on rate limits
-        if isinstance(exception, RateLimitError):
-            return True
-        # Check for retryable errors in the message
-        error_str = str(exception).lower()
-        return (
-            "rate limit" in error_str
-            or "resource exhausted" in error_str
-            or "service unavailable" in error_str
-        )
+    def _sanitize_error(self, error: Exception) -> str:
+        """Sanitize error message to remove potential secrets."""
+        import re
+
+        msg = str(error)
+        # Redact API keys and tokens
+        msg = re.sub(r"AIza[0-9A-Za-z-_]{35}", "***REDACTED***", msg)
+        msg = re.sub(r"sk-[A-Za-z0-9]{48}", "***REDACTED***", msg)
+        msg = re.sub(
+            r"sk-proj-[A-Za-z0-9-_]{48,}", "***REDACTED***", msg
+        )  # OpenAI Project keys
+        msg = re.sub(r'"token":\s*"[^"]*"', '"token": "***REDACTED***"', msg)
+        return msg
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential_jitter(initial=2, max=30, jitter=2),
-        retry=lambda retry_state: (
-            retry_state.outcome.failed
+        retry=lambda rs: (
+            rs.outcome.failed
+            and rs.outcome.exception() is not None
             and not isinstance(
-                retry_state.outcome.exception(),
+                rs.outcome.exception(),
                 (GeminiClientError, SafetyBlockedError, ConfigurationError),
             )
         ),
@@ -88,35 +102,41 @@ class GeminiClient:
         config = override_config or ROLE_CONFIGS[role]
 
         # Convert internal Message format to google-genai format
-        # New SDK expects list of types.Content or simple strings
         contents = []
         system_instruction = config.system_instruction
 
         for msg in messages:
-            if msg["role"] == "system":
-                # Accumulate system messages into system_instruction
+            if msg.get("role") == "system":
                 continue
-            role_name = "user" if msg["role"] == "user" else "model"
+            role_name = "user" if msg.get("role") == "user" else "model"
             contents.append(
                 types.Content(
-                    role=role_name, parts=[types.Part.from_text(text=msg["content"])]
+                    role=role_name,
+                    parts=[types.Part.from_text(text=msg.get("content", ""))],
                 )
             )
 
+        # Convert safety_settings dict to list of types.SafetySetting
+        safety_settings_list = []
+        if config.safety_settings:
+            for category, threshold in config.safety_settings.items():
+                safety_settings_list.append(
+                    types.SafetySetting(category=category, threshold=threshold)
+                )
+
         try:
-            # Create fresh client and use async context manager for proper lifecycle
-            # This prevents TCPTransport closed errors in Streamlit
             async with self._create_client().aio as aclient:
                 response = await aclient.models.generate_content(
                     model=config.model_id,
                     contents=contents,  # type: ignore
                     config=types.GenerateContentConfig(
                         temperature=config.temperature,
+                        max_output_tokens=config.max_output_tokens,
+                        safety_settings=safety_settings_list,
                         system_instruction=system_instruction,
                     ),
                 )
 
-            # Check for safety blocks - new SDK structure
             if hasattr(response, "prompt_feedback") and response.prompt_feedback:
                 if (
                     hasattr(response.prompt_feedback, "block_reason")
@@ -142,17 +162,19 @@ class GeminiClient:
                 ),
             ):
                 raise e
+
+            sanitized_msg = self._sanitize_error(e)
             error_str = str(e).lower()
+
             if "rate limit" in error_str or "resource exhausted" in error_str:
-                raise RateLimitError(f"Gemini rate limit exceeded: {str(e)}")
+                raise RateLimitError(f"Gemini rate limit exceeded: {sanitized_msg}")
             if "permission denied" in error_str or "unauthorized" in error_str:
-                raise ConfigurationError(
-                    f"Gemini permission denied (check API key): {str(e)}"
-                )
-            if "invalid argument" in error_str:
-                raise GeminiClientError(f"Invalid argument to Gemini API: {str(e)}")
-            logger.error(f"Gemini generation error: {type(e).__name__}: {str(e)}")
-            raise GeminiClientError(f"Unexpected error: {str(e)}")
+                raise ConfigurationError(f"Gemini permission denied: {sanitized_msg}")
+
+            logger.error(
+                f"Gemini generation error: {type(e).__name__}: {sanitized_msg}"
+            )
+            raise GeminiClientError(f"Unexpected error: {sanitized_msg}")
 
     async def generate_structured_evaluation(
         self,
@@ -174,19 +196,42 @@ class GeminiClient:
                         response_schema=schema_cls,
                     ),
                 )
-            return json.loads(response.text or "{}")
-        except Exception as e:
-            raise GeminiClientError(f"Failed to generate structured evaluation: {e}")
 
-    async def stream_campaign_content(self, prompt: str) -> AsyncGenerator[str, None]:
+            if not response.text:
+                raise GeminiClientError("Empty response from Gemini")
+
+            data = json.loads(response.text)
+
+            # Validate against schema
+            if hasattr(schema_cls, "model_validate"):
+                validated = schema_cls.model_validate(data)
+                return validated.model_dump()
+            return data
+
+        except Exception as e:
+            raise GeminiClientError(
+                f"Failed to generate structured evaluation: {self._sanitize_error(e)}"
+            )
+
+    async def stream_campaign_content(
+        self, prompt: str, role: AgentRole = AgentRole.DEFENDER
+    ) -> AsyncGenerator[str, None]:
         """Streams content for real-time UI feel."""
+        config = ROLE_CONFIGS[role]
+        # Fallback if config model is None or empty
+        model_id = config.model_id or "gemini-3-pro-preview"
+
         try:
             async with self._create_client().aio as aclient:
-                async for chunk in await aclient.models.generate_content_stream(
-                    model="gemini-3-pro-preview",  # Gemini 3 Pro for streaming
+                # generate_content_stream returns an async iterator, but as an async method it must be awaited
+                stream = await aclient.models.generate_content_stream(
+                    model=model_id,
                     contents=prompt,
-                ):
+                )
+                async for chunk in stream:
                     if chunk.text:
                         yield chunk.text
         except Exception as e:
-            yield f"[Error streaming content: {str(e)}]"
+            # Raise securely instead of yielding error text
+            logger.error(f"Stream error: {self._sanitize_error(e)}")
+            raise GeminiClientError("Stream generation failed") from e

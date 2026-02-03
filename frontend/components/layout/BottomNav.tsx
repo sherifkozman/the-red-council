@@ -9,6 +9,7 @@ import {
   Sheet,
   SheetContent,
   SheetTrigger,
+  SheetHeader,
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet'
@@ -119,10 +120,12 @@ export function BottomNav() {
             </button>
           </SheetTrigger>
           <SheetContent side="bottom" className="h-auto max-h-[60vh]">
-            <SheetTitle className="text-left mb-4">More Options</SheetTitle>
-            <SheetDescription className="sr-only">
-              Additional navigation options including agent tools and settings
-            </SheetDescription>
+            <SheetHeader>
+              <SheetTitle className="text-left">More Options</SheetTitle>
+              <SheetDescription className="sr-only">
+                Additional navigation options including agent tools and settings
+              </SheetDescription>
+            </SheetHeader>
             <ScrollArea className="h-full">
               <div className="grid grid-cols-3 gap-4 pb-8">
                 {MORE_NAV_ITEMS.map((item) => (

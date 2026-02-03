@@ -101,6 +101,16 @@ def render_keyboard_shortcuts():
         const activeTag = document.activeElement.tagName;
         const isTextInput = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || document.activeElement.isContentEditable;
         
+        // Strict password field check
+        const isPasswordField = document.activeElement.type === 'password' || 
+                                document.activeElement.name === 'password' ||
+                                (document.activeElement.autocomplete && 
+                                 document.activeElement.autocomplete.includes && 
+                                 document.activeElement.autocomplete.includes('password'));
+
+        // NEVER intercept shortcuts in password fields
+        if (isPasswordField) return;
+        
         if (isTextInput && !e.ctrlKey && !e.metaKey) {
             return;
         }
@@ -130,7 +140,7 @@ def render_keyboard_shortcuts():
             return false;
         }
 
-        // Helper to switch tabs
+        // Helper to switch tabs (Restored for accessibility)
         function selectNextTab(forward = true) {
             const tabs = window.parent.document.querySelectorAll('[role="tab"], [data-baseweb="tab"]');
             if (!tabs.length) return false;
@@ -148,9 +158,21 @@ def render_keyboard_shortcuts():
         }
 
         // Tab navigation between panels
+        // Only intercept if strictly NOT in an input/textarea/contenteditable
         if (!e.ctrlKey && !e.metaKey && e.key === 'Tab') {
-            e.preventDefault();
-            selectNextTab(!e.shiftKey);
+            const activeTag = document.activeElement.tagName;
+            const isFormControl = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'IFRAME'].includes(activeTag);
+            
+            if (!isFormControl && !document.activeElement.isContentEditable) {
+                e.preventDefault();
+                selectNextTab(!e.shiftKey);
+            }
+        }
+        
+        // Esc to close panels
+        if (e.key === 'Escape') {
+             // Close shortcuts panel if open
+             clickButton('Toggle Shortcuts Panel', true);
         }
 
         // Check for Ctrl/Cmd key combinations
@@ -234,7 +256,6 @@ def render_keyboard_shortcuts():
             key=UI_DENSITY_KEY,
             horizontal=True,
         )
-        st.session_state[UI_DENSITY_KEY] = density
 
     # Render the Shortcuts Help Panel in Sidebar
     if st.session_state.get(SHORTCUTS_PANEL_KEY, False):
@@ -254,7 +275,7 @@ def render_keyboard_shortcuts():
         **Navigation**
         *   `Tab`: Next panel
         *   `Shift + Tab`: Previous panel
-        *   `Esc`: Close modals
+        *   `Esc`: Close/Toggle Shortcuts Panel
 
         _Note: Click in the main window area for shortcuts to active._
         """)

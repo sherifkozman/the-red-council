@@ -76,10 +76,10 @@ function GuideContent() {
   ).join(' ')
 
   return (
-    <Card 
+    <Card
       className={cn(
-        "fixed bottom-4 right-4 w-80 shadow-lg transition-all duration-300 z-50 overflow-hidden",
-        isMinimized ? "h-14" : "h-auto max-h-[80vh]"
+        "fixed bottom-4 right-4 w-80 shadow-lg transition-all duration-300 z-50",
+        isMinimized ? "h-auto" : "h-auto max-h-[80vh] overflow-hidden"
       )}
       role="complementary"
       aria-labelledby="quick-start-guide-title"

@@ -128,10 +128,13 @@ export function MemoryPolicy() {
               Add Policy
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent
+            aria-labelledby="add-policy-dialog-title"
+            aria-describedby="add-policy-dialog-description"
+          >
             <DialogHeader>
-              <DialogTitle>Add Memory Policy</DialogTitle>
-              <DialogDescription>
+              <DialogTitle id="add-policy-dialog-title">Add Memory Policy</DialogTitle>
+              <DialogDescription id="add-policy-dialog-description">
                 Define a regex pattern to monitor in agent memory.
               </DialogDescription>
             </DialogHeader>

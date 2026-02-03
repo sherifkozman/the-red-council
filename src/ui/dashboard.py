@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 import secrets
 
 import streamlit as st
@@ -96,6 +97,12 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Optional API base URL override for containerized deployments
+if "api_base_url" not in st.session_state:
+    env_api_base = os.getenv("RC_API_BASE_URL")
+    if env_api_base:
+        st.session_state["api_base_url"] = env_api_base
 
 # Session State Init
 if "arena_state" not in st.session_state:

@@ -53,6 +53,7 @@ dependencies = [
     "streamlit-agraph>=0.0.45",
     # Templating
     "jinja2>=3.0.0",
+    "nh3>=0.2.18",
     # Utilities
     "python-dotenv>=1.0.0",
     "tenacity>=8.0.0",
@@ -60,6 +61,8 @@ dependencies = [
     # Visualization fallback
     "networkx>=3.0.0",
     "matplotlib>=3.0.0",
+    # OpenAI (Universal Client)
+    "openai>=1.0.0",
 ]
 
 [project.optional-dependencies]

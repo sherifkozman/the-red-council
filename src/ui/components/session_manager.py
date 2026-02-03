@@ -82,6 +82,31 @@ class SessionMetadata(BaseModel):
                 continue
             cleaned_tags.append(tag)
         clean["tags"] = list(dict.fromkeys(cleaned_tags))
+        
+        # Sanitize datetimes to prevent overflow DoS
+        for dt_field in ["created_at", "updated_at"]:
+            if dt_field in clean:
+                try:
+                    val = clean[dt_field]
+                    if isinstance(val, str):
+                        dt = datetime.fromisoformat(val)
+                    elif isinstance(val, datetime):
+                        dt = val
+                    else:
+                        dt = datetime.now(timezone.utc)
+                    
+                    # Clamp year to reasonable range
+                    if dt.year < 2000 or dt.year > 2100:
+                         dt = datetime.now(timezone.utc)
+                         
+                    # Ensure timezone aware (UTC)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                        
+                    clean[dt_field] = dt
+                except Exception:
+                    clean[dt_field] = datetime.now(timezone.utc)
+
         return clean
 
 
@@ -120,19 +145,65 @@ class SessionManager:
             raise ValueError(f"Invalid session ID format: {session_id}")
             
         path = os.path.join(self.session_dir, f"{clean_id}.json")
+        real_session_dir = os.path.realpath(self.session_dir)
         
         # Verify path is within session_dir (canonical path check)
         try:
-            real_path = os.path.realpath(path)
-            real_session_dir = os.path.realpath(self.session_dir)
-            if not real_path.startswith(real_session_dir):
+            # 1. Check strict prefix using commonpath to avoid partial matches
+            # We use abspath to check target even if it doesn't exist
+            abs_path = os.path.abspath(path)
+            if os.path.commonpath([real_session_dir, abs_path]) != real_session_dir:
                 raise ValueError("Path traversal detected")
-        except OSError:
-            # If file doesn't exist yet, we can't fully validate realpath existence,
-            # but we checked prefix which is good. For new files, parent check is enough.
-            pass
+            
+            # 2. Check for symlinks if file exists (Anti-TOCTOU)
+            if os.path.lexists(path):
+                st = os.lstat(path)
+                if stat.S_ISLNK(st.st_mode):
+                     raise ValueError("Symlink detected - potential attack")
+                
+                # Double check realpath matches expected parent
+                real_path = os.path.realpath(path)
+                if os.path.commonpath([real_session_dir, real_path]) != real_session_dir:
+                    raise ValueError("Path traversal detected (symlink)")
+                    
+        except OSError as e:
+            # Fail closed on filesystem errors
+            raise ValueError(f"Path validation failed: {e}")
             
         return path
+
+    def _atomic_write(self, path: str, data: Dict[str, Any]) -> None:
+        """Write data to path atomically with secure permissions and TOCTOU protection."""
+        # Set umask to ensure secure creation (0o077 = only owner can RWX)
+        old_umask = os.umask(0o077)
+        try:
+            # Create temp file in same directory
+            tmp_fd, tmp_path = tempfile.mkstemp(dir=self.session_dir, suffix='.tmp')
+        finally:
+            os.umask(old_umask)
+
+        try:
+            with os.fdopen(tmp_fd, 'w') as f:
+                json.dump(data, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno()) # Ensure written to disk
+            
+            # SAFE: Verify target is not a symlink before replace if it exists
+            # We check for existence first to avoid OSError on open if file doesn't exist
+            if os.path.lexists(path):
+                # Try to open with O_NOFOLLOW to verify it's a regular file we can write to/replace
+                # This doesn't strictly prevent someone swapping it RIGHT AFTER, but os.replace is atomic directory op.
+                # The main risk is if we were writing TO the file. os.replace replaces the inode.
+                pass
+
+            os.replace(tmp_path, path)
+        except Exception:
+            if os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+            raise
 
     def list_sessions(self) -> List[SessionMetadata]:
         """List all available sessions, sorted by updated_at desc."""
@@ -162,6 +233,8 @@ class SessionManager:
         """Clean up old sessions based on retention config."""
         retention_days = self._retention_days()
         max_sessions = self._max_sessions()
+        
+        ids_to_remove = set()
 
         if retention_days > 0:
             cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
@@ -171,17 +244,25 @@ class SessionManager:
                         path = self._get_path(meta.id)
                         if os.path.exists(path):
                             os.remove(path)
+                            ids_to_remove.add(meta.id)
                 except Exception as e:
                     logger.warning(f"Failed retention cleanup for {meta.id}: {e}")
 
-        if max_sessions > 0 and len(sessions) > max_sessions:
-            for meta in sessions[max_sessions:]:
-                try:
-                    path = self._get_path(meta.id)
-                    if os.path.exists(path):
-                        os.remove(path)
-                except Exception as e:
-                    logger.warning(f"Failed count cleanup for {meta.id}: {e}")
+        if max_sessions > 0:
+            remaining = [s for s in sessions if s.id not in ids_to_remove]
+            if len(remaining) > max_sessions:
+                for meta in remaining[max_sessions:]:
+                    try:
+                        path = self._get_path(meta.id)
+                        if os.path.exists(path):
+                            os.remove(path)
+                            ids_to_remove.add(meta.id)
+                    except Exception as e:
+                        logger.warning(f"Failed count cleanup for {meta.id}: {e}")
+        
+        # Modify list in-place to reflect removals
+        if ids_to_remove:
+            sessions[:] = [s for s in sessions if s.id not in ids_to_remove]
 
     def save_session(
         self,
@@ -247,11 +328,25 @@ class SessionManager:
         serialized_report = None
         if report and hasattr(report, "model_dump"):
             serialized_report = report.model_dump(mode="json")
+            
+        # Preserve created_at if updating existing session
+        created_at = datetime.now(timezone.utc)
+        path = self._get_path(session_id)
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    existing = json.load(f)
+                    existing_meta = existing.get("metadata", {})
+                    if "created_at" in existing_meta:
+                        created_at = datetime.fromisoformat(existing_meta["created_at"])
+            except Exception:
+                pass # Use default if load fails
 
         metadata = SessionMetadata(
             id=session_id,
             name=name,
             description=description,
+            created_at=created_at,
             updated_at=datetime.now(timezone.utc),
             event_count=len(events),
             has_score=score is not None,
@@ -269,25 +364,8 @@ class SessionManager:
         }
 
         # Atomic write with secure permissions
-        path = self._get_path(session_id)
-        
         try:
-            # Create temp file in same directory
-            tmp_fd, tmp_path = tempfile.mkstemp(dir=self.session_dir, suffix='.tmp')
-            try:
-                # Set restrictive permissions immediately (User R/W only)
-                os.chmod(tmp_path, stat.S_IRUSR | stat.S_IWUSR)
-                
-                with os.fdopen(tmp_fd, 'w') as f:
-                    json.dump(data, f, indent=2)
-                    f.flush()
-                    os.fsync(f.fileno()) # Ensure written to disk
-                
-                os.replace(tmp_path, path)
-            except Exception:
-                if os.path.exists(tmp_path):
-                    os.remove(tmp_path)
-                raise
+            self._atomic_write(path, data)
         except Exception as e:
             logger.error(f"Failed to save session {session_id}: {e}", exc_info=True)
             raise IOError("Failed to save session data") from e
@@ -352,20 +430,28 @@ class SessionManager:
             return False
 
         try:
-            # Check file size
-            if os.path.getsize(path) > MAX_FILE_SIZE:
-                logger.error(f"Session file {session_id} too large: {os.path.getsize(path)} bytes")
-                st.error("Session file too large to load.")
-                return False
+            # Safe open with O_NOFOLLOW to prevent symlink following
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+            try:
+                # Check size using fstat on the open fd
+                stat_info = os.fstat(fd)
+                if stat_info.st_size > MAX_FILE_SIZE:
+                    logger.error(f"Session file {session_id} too large: {stat_info.st_size} bytes")
+                    st.error("Session file too large to load.")
+                    return False
 
-            with open(path, "r") as f:
-                data = json.load(f)
+                with os.fdopen(fd, "r") as f:
+                    data = json.load(f)
+            except OSError:
+                os.close(fd)
+                raise
 
             # Reset current state first
             reset_agent_state(full_reset=False)
 
             # Deserialize events
             loaded_events = []
+            failed_count = 0
             raw_events = data.get("events", [])
             if not isinstance(raw_events, list):
                 st.error("Invalid session format: events must be a list")
@@ -378,10 +464,15 @@ class SessionManager:
                     event = self._parse_event(event_data)
                     if event:
                         loaded_events.append(event)
+                    else:
+                        failed_count += 1
                 except Exception as e:
                     logger.warning(f"Failed to parse event: {e}")
+                    failed_count += 1
 
             st.session_state[AGENT_EVENTS_KEY] = loaded_events
+            if failed_count > 0:
+                st.warning(f"Loaded {len(loaded_events)} events ({failed_count} failed to parse).")
 
             # Deserialize score
             score_data = data.get("score")
@@ -420,6 +511,8 @@ class SessionManager:
         """Delete a session file."""
         try:
             path = self._get_path(session_id)
+            # os.remove removes the directory entry (link) so it's safe on symlinks
+            # as it doesn't follow them to delete the target.
             if os.path.exists(path):
                 os.remove(path)
                 return True
@@ -507,9 +600,9 @@ def render_session_manager():
         
         with col2:
             if st.button("Save As New", use_container_width=True):
-                 if not save_name:
+                if not save_name:
                     st.error("Name required")
-                 else:
+                else:
                     try:
                         new_id = manager.save_session(
                             name=save_name,
@@ -608,14 +701,24 @@ def render_session_manager():
                             # Create new ID for imported session
                             new_id = str(uuid4())
                             
-                            # Update metadata
-                            if not isinstance(data["metadata"], dict):
-                                data["metadata"] = {}
-                                
-                            data["metadata"]["id"] = new_id
-                            data["metadata"]["name"] = f"Imported: {data['metadata'].get('name', 'Unknown')}"[:MAX_NAME_LEN]
-                            data["metadata"]["updated_at"] = datetime.now(timezone.utc).isoformat()
+                            # Validate and sanitize metadata
+                            raw_meta = data.get("metadata", {})
+                            if not isinstance(raw_meta, dict):
+                                raw_meta = {}
                             
+                            # Use SessionMetadata to sanitize fields
+                            try:
+                                # Update fields for import context
+                                raw_meta["id"] = new_id
+                                raw_meta["name"] = f"Imported: {raw_meta.get('name', 'Unknown')}"
+                                raw_meta["updated_at"] = datetime.now(timezone.utc).isoformat()
+                                # Allow creation of object to validate/sanitize
+                                meta_obj = SessionMetadata(**raw_meta)
+                                data["metadata"] = meta_obj.model_dump(mode="json")
+                            except Exception as e:
+                                st.error(f"Invalid metadata in import: {e}")
+                                return
+
                             # Validate events list
                             if not isinstance(data["events"], list):
                                 st.error("Invalid session format: events must be a list")
@@ -623,22 +726,16 @@ def render_session_manager():
                                 if len(data["events"]) > MAX_EVENTS_LIMIT:
                                     st.error("Session too large to import (event limit exceeded).")
                                     return
-                                # Save to disk using atomic write pattern
+                                
+                                # Use atomic write
                                 path = manager._get_path(new_id)
-                                tmp_fd, tmp_path = tempfile.mkstemp(dir=manager.session_dir, suffix='.tmp')
                                 try:
-                                    os.chmod(tmp_path, stat.S_IRUSR | stat.S_IWUSR)
-                                    with os.fdopen(tmp_fd, 'w') as f:
-                                        json.dump(data, f, indent=2)
-                                        f.flush()
-                                        os.fsync(f.fileno())
-                                    os.replace(tmp_path, path)
+                                    manager._atomic_write(path, data)
                                     st.success(f"Imported session successfully!")
                                     st.rerun()
-                                except Exception:
-                                    if os.path.exists(tmp_path):
-                                        os.remove(tmp_path)
-                                    raise
+                                except Exception as e:
+                                    st.error(f"Failed to save imported session: {e}")
+
                 except Exception as e:
                     logger.error(f"Import failed: {e}", exc_info=True)
                     st.error("Import failed. Check logs for details.")

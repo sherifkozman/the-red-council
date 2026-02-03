@@ -2,9 +2,12 @@
 
 import asyncio
 import logging
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Union
 from dataclasses import dataclass
 from src.providers.vertex_llama import VertexAILlamaClient
+from src.providers.gemini_client import GeminiClient
+from src.providers.openai_client import OpenAIClient
+from src.providers.types import AgentRole
 from src.knowledge.attack_kb import AttackKnowledgeBase
 from src.knowledge.taxonomy import AttackArtifact
 from src.agents.errors import AttackerError, ModelError
@@ -54,7 +57,11 @@ class AttackerAgent:
     Attacker agent using Vertex AI Llama with RAG-enhanced strategies.
     """
 
-    def __init__(self, client: VertexAILlamaClient, kb: AttackKnowledgeBase):
+    def __init__(
+        self, 
+        client: Union[VertexAILlamaClient, GeminiClient, OpenAIClient], 
+        kb: AttackKnowledgeBase
+    ):
         self.client = client
         self.kb = kb
 
@@ -156,11 +163,17 @@ class AttackerAgent:
             {"role": "user", "content": "Generate a new attack prompt."},
         ]
 
-        # HIGH-001: Async wrapper for sync client
-        loop = asyncio.get_running_loop()
         try:
-            return await loop.run_in_executor(
-                None, lambda: self.client.generate(messages)
-            )
+            if isinstance(self.client, GeminiClient):
+                return await self.client.generate_agent_response(
+                    role=AgentRole.ATTACKER,
+                    messages=messages
+                )
+            else:
+                # VertexAILlamaClient and OpenAIClient (sync)
+                loop = asyncio.get_running_loop()
+                return await loop.run_in_executor(
+                    None, lambda: self.client.generate(messages)
+                )
         except Exception as e:
-            raise ModelError(f"Llama generation failed: {e}")
+            raise ModelError(f"Attack generation failed: {e}")

@@ -27,7 +27,7 @@ class VertexAILlamaClient:
 
     def __init__(
         self,
-        project_id: str = "the-jarvis-brain",
+        project_id: str = "dummy-project-id",
         location: str = "us-central1",
         model_id: str = "meta/llama-3.1-8b-instruct-maas",
         llama_guard_enabled: bool = False,  # MUST be False for Attacker

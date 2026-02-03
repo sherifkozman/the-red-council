@@ -22,13 +22,17 @@ export function ShortcutsModal({ open, onOpenChange }: ShortcutsModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent
+        className="sm:max-w-[425px]"
+        aria-labelledby="shortcuts-dialog-title"
+        aria-describedby="shortcuts-dialog-description"
+      >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle id="shortcuts-dialog-title" className="flex items-center gap-2">
             <Keyboard className="h-5 w-5" aria-hidden="true" />
             Keyboard Shortcuts
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="shortcuts-dialog-description">
             Global shortcuts available throughout the application.
           </DialogDescription>
         </DialogHeader>

@@ -1,0 +1,94 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    command: ["python", "-m", "src.cli", "api", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ~/.config/gcloud:/root/.config/gcloud
+    env_file:
+      - .env
+    environment:
+      RC_ENV: development
+      RC_USE_VERTEX_AI: "false"
+      # Switch Attacker from Llama to Gemini
+      RC_ATTACKER__PROVIDER: "gemini_default"
+      # Set Model IDs
+      RC_ATTACKER_MODEL: "gemini-3-pro-preview"
+      RC_JUDGE_MODEL: "gemini-3-pro-preview"
+      RC_DEFENDER_MODEL: "gemini-3-pro-preview"
+      RC_TARGET_MODEL: "gemini-3-pro-preview"
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    command: ["python", "-m", "src.cli", "dashboard", "--host", "0.0.0.0", "--port", "8501"]
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ~/.config/gcloud:/root/.config/gcloud
+    env_file:
+      - .env
+    environment:
+      RC_API_BASE_URL: http://api:8000
+      RC_ENV: development
+      RC_USE_VERTEX_AI: "false"
+      # Switch Attacker from Llama to Gemini
+      RC_ATTACKER__PROVIDER: "gemini_default"
+      # Set Model IDs
+      RC_ATTACKER_MODEL: "gemini-3-pro-preview"
+      RC_JUDGE_MODEL: "gemini-3-pro-preview"
+      RC_DEFENDER_MODEL: "gemini-3-pro-preview"
+      RC_TARGET_MODEL: "gemini-3-pro-preview"
+    depends_on:
+      - api
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - api
+
+  tests:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    command: ["pytest", "tests/", "-v"]
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    environment:
+      RC_ENV: development
+      RC_USE_VERTEX_AI: "false"
+      RC_ATTACKER__PROVIDER: "gemini_default"
+      RC_ATTACKER_MODEL: "gemini-3-pro-preview"
+      RC_JUDGE_MODEL: "gemini-3-pro-preview"
+      RC_DEFENDER_MODEL: "gemini-3-pro-preview"
+      RC_TARGET_MODEL: "gemini-3-pro-preview"
+    depends_on:
+      - api
+
+  seed:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    command: ["python", "-m", "scripts.seed_kb"]
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      RC_ENV: development
+    profiles:
+      - seed

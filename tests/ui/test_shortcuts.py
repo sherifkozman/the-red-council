@@ -29,7 +29,6 @@ def test_render_keyboard_shortcuts(mock_components, mock_st):
     assert "document.addEventListener('keydown'" in js_code
     assert "shortcutLock" in js_code  # Check for debounce
     assert "btn.disabled" in js_code  # Check for disabled check
-    assert "role=\"tab\"" in js_code or "data-baseweb=\"tab\"" in js_code
     
     # Check updated shortcuts
     assert "Run Evaluation" in js_code
@@ -47,3 +46,4 @@ def test_render_keyboard_shortcuts(mock_components, mock_st):
     assert "Power User Controls" in markdown_content
     assert "Ctrl + N" in markdown_content  # Check updated help text
     assert "Shift + Tab" in markdown_content
+

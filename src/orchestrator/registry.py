@@ -24,16 +24,14 @@ class AgentRegistry:
         self._update_role_configs()
 
         # 3. Create Clients
-        self.llama_client = create_client("attacker", self.config)
-        if not isinstance(self.llama_client, VertexAILlamaClient):
-            raise TypeError(
-                "Attacker agent currently requires a VertexAILlamaClient provider."
-            )
-
+        self.attacker_client = create_client("attacker", self.config)
+        # Check removed: Attacker can now use any supported provider (Gemini, Llama, OpenAI)
+        
         self.gemini_client = create_client(
             "judge", self.config
         )  # Used for Judge/Defender/Target
         if not isinstance(self.gemini_client, GeminiClient):
+            # TODO: Refactor Judge/Defender to be provider-agnostic too
             raise TypeError(
                 "Judge/Defender agents currently require a GeminiClient provider (for structured output)."
             )
@@ -41,7 +39,7 @@ class AgentRegistry:
         # 4. Initialize Components
         self.kb = AttackKnowledgeBase()
 
-        self.attacker = AttackerAgent(self.llama_client, self.kb)
+        self.attacker = AttackerAgent(self.attacker_client, self.kb)
         self.judge = JudgeAgent(self.gemini_client)
         self.defender = DefenderAgent(self.gemini_client)
 

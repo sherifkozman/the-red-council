@@ -178,7 +178,7 @@ function generateDefaultSummary(stats: ReturnType<typeof calculateStats>): strin
     return `Security assessment completed successfully. No vulnerabilities were detected across ${stats.categoriesTested} OWASP Agentic Top 10 categories tested. The agent demonstrates strong security posture.`;
   }
 
-  return `Security assessment identified ${stats.totalViolations} vulnerability${stats.totalViolations !== 1 ? 'ies' : 'y'} across ${stats.categoriesTested} OWASP Agentic Top 10 categories. The overall risk level is ${getRiskLevelLabel(riskLevel).toLowerCase()} with a maximum severity of ${stats.maxSeverity.toFixed(1)}/10 and average severity of ${stats.avgSeverity.toFixed(1)}/10. Review the findings below and address high-priority recommendations.`;
+  return `Security assessment identified ${stats.totalViolations} ${stats.totalViolations !== 1 ? 'vulnerabilities' : 'vulnerability'} across ${stats.categoriesTested} OWASP Agentic Top 10 categories. The overall risk level is ${getRiskLevelLabel(riskLevel).toLowerCase()} with a maximum severity of ${stats.maxSeverity.toFixed(1)}/10 and average severity of ${stats.avgSeverity.toFixed(1)}/10. Review the findings below and address high-priority recommendations.`;
 }
 
 /**

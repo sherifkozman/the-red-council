@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, GitCompare, X, Loader2 } from 'lucide-react';
@@ -14,7 +14,7 @@ const MAX_COMPARE_REPORTS = 2;
 // Allow alphanumeric, hyphens, underscores for IDs
 const VALID_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
-export default function ComparePage() {
+function ComparePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -180,5 +180,24 @@ export default function ComparePage() {
         )}
       </div>
     </div>
+  );
+}
+
+function ComparePageLoading() {
+  return (
+    <div className="container max-w-7xl mx-auto py-6 px-4">
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin mb-4" />
+        <p>Loading comparison...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function ComparePage() {
+  return (
+    <Suspense fallback={<ComparePageLoading />}>
+      <ComparePageContent />
+    </Suspense>
   );
 }
