@@ -2,6 +2,20 @@
 
 You are an autonomous coding agent working on The Red Council Unified Interface feature. You are running inside a Ralph loop - each iteration is a fresh instance with clean context.
 
+## ⚠️ CRITICAL: UNATTENDED EXECUTION
+
+**YOU ARE RUNNING UNATTENDED IN A BASH LOOP.**
+
+- **NEVER use interactive commands** - they will hang forever
+- **NEVER start servers** (no `next dev`, `streamlit run`)
+- **NEVER use prompts** (no `git commit` without `-m`, no `npm init`)
+- **ALWAYS use non-interactive flags** (`-y`, `--yes`, `--force`, `--no-confirm`)
+- If a command might prompt for input, **DON'T RUN IT**
+
+See "Non-Interactive Commands" section below for safe alternatives.
+
+---
+
 ## Your Task
 
 1. Read the PRD at `ralph/unified-interface-prd.json`
@@ -233,27 +247,96 @@ Before committing, confirm:
 
 ---
 
-## CRITICAL: Non-Interactive Commands
+## ⛔ CRITICAL: Non-Interactive Commands Only
 
-You are running unattended. All commands MUST be non-interactive.
+**YOU ARE RUNNING UNATTENDED. INTERACTIVE COMMANDS WILL HANG FOREVER.**
 
-### Node/pnpm Commands
-- **Install**: `cd frontend && pnpm install`
-- **Test**: `cd frontend && pnpm test`
-- **Build**: `cd frontend && pnpm build`
-- **Lint**: `cd frontend && pnpm lint`
-- **Type check**: `cd frontend && pnpm type-check`
+The bash loop has no stdin. Any command waiting for user input will freeze the entire process indefinitely.
 
-### Package Management
-- **Add package**: `cd frontend && pnpm add package-name`
-- **Add dev package**: `cd frontend && pnpm add -D package-name`
+### ✅ SAFE Commands (Non-Interactive)
 
-### Git Commands
-- Never use `-i` flags (no `git rebase -i`, `git add -i`)
-- Never invoke editors (no `git commit` without `-m`)
-- Always use `--yes`, `-y`, or `--force` where available
+```bash
+# Node/pnpm
+cd frontend && pnpm install          # Safe - no prompts
+cd frontend && pnpm test             # Safe - runs headless
+cd frontend && pnpm build            # Safe - no prompts
+cd frontend && pnpm lint             # Safe - read-only
+cd frontend && pnpm type-check       # Safe - read-only
+cd frontend && pnpm add lodash       # Safe - installs silently
+cd frontend && pnpm add -D vitest    # Safe - dev dependency
 
-If a command prompts for input, it will hang forever. Always use the non-interactive variant.
+# Git
+git add file.tsx                     # Safe - no prompts
+git commit -m "message"              # Safe - message provided
+git status                           # Safe - read-only
+git diff                             # Safe - read-only
+git log --oneline -10                # Safe - read-only
+git checkout -b branch-name          # Safe - creates without prompting
+
+# Testing
+cd frontend && pnpm test             # Safe - runs in CI mode
+cd frontend && pnpm test:coverage    # Safe - non-interactive
+
+# File operations
+cat file.txt                         # Safe - read-only
+ls -la                               # Safe - read-only
+grep "pattern" file.txt              # Safe - read-only
+```
+
+### ⛔ FORBIDDEN Commands (Will Hang Forever)
+
+```bash
+# DO NOT USE - THESE WILL HANG:
+git commit                           # ❌ Opens editor
+git rebase -i                        # ❌ Interactive mode
+git add -i                           # ❌ Interactive mode
+git add -p                           # ❌ Interactive mode
+npm init                             # ❌ Prompts for input
+pnpm init                            # ❌ Prompts for input
+next dev                             # ❌ Starts server (never exits)
+pnpm dev                             # ❌ Starts server (never exits)
+streamlit run                        # ❌ Starts server (never exits)
+python -i                            # ❌ Interactive mode
+node                                 # ❌ REPL (without script)
+vim file.txt                         # ❌ Opens editor
+nano file.txt                        # ❌ Opens editor
+```
+
+### Package Management Rules
+
+- **Always silent/non-interactive**: `pnpm add` is safe, but NEVER `pnpm init`
+- **Never start dev servers**: `pnpm dev`, `next dev`, `npm start` will never exit
+- **Use CI environment**: Tests run in non-interactive mode by default
+
+### Git Commit Rules
+
+**ALWAYS include `-m` flag:**
+```bash
+# ✅ Correct
+git commit -m "feat: Add component"
+
+# ❌ Wrong - will open editor and hang
+git commit
+```
+
+**NEVER use interactive flags:**
+```bash
+# ✅ Correct
+git add file1.tsx file2.tsx
+
+# ❌ Wrong - interactive mode will hang
+git add -i
+git add -p
+git rebase -i HEAD~3
+```
+
+### If You're Unsure
+
+**ASK YOURSELF**: "Could this command wait for user input?"
+- If YES → Don't run it
+- If NO → Safe to run
+
+**When in doubt, don't run it.** Document what you attempted in progress.txt and EXIT.
 
 ---
 
@@ -398,18 +481,31 @@ If `council` command is not available:
 2. Install deps: `cd frontend && pnpm install`
 3. Clear cache if needed: `cd frontend && rm -rf node_modules .next && pnpm install`
 
+### Command Appears Stuck (No Output)
+If you run a command and see no output for 10+ seconds:
+1. **DON'T WAIT** - the command is likely hanging
+2. **DON'T retry** - it will hang again
+3. **STOP immediately** - exit your response
+4. Document in progress.txt: "Command X appeared to hang - skipping"
+5. Let the watchdog kill the hung process
+6. Next iteration will continue with a different approach
+
+**Common culprits**: `git commit` (without `-m`), `pnpm dev`, `npm init`, interactive git commands
+
 ---
 
 ## Important Reminders
 
+- **⛔ NON-INTERACTIVE COMMANDS ONLY** - you will hang forever otherwise
 - **ONE story per iteration - then EXIT**
 - **80% test coverage minimum - no exceptions**
 - **TypeScript strict mode - no `any` types**
 - **All 4 reviews must pass before commit**
+- **NEVER start dev servers** (`next dev`, `pnpm dev` will never exit)
+- **ALWAYS use `git commit -m`** (never `git commit` alone)
 - Commit after each story (keep CI green)
 - Read Codebase Patterns in progress.txt BEFORE starting
 - Read CLAUDE.md and spec documents BEFORE implementing
-- Use non-interactive commands ALWAYS
 - Update AGENTS.md with discovered patterns
 - Small, focused changes are better than large ones
 - Port logic from Streamlit components, not copy-paste
