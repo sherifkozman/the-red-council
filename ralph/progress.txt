@@ -699,3 +699,46 @@
   - Test cleanup with parentNode check requires mock appendChild to set parentNode
   - Escaping underscores in markdown affects test assertions (UNKNOWN_CAT → UNKNOWN\_CAT)
   - ISO date strings have varying lengths - use regex `.replace(/\D/g, '')` for safe digit extraction
+
+---
+## 2026-02-03 - UI-026 - JSON Export
+- Implemented comprehensive JSON export functionality for security reports and events.
+- Files created:
+  - `frontend/lib/export/json.ts` - Export utility with schema versioning and metadata
+  - `frontend/lib/export/json.test.ts` - 47 tests (84% coverage)
+- Files modified:
+  - `frontend/components/reports/ReportViewer.tsx` - Added Export JSON button
+  - `frontend/components/reports/ReportViewer.test.tsx` - Added 3 tests for export
+- Features:
+  - Schema versioning (EXPORT_SCHEMA_VERSION = '1.0.0')
+  - Export metadata: schemaVersion, exportType, exportedAt, source, description
+  - ReportExport structure with summary statistics (totalViolations, maxSeverity, avgSeverity, categoriesTested, recommendationCount, eventCount)
+  - EventsExport structure with stats (totalEvents, eventsByType, timeRange)
+  - Configurable options: prettyPrint, indentSpaces, includeEvents, maxEvents, description
+  - Two export types: 'report' (full report) and 'events' (events only)
+- Security features:
+  - Size limit warnings (MAX_EXPORT_SIZE_BYTES = 10MB)
+  - Filename sanitization: `replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 50)`
+  - MIME type: application/json;charset=utf-8
+  - Memory cleanup with URL.revokeObjectURL() in finally block
+  - Defensive checks for browser environment (typeof document/URL)
+  - Input validation for report.id and sessionId
+- Error handling:
+  - Try/catch around JSON.stringify with explicit error re-throw
+  - console.warn for size exceeds warnings
+  - console.warn for invalid date strings (dev mode)
+  - console.warn for invalid violations data
+  - Proper error propagation with logging in exportReportAsJSON/exportEventsAsJSON
+- Technical highlights:
+  - Generated filename format: `{security-report|events}_{safeId}_{timestamp}.json`
+  - Timestamp format: YYYYMMDDHHMMSS (14 digits)
+  - calculateStats helper for report statistics
+  - calculateEventStats helper for event statistics
+  - formatDateISO and formatDateForFilename utilities
+- Test coverage: 47 tests, 84.21% statements, 83.59% lines
+- Reviews completed: council code-review, council security-review
+- **Learnings:**
+  - Use `git add -f` for files in `frontend/lib/` (gitignored directory)
+  - JSON export follows same patterns as markdown export
+  - Schema versioning critical for forward compatibility
+  - ReportViewer integration uses same callback pattern as markdown export
