@@ -548,7 +548,7 @@
             "UI-018",
             "UI-012"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 4
         },
         {

@@ -419,3 +419,102 @@
   - Always handle NaN from `new Date().getTime()` in sort comparisons
   - Use `safeStringify` for untrusted data that could have circular refs or BigInt
   - Decorative icons inside Alert components should have `aria-hidden="true"`
+---
+## 2026-02-03 - UI-017 - Agent Configuration Panel
+- Implemented comprehensive agent configuration interface.
+- Files created:
+  - `frontend/components/agent/ConfigPanel.tsx` - Main config panel with collapsible sections
+  - `frontend/components/agent/ConfigPanel.test.tsx` - 29 tests
+  - `frontend/components/agent/ToolRegistration.tsx` - Tool registration with import/export
+  - `frontend/components/agent/ToolRegistration.test.tsx` - 48 tests
+- Features:
+  - Instrumentation toggles (tool interception, memory monitoring)
+  - Threshold sliders (divergence threshold 0.0-1.0, sampling rate)
+  - Collapsible sections for organized settings
+  - Tool registration with add/edit/delete functionality
+  - JSON import/export for tool definitions
+  - Form validation with error accumulation
+  - Proper ARIA accessibility attributes
+- Post-implementation fixes:
+  - URL.revokeObjectURL cleanup in try/finally for export
+  - FileReader.onerror handler for import failures
+  - Duplicate name detection during import
+  - Improved error messages with context
+  - Fixed applyChanges to not falsely clear unsaved state
+- Test coverage: 77 tests total, >80% coverage
+- **Learnings:**
+  - File export requires try/finally with URL.revokeObjectURL to prevent memory leaks
+  - FileReader API needs explicit onerror handler - onload alone is insufficient
+  - Import validation should check for duplicates across existing AND imported data
+  - Form buttons should be disabled when validation fails, not show errors after click
+
+---
+## 2026-02-03 - UI-019 - OWASP Category Filter UI
+- Implemented dedicated OWASP Agentic Top 10 category filter component.
+- Files created:
+  - `frontend/components/attack/OWASPFilter.tsx` - Filter component with 3 layout variants
+  - `frontend/components/attack/OWASPFilter.test.tsx` - 47 tests
+- Features:
+  - Visual filter badges for all 10 OWASP categories (ASI01-ASI10)
+  - Three layout variants: grid (5x2), row (horizontal), list (vertical)
+  - Hover tooltips showing full category name and description
+  - Click-to-toggle filter with visual highlighting
+  - Select All / Clear All action buttons
+  - Template count per category display
+  - Selection statistics (X of 10 selected, total templates)
+  - Color-coded badges by category type
+  - Functional useOWASPFilter hook with proper React state
+- Technical highlights:
+  - Category-specific color scheme for visual distinction
+  - Memoized sub-components (OWASPCategoryBadge, OWASPCategoryListItem)
+  - Full keyboard navigation support (Enter/Space to toggle)
+  - ARIA labels with template counts for screen readers
+- Post-implementation fixes:
+  - Fixed useOWASPFilter hook to use useState instead of broken useMemo no-op
+  - Added proper useCallback wrappers for hook functions
+- Test coverage: 89.7%
+- **Learnings:**
+  - useMemo should NEVER be used to create stateful values - it returns the same value each render
+  - Hook functions that modify state need useCallback with functional updates to avoid stale closures
+  - Testing hook state changes requires `act()` wrapper, not `vi.waitFor()`
+  - Radix Toggle component handles keyboard events natively but explicit handlers are OK for consistency
+
+---
+## 2026-02-03 - UI-020 - Campaign Runner with Controls
+- Implemented campaign execution interface with start/pause/stop controls.
+- Files created:
+  - `frontend/hooks/useCampaign.ts` - Campaign state management hook with localStorage persistence
+  - `frontend/hooks/useCampaign.test.ts` - 22 tests for hook functionality
+  - `frontend/components/attack/CampaignControls.tsx` - Control buttons (Start, Pause, Resume, Cancel, Reset)
+  - `frontend/components/attack/CampaignControls.test.tsx` - 17 tests for controls
+  - `frontend/components/attack/CampaignRunner.tsx` - Main campaign runner UI component
+  - `frontend/components/attack/CampaignRunner.test.tsx` - 14 tests for runner
+- Features:
+  - Start Campaign button (disabled if no templates selected or agent not configured)
+  - Pause/Resume and Cancel buttons during execution
+  - Progress bar showing completion percentage
+  - Current attack indicator with template ID
+  - Live results summary updating as campaign runs
+  - Campaign duration timer (elapsed seconds)
+  - Campaign pause/resume state persists across page refreshes via localStorage
+  - Error handling for failed template loading with display
+  - Expandable result items showing prompt, response, and error details
+  - Success/failure metrics (success rate, failed count)
+- Technical highlights:
+  - `useCampaign` hook manages async campaign execution with refs for pause/cancel control
+  - Timer management for elapsed time tracking
+  - State persistence to localStorage with session ID key
+  - Component memoization with React.memo for sub-components
+  - Collapsible UI components for expandable results display
+  - Status-based button enabling/disabling logic
+- Post-implementation fixes:
+  - Removed unused `escapeHtml` import in CampaignRunner.tsx
+  - Fixed test assertions using `getAllByText` for elements appearing multiple times
+- Test coverage: 96.07% CampaignRunner, 100% CampaignControls, 93.64% useCampaign
+- Reviews completed: code-review, silent-failure-hunter, security
+- **Learnings:**
+  - When testing components with duplicate text (e.g., "Failed" in summary and badge), use `getAllByText` not `getByText`
+  - ResultsSummary returns null when results.length === 0 - tests need actual results to verify error display
+  - Race conditions in async hooks can be mitigated with `isStarting` state guards
+  - localStorage persistence should use unique session keys to avoid conflicts
+
