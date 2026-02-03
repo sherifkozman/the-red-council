@@ -1,7 +1,20 @@
 ## Codebase Patterns
+- **GIT GOTCHA**: `frontend/lib/` is ignored by root `.gitignore`. Use `git add -f` for files in this directory.
+- **JSON Security**: Static JSON files driving UI should be treated as untrusted input; Zod validation != sanitization.
+- `QueryProvider` configured in `frontend/components/providers/` with retry/refetch logic.
+- Use `isError` prop in display components to distinguish empty states from failures.
+- Wrap navigation logic in `try/catch/finally` to handle router failures.
 - safeLocalStorage helper in frontend/lib/persistence/safeLocalStorage.ts for secure storage
 - ErrorBoundary component in frontend/components/ErrorBoundary.tsx for fault tolerance
 - shadcn/ui components in frontend/components/ui/
+- Zustand stores use immer middleware for immutable updates
+- All API calls go through React Query hooks in frontend/hooks/
+- Use cn() utility from lib/utils for className merging
+- Form validation with zod schemas in frontend/lib/schemas/
+- `isTestingMode` type guard for runtime validation of enums
+- `onRehydrateStorage` with `migrate` for robust Zustand persistence
+- `ErrorBoundary` wrapping for components with side-effects
+- `useTransition` for navigation in Next.js App Router
 - Pydantic models in src/core/ use Field() with descriptions
 - All agent classes inherit from base classes in src/agents/
 - ChromaDB collections follow naming convention: {domain}_attacks
@@ -60,3 +73,85 @@
   - **Security**: Always wrap localStorage access in try/catch to prevent DoS/crashes.
   - **Accessibility**: Use `aria-current="page"` for active links and `role="navigation"` landmarks.
   - **Testing**: Mocking `usePathname` and `Storage.prototype` works well for integration tests.
+---
+## 2026-02-02 - UI-002
+- Implemented `ModeSelector` component and `testingMode` Zustand store.
+- Features: LLM/Agent/Demo mode switching, unsaved changes confirmation, hydration safe.
+- Security Hardening:
+  - Runtime validation for persisted state and setMode updates.
+  - Safe default fallback on rehydration failure.
+  - `hasUnsavedChanges` excluded from persistence to avoid stale lockouts.
+- Accessibility:
+  - ARIA roles and labels for navigation and loading states.
+  - `aria-busy` and `disabled` state during transitions.
+  - `aria-live` region for mode change announcements.
+- Tests: >94% coverage, including edge cases for navigation cancellation and rehydration validation.
+- **Learnings for future iterations:**
+  - **Zustand Persistence**: Always use `migrate` and `onRehydrateStorage` to validate data integrity.
+  - **Next.js Navigation**: Use `useTransition` with `router.push` to track navigation state.
+  - **UX**: Render a skeleton matching dimensions to avoid layout shift during hydration.
+  - **Type Safety**: TypeScript enums/unions need runtime validation guards when crossing I/O boundaries (storage).
+---
+## 2026-02-02 - UI-003
+- Implemented Dashboard with StatsCards, RecentActivity, and Quick Actions.
+- Added QueryProvider for React Query integration with robust retry logic.
+- Implemented mock API with mode-aware data generation.
+- Achieved 91.5% test coverage.
+- Reviews completed: code-review, silent-failure, security, accessibility (all critical issues fixed).
+- **Learnings for future iterations:**
+  - **Git Ignored Paths**: `frontend/lib/` is ignored by root `.gitignore` (matches Python `lib/`). ALWAYS check `git status` or use `git add -f` for files in `frontend/lib`.
+  - **Accessibility**: Use `<ul>`/`<li>` instead of `role="list"`. Use `<time>` for dates. Add `aria-busy` to loading states.
+  - **Robustness**: `router.push` is async and can fail; wrap navigation in try/catch.
+  - **React Query**: Default configuration needs `staleTime` and `retry` logic to avoid silent failures.
+  - **Mocking**: Mock data should be mode-aware (e.g. Demo Mode vs Live) to test UI reactivity.
+---
+
+## 2026-02-02 - UI-006
+- Implemented WelcomeModal and onboarding store with Zustand persistence.
+- Features: 3-path selection (Demo, Agent, LLM), persistence to localStorage, skip option.
+- Achieved 87% test coverage.
+- Reviews completed: code-review, silent-failure, security, accessibility.
+- **Learnings for future iterations:**
+  - **Accessibility**: Use native `<button>` elements inside Cards for proper keyboard navigation.
+  - **Accessibility**: Ensure decorative icons have `aria-hidden="true"` and buttons have accessible names via `aria-labelledby`.
+  - **Security**: Gate verbose error logs behind `process.env.NODE_ENV === 'development'`.
+  - **State**: Use `merge` in Zustand persist middleware to validate schema of persisted data.
+  - **React**: Use `mounted` state check to prevent hydration mismatches with localStorage.
+---
+
+## 2026-02-02 - UI-007
+- Implemented `frontend/lib/demo/loadDemoSession.ts` and `demoData.ts` with Zod validation.
+- Created `frontend/data/demo-events.json` with realistic security test scenario.
+- Achieved 93% test coverage (90% lines).
+- Implemented robust security measures: .max() limits, safe parsing, AbortSignal support.
+- Added accessibility label maps and helpers.
+- Reviews completed: code-review, silent-failure, security, accessibility (all critical issues fixed).
+- **Learnings for future iterations:**
+  - **Zod Validation**: Re-validating after mutation (`.parse`) is crucial when transforming data to ensure types don't drift.
+  - **JSON Security**: Static JSON files should be treated as untrusted input if they drive UI; schema validation != sanitization.
+  - **Git Ignore**: `frontend/lib/` is ignored by root `.gitignore`, use `git add -f`.
+  - **Accessibility**: Define human-readable labels and descriptions in the data schema layer to support UI components.
+---
+
+## 2026-02-02 - UI-008
+- Implemented QuickStartGuide and GuideStep components.
+- Created GUIDE_STEPS data with contextual steps for LLM Testing, Agent Testing, and Demo Mode.
+- Enhanced OnboardingStore with mode-scoped step completion tracking and hydration persistence.
+- Features: 
+  - Real-time progress tracking with Progress bar.
+  - Expandable/collapsible floating card interface.
+  - Completion celebrations per mode.
+  - Robust accessibility (ARIA, keyboard navigation, live regions).
+- Security & Robustness:
+  - Whitelist-based state migration to prevent prototype pollution.
+  - Sanitized mode string display.
+  - Hydration guard to prevent flash of unstyled content.
+  - Local ErrorBoundary for fault tolerance.
+- Achieved 100% line coverage for new components.
+- Reviews completed: code-review, silent-failure, security, accessibility (all critical issues fixed).
+- **Learnings for future iterations:**
+  - **Zustand Persistence**: `onRehydrateStorage` is essential for tracking when persisted state is ready to avoid UI "jumps".
+  - **Security**: Whitelist keys in `migrate` instead of spreading the whole persisted object to prevent prototype pollution.
+  - **Accessibility**: Nested interactive elements (like a button inside a clickable div) require careful event propagation management and ARIA coordination.
+  - **Testing**: When mocking stores, ensure all exported utility functions (like `isTestingMode`) are also mocked, not just the store hook.
+---

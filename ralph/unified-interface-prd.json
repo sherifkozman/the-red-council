@@ -65,7 +65,7 @@
             "frontend/stores/testingMode.ts"
           ],
           "depends_on": [],
-          "passes": false,
+          "passes": true,
           "phaseId": 1
         },
         {
@@ -89,7 +89,7 @@
           "depends_on": [
             "UI-001"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 1
         },
         {
@@ -168,7 +168,7 @@
           "depends_on": [
             "UI-001"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 2
         },
         {
@@ -193,7 +193,7 @@
           "depends_on": [
             "UI-002"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 2
         },
         {
@@ -218,7 +218,7 @@
           "depends_on": [
             "UI-006"
           ],
-          "passes": false,
+          "passes": true,
           "phaseId": 2
         },
         {
