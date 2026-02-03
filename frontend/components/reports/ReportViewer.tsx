@@ -31,6 +31,7 @@ import type { Violation } from './CategoryCard';
 import { escapeHtml } from '@/lib/utils';
 import { OWASP_CATEGORIES } from '@/data/owasp-categories';
 import { exportReportAsMarkdown } from '@/lib/export/markdown';
+import { exportReportAsJSON } from '@/lib/export/json';
 
 /**
  * Recommendation data structure
@@ -95,6 +96,8 @@ export interface ReportViewerProps {
   onPrint?: () => void;
   /** Callback when markdown export is requested (receives filename) */
   onExportMarkdown?: (filename: string) => void;
+  /** Callback when JSON export is requested (receives filename) */
+  onExportJSON?: (filename: string) => void;
   /** Additional class names */
   className?: string;
 }
@@ -297,6 +300,7 @@ export const ReportViewer = React.memo(function ReportViewer({
   printMode = false,
   onPrint,
   onExportMarkdown,
+  onExportJSON,
   className,
 }: ReportViewerProps) {
   const [activeSection, setActiveSection] = useState<ReportSectionId>('executive-summary');
@@ -373,6 +377,17 @@ export const ReportViewer = React.memo(function ReportViewer({
     }
   }, [report, onExportMarkdown]);
 
+  // Handle JSON export
+  const handleExportJSON = useCallback(() => {
+    try {
+      const filename = exportReportAsJSON(report);
+      onExportJSON?.(filename);
+    } catch (error) {
+      // Log but don't crash - let the download fail gracefully
+      console.error('Failed to export JSON:', error);
+    }
+  }, [report, onExportJSON]);
+
   // Track active section on scroll
   useEffect(() => {
     if (printMode) return;
@@ -440,6 +455,15 @@ export const ReportViewer = React.memo(function ReportViewer({
                 >
                   <Download className="h-4 w-4 mr-2" aria-hidden="true" />
                   Export Markdown
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleExportJSON}
+                >
+                  <Download className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Export JSON
                 </Button>
                 <Button
                   variant="outline"
