@@ -24,7 +24,6 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { safeLocalStorage } from '@/lib/persistence/safeLocalStorage'
 import { ProgressIndicator } from '@/components/onboarding/ProgressIndicator'
-import { ModeSelector } from '@/components/ModeSelector'
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     className?: string
@@ -194,12 +193,6 @@ export function Sidebar({ className, ...props }: SidebarProps) {
         </nav>
       </ScrollArea>
 
-      {!isCollapsed && (
-        <div className="px-3 py-2 border-t">
-          <p className="text-xs text-muted-foreground mb-2">Mode</p>
-          <ModeSelector />
-        </div>
-      )}
       <ProgressIndicator isSidebarCollapsed={isCollapsed} />
     </div>
   )
