@@ -742,3 +742,36 @@
   - JSON export follows same patterns as markdown export
   - Schema versioning critical for forward compatibility
   - ReportViewer integration uses same callback pattern as markdown export
+
+---
+## 2026-02-03 - UI-037 - Shared Sanitization Utilities
+- Implemented centralized security utilities module for sanitization and validation.
+- Files created:
+  - `frontend/lib/security/constants.ts` - Security constants (limits, patterns, thresholds)
+  - `frontend/lib/security/constants.test.ts` - 39 tests
+  - `frontend/lib/security/validate.ts` - Validation utilities (strings, IDs, URLs, dates)
+  - `frontend/lib/security/validate.test.ts` - 83 tests
+  - `frontend/lib/security/sanitize.ts` - Sanitization utilities (HTML, text, URLs, filenames)
+  - `frontend/lib/security/sanitize.test.ts` - 72 tests
+  - `frontend/lib/security/index.ts` - Barrel export (handles duplicate sanitizeFilename)
+- Features:
+  - **Constants**: MAX_EVENTS_LIMIT, MAX_EXPORT_SIZE_BYTES, VALID_TEMPLATE_ID_PATTERN, VALID_SESSION_ID_PATTERN, BLOCKED_URL_PATTERNS (SSRF prevention), severity thresholds, OWASP category IDs
+  - **Validation**: validateString, validateTemplateId, validateSessionId, validateUrl (SSRF protection), validateTags, validateOWASPCategoryId, validateSeverity, validateDateString, validateNotFuture, validateAll
+  - **Sanitization**: sanitizeHtml (DOMPurify), sanitizeHtmlStrict, stripHtml, escapeHtml, escapeMarkdown, escapeJson, escapeUrl, sanitizeText, sanitizeName, sanitizeTag, sanitizeFilename, sanitizeId, sanitizeUrl (blocks javascript:/data:/vbscript:), enforceHttps
+- Security highlights:
+  - DOMPurify integration with configurable configs (DEFAULT_CONFIG, STRICT_CONFIG, PLAIN_TEXT_CONFIG)
+  - SSRF prevention: blocks localhost, 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, link-local, IPv6 private
+  - XSS prevention: escapeHtml for all user-facing text, sanitizeUrl blocks dangerous protocols
+  - URL validation: only allows http: and https: protocols
+  - Input length limits matching Streamlit constants
+- Technical highlights:
+  - Custom SanitizeConfig type to avoid DOMPurify namespace issues
+  - Explicit RETURN_TRUSTED_TYPE: false for string return type
+  - Explicit re-export in index.ts to resolve sanitizeFilename duplicate (validate vs sanitize)
+- Test coverage: 194 tests, 98.01% statements, 96.29% branches
+- **Learnings:**
+  - DOMPurify's sanitize() returns TrustedHTML by default; use `RETURN_TRUSTED_TYPE: false` for string
+  - When two modules export same name (sanitizeFilename), use explicit re-exports in barrel to choose
+  - VALID_SESSION_ID_PATTERN matches UUID v4 (version 4 in position 3, variant 89ab in position 4)
+  - BLOCKED_URL_PATTERNS array approach allows easy extension for SSRF protection
+  - sanitizeTag lowercases + removes invalid chars; sanitizeTags dedupes after sanitization

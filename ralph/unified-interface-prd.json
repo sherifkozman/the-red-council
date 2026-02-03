@@ -978,7 +978,7 @@
             "frontend/lib/security/constants.ts"
           ],
           "depends_on": [],
-          "passes": false,
+          "passes": true,
           "phaseId": 6
         }
       ]
