@@ -187,9 +187,11 @@ See [Agent Testing Guide](docs/agent-testing-guide.md) for comprehensive documen
 
 - [Quickstart Guide](docs/quickstart.md)
 - [Agent Testing Guide](docs/agent-testing-guide.md) *(New in v0.5.0)*
+- [OpenClaw Integration](docs/tutorials/openclaw-integration.md)
 - [Architecture & Design](docs/architecture.md)
 - [API Reference](docs/api-reference.md)
 - [Configuration Guide](docs/configuration.md)
+- [Roadmap](ROADMAP.md)
 
 ## License
 
