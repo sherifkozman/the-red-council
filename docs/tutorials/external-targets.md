@@ -4,11 +4,11 @@ The Red Council is model-agnostic. You can use it to test models from OpenAI, An
 
 ## 1. Supported Providers
 
-- `openai`: GPT-4o, GPT-4-turbo, etc.
+- `openai`: GPT-4o, GPT-4-turbo, or any OpenAI-compatible API (Ollama, vLLM)
 - `anthropic`: Claude 3.5 Sonnet, Claude 3 Opus, etc.
-- `gemini`: Gemini 1.5 Pro, Gemini 1.5 Flash.
+- `gemini`: Gemini 3 Pro, Gemini 1.5 Flash.
 - `vertex_llama`: Llama 3.1 models on Google Cloud.
-- `openai_compatible`: Local models (Ollama, vLLM) or any API following the OpenAI format.
+- `openrouter`: Access multiple models via OpenRouter API.
 
 ## 2. Global Configuration File
 
@@ -23,9 +23,9 @@ providers:
     api_key: "your-anthropic-key"
 
   local_ollama:
-    kind: openai_compatible
+    kind: openai
     model: llama3
-    base_url: "http://localhost:11434/v1"
+    api_base: "http://localhost:11434/v1"
 
 # Assign the target agent to your preferred provider
 target:

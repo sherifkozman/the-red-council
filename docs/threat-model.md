@@ -39,6 +39,6 @@ The following are explicitly **OUT OF SCOPE** and strictly prohibited:
 ## 4. Defense Mechanisms
 
 1.  **Input Validation**: Strict length limits on all prompts.
-2.  **Output Sanitization**: All UI rendering uses `html.escape()` to prevent stored XSS from LLM responses.
+2.  **Output Sanitization**: All UI rendering uses `nh3` (Rust-based HTML sanitizer) to prevent stored XSS from LLM responses.
 3.  **Rate Limiting**: Simple in-memory rate limiting to prevent accidental API quota exhaustion.
-4.  **Kill Switch**: The ability to immediately stop a running campaign if behavior deviates from expected parameters.
+4.  **Campaign Cancel**: Users can manually stop a running campaign at any time via the UI.

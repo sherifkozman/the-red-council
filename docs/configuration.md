@@ -12,18 +12,18 @@ The Red Council uses a hierarchical configuration system:
 |----------|-------------|---------|
 | `GOOGLE_API_KEY` | API Key for Gemini (if not using ADC) | - |
 | `GOOGLE_CLOUD_PROJECT` | GCP Project ID | `your-gcp-project` |
-| `RC_ATTACKER__PROVIDER` | Provider key for Red Team | `vertex_llama_default` |
-| `RC_TARGET__PROVIDER` | Provider key for Target | `vertex_llama_default` |
+| `RC_ATTACKER__PROVIDER` | Provider key for Red Team | `gemini_default` |
+| `RC_TARGET__PROVIDER` | Provider key for Target | `gemini_default` |
 | `RC_JUDGE__PROVIDER` | Provider key for Judge | `gemini_default` |
 | `RC_DEFENDER__PROVIDER` | Provider key for Defender | `gemini_default` |
 
 ## Model Configuration
 
 The default Red Team setup uses:
-- **Attacker**: Llama 3.1 405B (Vertex AI) - Uncensored.
+- **Attacker**: Gemini 3 Pro (Vertex AI) - Attack generation.
 - **Judge**: Gemini 3 Pro (Vertex AI) - Highly capable reasoning.
 - **Defender**: Gemini 3 Pro (Vertex AI) - Expert prompt engineering.
-- **Target**: Llama 3.1 405B (Default victim).
+- **Target**: Gemini 3 Pro (Default victim).
 
 ### Adding a Custom Provider
 
@@ -37,9 +37,9 @@ providers:
     api_key: "sk-..."
   
   local_target:
-    kind: openai_compatible
+    kind: openai
     model: custom-model
-    base_url: "http://localhost:11434/v1"
+    api_base: "http://localhost:11434/v1"
 
 # Assign agents to providers
 target:

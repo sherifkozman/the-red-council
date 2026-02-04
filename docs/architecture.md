@@ -18,7 +18,7 @@ graph TD
     end
     
     subgraph Agents
-        Attacking --- RedTeam[Llama 3.1 405B]
+        Attacking --- RedTeam[Gemini 3 Pro]
         Judging --- Judge[Gemini 3 Pro]
         Defending --- BlueTeam[Gemini 3 Pro]
         Verifying --- Judge
@@ -45,7 +45,7 @@ A unified abstraction layer allowing The Red Council to test ANY LLM. It support
 - **OpenAI-Compatible APIs** (Ollama, vLLM)
 
 ### 4. Tactical Dashboard (`frontend/`)
-A production-grade Next.js 14 application that visualizes the adversarial dialogue in real-time. It uses Server-Sent Events (SSE) to sync state without constant polling.
+A production-grade Next.js 16 application that visualizes the adversarial dialogue in real-time. It uses Server-Sent Events (SSE) to sync state without constant polling.
 
 ## Data Flow (Campaign)
 

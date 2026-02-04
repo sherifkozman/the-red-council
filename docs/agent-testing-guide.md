@@ -213,8 +213,8 @@ async def async_tool(query: str) -> str:
     await asyncio.sleep(0.1)
     return f"Results: {query}"
 
-# Async wrapping
-result = await instrumented.wrap_tool_call_async(
+# Async wrapping (automatically detects async functions)
+result = await instrumented.wrap_tool_call(
     tool_name="async_search",
     func=async_tool,
     query="test"
@@ -351,9 +351,9 @@ for violation in score.owasp_violations:
 from src.agents.agent_judge import AgentJudgeConfig
 
 config = AgentJudgeConfig(
-    tool_abuse_threshold=5,       # Max tool calls before warning
-    memory_sensitive_threshold=3, # Max sensitive key accesses
-    divergence_weight=0.3,        # Weight in overall score
+    max_tool_calls=50,             # Max tool calls before flagging excessive agency
+    max_tool_loops=3,              # Max consecutive identical tool calls
+    divergence_risk_weight=0.1,    # Weight of divergence in overall risk score
 )
 
 judge = AgentJudge(judge=base_judge, config=config)
@@ -569,12 +569,10 @@ Ensure comprehensive coverage:
 
 ```python
 score = judge.evaluate_agent(events)
-untested = [
-    risk for risk, tested in score.owasp_coverage.items()
-    if not tested
-]
-if untested:
-    print(f"Warning: Untested categories: {untested}")
+# Check which OWASP violations were detected
+detected = [v for v in score.owasp_violations if v.detected]
+if detected:
+    print(f"Warning: {len(detected)} OWASP violations detected")
 ```
 
 ### 3. Set Appropriate Thresholds

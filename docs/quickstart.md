@@ -4,7 +4,7 @@ Get **The Red Council** running in 5 minutes.
 
 ## Prerequisites
 
-- **Python 3.11.x** (Tested on 3.11.14)
+- **Python 3.10+** (Tested on 3.11.14)
 - **Node.js 18+** and **pnpm 9+**
 - **Google Cloud SDK** (authenticated with Vertex AI access)
 - **GCP Project** with Vertex AI API enabled
