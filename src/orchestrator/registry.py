@@ -25,16 +25,14 @@ class AgentRegistry:
 
         # 3. Create Clients
         self.attacker_client = create_client("attacker", self.config)
-        # Check removed: Attacker can now use any supported provider (Gemini, Llama, OpenAI)
-        
+        # Attacker supports any provider (Gemini, Llama, OpenAI)
+
         self.gemini_client = create_client(
             "judge", self.config
         )  # Used for Judge/Defender/Target
         if not isinstance(self.gemini_client, GeminiClient):
-            # TODO: Refactor Judge/Defender to be provider-agnostic too
-            raise TypeError(
-                "Judge/Defender agents currently require a GeminiClient provider (for structured output)."
-            )
+            # Judge/Defender require GeminiClient for structured output
+            raise TypeError("Judge/Defender require GeminiClient (structured output).")
 
         # 4. Initialize Components
         self.kb = AttackKnowledgeBase()

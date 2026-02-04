@@ -77,7 +77,13 @@ async def _execute_run(
             )
 
         _runs[run_id]["status"] = RunStatus.COMPLETED
-        await queue.put({"type": "complete", "run_id": str(run_id)})
+        await queue.put(
+            {
+                "type": "complete",
+                "run_id": str(run_id),
+                "data": _runs[run_id].get("result"),
+            }
+        )
 
     except asyncio.CancelledError:
         _runs[run_id]["status"] = RunStatus.FAILED

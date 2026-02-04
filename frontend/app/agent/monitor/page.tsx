@@ -133,8 +133,8 @@ function DemoModeContent({
 
 /** Agent Mode - Live event stream from API */
 function AgentModeContent() {
-  // TODO: Get session ID from session store when implemented
-  const sessionId = null; // Will come from useRemoteAgentStore or session context
+  // Agent Security feature: Session ID will come from useRemoteAgentStore when remote agent connection is established
+  const sessionId = null;
 
   const stream = useEventStream({
     sessionId,

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Activity, Shield, FileText, Zap, Server, AlertCircle } from "lucide-react"
+import { Activity, Shield, FileText, Zap, Server, AlertCircle, Target, TrendingUp } from "lucide-react"
 import { DashboardStats } from "@/lib/api/dashboard"
 
 interface StatsCardsProps {
@@ -15,29 +15,29 @@ export function StatsCards({ stats, isLoading, isError }: StatsCardsProps) {
     if (!stats) return []
     return [
       {
-        title: "Active Sessions",
-        value: stats.activeSessions,
-        icon: Activity,
-        description: "Currently running tests",
+        title: "Attack Attempts",
+        value: stats.totalAttempts,
+        icon: Target,
+        description: "Total adversarial prompts tested",
+      },
+      {
+        title: "Breaches Detected",
+        value: stats.totalBreaches,
+        icon: Shield,
+        description: "Jailbreaks and policy violations",
+        alert: stats.totalBreaches > 0
+      },
+      {
+        title: "Success Rate",
+        value: `${stats.successRate}%`,
+        icon: TrendingUp,
+        description: "Defense effectiveness",
       },
       {
         title: "Campaigns Run",
         value: stats.campaignsRun,
         icon: Zap,
-        description: "Total campaigns executed",
-      },
-      {
-        title: "Reports Generated",
-        value: stats.reportsGenerated,
-        icon: FileText,
-        description: "PDF and JSON reports",
-      },
-      {
-        title: "Vulnerabilities",
-        value: stats.vulnerabilitiesFound,
-        icon: Shield,
-        description: "Total detected issues",
-        alert: stats.vulnerabilitiesFound > 0
+        description: "Total battles executed",
       },
     ]
   }, [stats])

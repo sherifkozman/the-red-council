@@ -9,6 +9,7 @@ import { WelcomeModal } from '@/components/onboarding/WelcomeModal'
 import { QuickStartGuide } from '@/components/onboarding/QuickStartGuide'
 import { ShortcutsModal } from '@/components/ShortcutsModal'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { useProgressSync } from '@/hooks/useProgressSync'
 
 interface AppShellProps {
     children: React.ReactNode
@@ -16,6 +17,9 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
     const { isHelpOpen, setIsHelpOpen } = useKeyboardShortcuts()
+
+    // Sync onboarding progress with actual user activity
+    useProgressSync()
 
     return (
         <div className="flex min-h-screen flex-col md:flex-row">

@@ -80,11 +80,37 @@ export interface ArenaState {
   logs: string[];
 }
 
+// Model configuration
+export type ModelProvider = 'gemini' | 'vertex_llama';
+
+export interface ModelOption {
+  id: string;
+  name: string;
+  provider: ModelProvider;
+  description: string;
+}
+
+export const AVAILABLE_MODELS: ModelOption[] = [
+  {
+    id: 'gemini-3-pro-preview',
+    name: 'Gemini 3 Pro',
+    provider: 'gemini',
+    description: 'Google\'s latest multimodal model'
+  },
+  {
+    id: 'meta/llama-3.1-405b-instruct-maas',
+    name: 'Llama 3.1 405B',
+    provider: 'vertex_llama',
+    description: 'Meta\'s largest open-source LLM'
+  }
+];
+
 // API request/response types
 export interface StartRunRequest {
   secret: string;
   system_prompt: string;
   max_rounds?: number;
+  target_model?: string;
 }
 
 export interface StartRunResponse {

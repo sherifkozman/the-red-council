@@ -10,7 +10,8 @@ import { APIKeysSettings } from '@/components/settings/APIKeysSettings'
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
 import { MemoryPolicy } from '@/components/settings/MemoryPolicy'
 import { Separator } from '@/components/ui/separator'
-import { Settings, Bot, Key, Palette } from 'lucide-react'
+import { Settings, Bot, Key, Palette, HardDrive } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const TAB_CONFIG: Record<SettingsTab, { icon: React.ElementType; title: string; description: string }> = {
   general: {
@@ -67,6 +68,13 @@ export default function SettingsPage() {
             Manage your application preferences and configuration
           </p>
         </div>
+
+        <Alert className="border-muted bg-muted/30">
+          <HardDrive className="h-4 w-4" />
+          <AlertDescription className="text-sm text-muted-foreground">
+            Settings are saved locally in your browser. They will persist across sessions but are not synced to a server.
+          </AlertDescription>
+        </Alert>
 
         <Tabs
           value={activeTab}

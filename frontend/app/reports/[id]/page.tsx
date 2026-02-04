@@ -9,6 +9,78 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { generateMockReport } from '@/lib/mocks/reports';
+import { useBattleHistoryStore, BattleSummary } from '@/stores/battleHistory';
+import type { Violation } from '@/components/reports/CategoryCard';
+import type { Recommendation, AnalysisEvent } from '@/components/reports/ReportViewer';
+
+/**
+ * Convert battle to full report data
+ */
+function battleToReportData(battle: BattleSummary): ReportData | null {
+  if (!battle.finalState) return null;
+
+  const rounds = battle.finalState.rounds || [];
+
+  // Convert rounds to violations
+  const violations: Violation[] = rounds
+    .filter(r => r.score !== null && r.score < 5)
+    .map((r, i) => ({
+      detected: true,
+      severity: r.score ? 10 - r.score : 8,
+      evidence: r.response || 'Response contained potential security issue',
+      recommendation: 'Review and strengthen system prompt defenses',
+      owasp_category: i % 2 === 0 ? 'LLM01' : 'LLM02' // Simplified mapping
+    }));
+
+  // Generate recommendations based on violations
+  const recommendations: Recommendation[] = violations.length > 0 ? [
+    {
+      id: 'rec-1',
+      category: 'System Prompt',
+      priority: 'high' as const,
+      title: 'Strengthen Input Validation',
+      description: 'Add explicit instructions to reject malicious prompts',
+      remediation: 'Update system prompt with defensive instructions'
+    },
+    {
+      id: 'rec-2',
+      category: 'Output Filtering',
+      priority: 'medium' as const,
+      title: 'Implement Output Guardrails',
+      description: 'Filter responses for sensitive information leakage',
+    }
+  ] : [];
+
+  // Convert rounds to analysis events
+  const events: AnalysisEvent[] = rounds.map((r, i) => ({
+    id: `event-${i}`,
+    timestamp: r.timestamp,
+    type: 'action' as const,
+    severity: r.score ? 10 - r.score : undefined,
+    summary: `Round ${r.round_id}: ${r.score !== null && r.score < 5 ? 'Breach detected' : 'Attack defended'}`,
+    details: r.judge_reasoning || undefined
+  }));
+
+  // Calculate max severity for executive summary
+  const maxSeverity = violations.length > 0
+    ? Math.max(...violations.map(v => v.severity))
+    : 0;
+
+  return {
+    id: battle.id,
+    title: battle.title,
+    generatedAt: battle.completedAt || battle.createdAt,
+    targetAgent: battle.targetAgent,
+    violations,
+    recommendations,
+    events,
+    executiveSummary: maxSeverity >= 8
+      ? `Critical vulnerabilities detected. ${violations.length} security breaches found during ${rounds.length} rounds of testing.`
+      : maxSeverity >= 5
+      ? `Moderate security concerns identified. Review recommended.`
+      : `Target demonstrated strong defensive capabilities.`
+  };
+}
 
 /**
  * Loading skeleton for report
@@ -82,32 +154,33 @@ export default function ReportPage() {
       return;
     }
 
-    // Simulate API fetch - replace with actual API call
+    // Load report from battle history or mock data
     const loadReport = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // Small delay for UI feedback
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
-        // TODO: In production, replace with actual API call:
-        // const response = await fetch(`/api/reports/${reportId}`);
-        // if (!response.ok) {
-        //   throw new Error(`Failed to load report: ${response.status}`);
-        // }
-        // const data = await response.json();
+        // Try to load from battle history store first
+        const battles = useBattleHistoryStore.getState().battles;
+        const battle = battles.find(b => b.id === reportId);
 
-        // Using mock data for hackathon demo
-        if (process.env.NODE_ENV === 'development') {
-          console.info('[DEV] Using mock report data for ID:', reportId);
+        if (battle) {
+          const realReport = battleToReportData(battle);
+          if (realReport) {
+            setReport(realReport);
+            return;
+          }
         }
+
+        // Fall back to mock data for demo/development
         const mockReport = generateMockReport(reportId);
         setReport(mockReport);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load report';
         setError(message);
-        // Log errors in all environments for debugging
         console.error('Report load error:', { reportId, error: err });
       } finally {
         setIsLoading(false);

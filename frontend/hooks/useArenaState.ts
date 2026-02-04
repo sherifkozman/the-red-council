@@ -3,12 +3,14 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ArenaState, SSEEvent } from "@/lib/types";
+import { useBattleHistoryStore } from "@/stores/battleHistory";
 
 export function useArenaState(runId: string | null) {
   const [state, setState] = useState<ArenaState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const saveBattle = useBattleHistoryStore((s) => s.saveBattle);
 
   const connect = useCallback((id: string) => {
     // 1. Force close any existing connection before re-opening
@@ -41,10 +43,16 @@ export function useArenaState(runId: string | null) {
           case "event":
             if (payload.data) {
               setState(payload.data);
+              // Save/update battle in history on each state update
+              saveBattle(payload.data);
             }
             break;
           case "complete":
             setIsComplete(true);
+            // Final save to history when complete
+            if (payload.data) {
+              saveBattle(payload.data);
+            }
             es.close();
             break;
           case "error":
@@ -69,7 +77,7 @@ export function useArenaState(runId: string | null) {
       setError("Tactical uplink severed. Reconnecting...");
       es.close();
     };
-  }, []);
+  }, [saveBattle]);
 
   useEffect(() => {
     if (runId) {

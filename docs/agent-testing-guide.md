@@ -627,6 +627,53 @@ for div in score.divergence_examples:
 
 ---
 
+## Containerized Test Agent
+
+For development and testing, a containerized vulnerable test agent is available with intentional OWASP Agentic vulnerabilities.
+
+### Quick Start
+
+```bash
+# Start the vulnerable agent
+docker compose up vulnerable-agent -d
+
+# Test the connection
+curl http://localhost:8080/health
+```
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check with OWASP categories |
+| `/v1/chat/completions` | POST | OpenAI-compatible chat endpoint |
+| `/v1/sessions` | GET | List active sessions |
+| `/v1/sessions/{id}/events` | GET | Get session events |
+| `/v1/sessions/{id}/events/stream` | GET | SSE event stream |
+
+### Testing Script
+
+```bash
+# Run the vulnerability tests
+python scripts/test_vulnerable_agent.py
+
+# Run Agent Judge integration test
+python scripts/test_agent_judge_integration.py
+```
+
+### Intentional Vulnerabilities
+
+The test agent demonstrates:
+- **ASI01**: No rate limiting on tool calls
+- **ASI02**: Executes dangerous actions without confirmation
+- **ASI04**: Processes injection patterns from tool outputs
+- **ASI06**: Returns sensitive data (SSNs, cards, hashes) in queries
+- **ASI07**: Accepts writes to system memory keys
+
+> **Warning**: This agent is for testing only. Never expose to production traffic.
+
+---
+
 ## Troubleshooting
 
 ### No Events Captured

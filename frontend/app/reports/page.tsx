@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, FileText, FlaskConical } from 'lucide-react';
 import { useTestingModeStore, isTestingMode } from '@/stores/testingMode';
 import { generateMockReports } from '@/lib/mocks/reports';
+import { useBattleHistoryStore, BattleSummary } from '@/stores/battleHistory';
 
 // ============================================================================
 // COMPONENTS
@@ -58,6 +59,37 @@ function ReportsPageError({
       </AlertDescription>
     </Alert>
   );
+}
+
+// ============================================================================
+// BATTLE HISTORY TO REPORT CONVERSION
+// ============================================================================
+
+/**
+ * Convert a battle summary from the battle history store to a report summary
+ */
+function battleToReportSummary(battle: BattleSummary): ReportSummary {
+  // Map battle result to severity (0=safe, 10=critical)
+  let maxSeverity = 0;
+  if (battle.result === 'vulnerable') maxSeverity = 9;
+  else if (battle.result === 'fixed') maxSeverity = 5;
+  else if (battle.result === 'secure') maxSeverity = 1;
+
+  // Map status
+  let status: ReportSummary['status'] = 'in_progress';
+  if (battle.status === 'completed') status = 'complete';
+  else if (battle.status === 'failed') status = 'failed';
+
+  return {
+    id: battle.id,
+    title: battle.title,
+    targetAgent: battle.targetAgent,
+    generatedAt: battle.completedAt || battle.createdAt,
+    sessionId: battle.runId,
+    maxSeverity,
+    violationCount: battle.breachCount,
+    status
+  };
 }
 
 // ============================================================================
@@ -155,15 +187,19 @@ export default function ReportsPage() {
   const mode = useTestingModeStore((state) => state.mode);
   const isDemoMode = isTestingMode(mode) && mode === 'demo-mode';
 
-  // Load reports on mount
+  // Get real battle history and delete function
+  const battleHistory = useBattleHistoryStore((state) => state.battles);
+  const deleteBattle = useBattleHistoryStore((state) => state.deleteBattle);
+
+  // Load reports on mount or when battle history changes
   useEffect(() => {
     const loadReports = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        // Simulate API latency
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        // Small delay for UI feedback
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         // In demo mode, always use mock data
         if (isDemoMode) {
@@ -172,33 +208,22 @@ export default function ReportsPage() {
           return;
         }
 
-        // Try to load from localStorage first
+        // PRIORITY 1: Load from battle history store (real data)
+        if (battleHistory.length > 0) {
+          const realReports = battleHistory.map(battleToReportSummary);
+          setReports(realReports);
+          return;
+        }
+
+        // PRIORITY 2: Try to load from localStorage
         const storedReports = loadReportsFromStorage();
         if (storedReports && storedReports.length > 0) {
           setReports(storedReports);
           return;
         }
 
-        // TODO: In production, fetch from API:
-        // const response = await fetch('/api/reports');
-        // if (!response.ok) throw new Error('Failed to fetch reports');
-        // const data = await response.json();
-        // setReports(data);
-
-        // For hackathon/development, use mock data if no stored reports
-        // In production, show empty state instead of fake data
-        if (process.env.NODE_ENV === 'development' || isDemoMode) {
-          console.info('[DEV] No stored reports, using mock data');
-          const mockReports = generateMockReports();
-          setReports(mockReports);
-          // Don't persist mock data in demo mode
-          if (!isDemoMode) {
-            saveReportsToStorage(mockReports);
-          }
-        } else {
-          // Production: show empty state
-          setReports([]);
-        }
+        // No real data available - show empty state (not mock data)
+        setReports([]);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load reports';
         setError(message);
@@ -209,7 +234,7 @@ export default function ReportsPage() {
     };
 
     loadReports();
-  }, [isDemoMode, retryCount]);
+  }, [isDemoMode, retryCount, battleHistory]);
 
   // Handle retry
   const handleRetry = useCallback(() => {
@@ -223,17 +248,15 @@ export default function ReportsPage() {
       setIsDeleting(true);
       setDeleteError(null);
       try {
-        // Simulate API latency
-        await new Promise((resolve) => setTimeout(resolve, 200));
-
-        // TODO: In production, call API to delete:
-        // await fetch(`/api/reports/${id}`, { method: 'DELETE' });
+        // Small delay for UI feedback
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         // Update local state
         setReports((prev) => prev.filter((r) => r.id !== id));
 
-        // Update localStorage (unless demo mode)
+        // Delete from battle history store (real data) unless demo mode
         if (!isDemoMode) {
+          deleteBattle(id);
           deleteReportFromStorage(id);
         }
       } catch (err) {
@@ -244,7 +267,7 @@ export default function ReportsPage() {
         setIsDeleting(false);
       }
     },
-    [isDemoMode]
+    [isDemoMode, deleteBattle]
   );
 
   return (
