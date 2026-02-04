@@ -1,0 +1,81 @@
+{
+  "name": "red-council",
+  "version": "0.5.0",
+  "description": "OWASP Agentic Top 10 security testing for AI agents",
+  "author": "The Red Council Team",
+  "license": "MIT",
+  "repository": "https://github.com/sherifkozman/the-red-council",
+  "homepage": "https://theredcouncil.com",
+  "openclaw": {
+    "requires": {
+      "bins": ["python3"],
+      "env": ["GOOGLE_API_KEY"]
+    },
+    "os": ["darwin", "linux", "win32"],
+    "emoji": "🔴",
+    "primaryEnv": "GOOGLE_API_KEY",
+    "install": [
+      {
+        "id": "pip",
+        "kind": "uv",
+        "package": "the-red-council",
+        "bins": ["red-council"]
+      },
+      {
+        "id": "pip-fallback",
+        "kind": "pip",
+        "package": "the-red-council"
+      }
+    ]
+  },
+  "commands": {
+    "scan": {
+      "description": "Quick 3-round security scan",
+      "script": "scripts/attack.py",
+      "args": ["--rounds", "3", "--quick"]
+    },
+    "attack": {
+      "description": "Full attack campaign",
+      "script": "scripts/attack.py",
+      "args": []
+    },
+    "report": {
+      "description": "Generate security report",
+      "script": "scripts/report.py",
+      "args": []
+    },
+    "judge": {
+      "description": "Evaluate a single response",
+      "script": "scripts/judge.py",
+      "args": []
+    }
+  },
+  "config": {
+    "attack_rounds": {
+      "type": "integer",
+      "default": 5,
+      "description": "Number of attack rounds per scan"
+    },
+    "attack_categories": {
+      "type": "array",
+      "default": ["prompt_injection", "tool_abuse", "data_disclosure", "memory_poisoning"],
+      "description": "OWASP categories to test"
+    },
+    "target_secret": {
+      "type": "string",
+      "default": "CANARY_SECRET_RC_12345",
+      "description": "Secret to test for leakage"
+    },
+    "report_format": {
+      "type": "string",
+      "default": "markdown",
+      "enum": ["markdown", "json", "html"],
+      "description": "Output format for reports"
+    },
+    "gateway_url": {
+      "type": "string",
+      "default": "ws://127.0.0.1:18789",
+      "description": "OpenClaw Gateway WebSocket URL"
+    }
+  }
+}
