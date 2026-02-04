@@ -68,3 +68,4 @@ Open [http://localhost:3000](http://localhost:3000).
 - [Understand the architecture](architecture.md)
 - [Add custom attack templates](tutorials/custom-attacks.md)
 - [Testing Your First LLM](tutorials/testing-llm.md)
+- [OpenClaw Integration](tutorials/openclaw-integration.md) - Test OpenClaw agents

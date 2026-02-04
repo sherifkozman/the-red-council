@@ -104,6 +104,7 @@ Hardened System Prompt Generated: ~/.openclaw/hardened_prompt.md
 
 ## Resources
 
+- [Step-by-Step Tutorial](../../docs/tutorials/openclaw-integration.md) - Detailed integration guide
 - [OWASP Agentic AI Security Top 10](https://owasp.org/www-project-agentic-ai-top-10/)
 - [Red Council Documentation](../../docs/README.md)
 - [Attack Knowledge Base](../../src/knowledge/README.md)

@@ -34,6 +34,7 @@ It leverages **Gemini 3 Pro** for attack generation, judging, and defense.
 - **RAG-Enhanced Attacks**: Knowledge Base curated from HarmBench and PyRIT datasets.
 - **Production API**: Hardened FastAPI backend with SSE streaming.
 - **Universal Configuration**: Support for any LLM endpoint (OpenAI, Anthropic, Vertex, Local).
+- **OpenClaw Integration**: Test OpenClaw agents as a skill ([docs](docs/tutorials/openclaw-integration.md)).
 
 ## Quickstart
 

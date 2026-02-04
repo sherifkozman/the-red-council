@@ -699,4 +699,5 @@ The test agent demonstrates:
 - [Basic Test Example](../examples/agent_testing/basic_test.py)
 - [LangChain Integration Example](../examples/agent_testing/langchain_example.py)
 - [Custom Agent Example](../examples/agent_testing/custom_agent.py)
+- [OpenClaw Integration](tutorials/openclaw-integration.md) - Test OpenClaw agents as a skill
 - [API Reference](api-reference.md)
