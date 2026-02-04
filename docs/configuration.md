@@ -11,7 +11,7 @@ The Red Council uses a hierarchical configuration system:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `GOOGLE_API_KEY` | API Key for Gemini (if not using ADC) | - |
-| `GOOGLE_CLOUD_PROJECT` | GCP Project ID | `the-jarvis-brain` |
+| `GOOGLE_CLOUD_PROJECT` | GCP Project ID | `your-gcp-project` |
 | `RC_ATTACKER__PROVIDER` | Provider key for Red Team | `vertex_llama_default` |
 | `RC_TARGET__PROVIDER` | Provider key for Target | `vertex_llama_default` |
 | `RC_JUDGE__PROVIDER` | Provider key for Judge | `gemini_default` |

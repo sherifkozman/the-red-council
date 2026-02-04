@@ -1,8 +1,8 @@
 # Threat Model & Scope
 
 **Project:** The Red Council
-**Target:** DeepMind Gemini 3 Hackathon
-**Last Updated:** 2025-12-31
+**Version:** 0.5.0
+**Last Updated:** 2026-02-03
 
 ## 1. Scope Definition
 
