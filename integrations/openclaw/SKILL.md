@@ -33,11 +33,39 @@ Automatically attack your OpenClaw agent to find security vulnerabilities before
 | ASI07 | Insecure Long-Term Memory | Inject persistent instructions |
 | ASI08 | Goal Misalignment | Redirect agent objectives |
 
+## Requirements
+
+- Python 3.10+
+- OpenClaw Gateway running (default: `ws://127.0.0.1:18789`)
+- `GOOGLE_API_KEY` environment variable (for Gemini-based judge)
+
+## Installation
+
+### Option 1: OpenClaw Skill Manager (Recommended)
+```bash
+openclaw skill install the-red-council
+```
+
+### Option 2: Manual Installation
+```bash
+# Install the package
+pip install the-red-council
+
+# Copy skill files to OpenClaw skills directory
+git clone https://github.com/sherifkozman/the-red-council.git
+cp -r the-red-council/integrations/openclaw ~/.openclaw/skills/red-council
+```
+
+### Option 3: From PyPI only
+```bash
+pip install the-red-council
+```
+
 ## Quick Start
 
-1. **Install Red Council:**
+1. **Verify installation:**
    ```bash
-   pip install the-red-council
+   openclaw skill list | grep red-council
    ```
 
 2. **Run a scan:**
