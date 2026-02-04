@@ -30,7 +30,7 @@ It leverages **Gemini 3 Pro** for judging and defense, and **Llama 3.1 405B** fo
 ## Key Features
 
 - **Multi-Agent Adversarial Flow**: Orchestrated via LangGraph.
-- **Vibe Coding UI**: Real-time battle visualization using Next.js 14 and Tailwind.
+- **Real-time Battle UI**: Live attack visualization using Next.js 14 and Tailwind.
 - **RAG-Enhanced Attacks**: Knowledge Base curated from HarmBench and PyRIT datasets.
 - **Production API**: Hardened FastAPI backend with SSE streaming.
 - **Universal Configuration**: Support for any LLM endpoint (OpenAI, Anthropic, Vertex, Local).
