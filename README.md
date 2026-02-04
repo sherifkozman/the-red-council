@@ -19,7 +19,7 @@
 
 The Red Council is an automated adversarial testing platform for Large Language Models. It implements a closed-loop security workflow that identifies vulnerabilities, generates automated defenses, and verifies their effectiveness in real-time.
 
-Built for the **DeepMind Vibe Coding Hackathon**, it leverages **Gemini 3 Pro** for judging and defense, and **Llama 3.1 405B** for sophisticated attack generation.
+It leverages **Gemini 3 Pro** for judging and defense, and **Llama 3.1 405B** for sophisticated attack generation.
 
 ### Core Loop
 1.  **Attack**: Red Team agent generates adversarial prompts using a Knowledge Base of 165+ curated artifacts.

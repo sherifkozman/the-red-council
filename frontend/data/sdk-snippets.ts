@@ -18,26 +18,31 @@ export const SDK_SNIPPETS: readonly SDKSnippet[] = [
     name: 'LangChain',
     language: 'python',
     description: 'Integration with LangChain via callbacks',
-    installation: 'pip install langchain the-red-council',
+    installation: 'pip install "the-red-council[langchain] @ git+https://github.com/YOUR_ORG/the-red-council.git"',
     code: (sessionId, endpointUrl) => {
       const safeSessionId = sanitize(sessionId)
       const safeEndpoint = sanitize(endpointUrl)
-      return `from langchain.callbacks import BaseCallbackHandler
-from the_red_council import RedCouncilCallback
+      return `from the_red_council.integrations.langchain_adapter import (
+    RedCouncilCallbackHandler,
+    LangChainAgentWrapper
+)
 import os
 
-# Initialize the callback handler
-red_council = RedCouncilCallback(
+# Option 1: Use the callback handler directly
+callback = RedCouncilCallbackHandler(
     session_id="${safeSessionId}",
     endpoint="${safeEndpoint}",
-    api_key=os.environ.get("RC_API_KEY", "YOUR_API_KEY") # Warning: Use env vars!
+    api_key=os.environ.get("RC_API_KEY")
 )
+agent.run("Analyze the security of this prompt", callbacks=[callback])
 
-# Use it in your chain or agent
-agent.run(
-    "Analyze the security of this prompt",
-    callbacks=[red_council]
-)`
+# Option 2: Wrap your AgentExecutor for full instrumentation
+wrapped = LangChainAgentWrapper.from_agent_executor(
+    agent_executor,
+    agent_id="my-langchain-agent",
+    session_id="${safeSessionId}"
+)
+result = await wrapped.invoke({"input": "test prompt"})`
     }
   },
   {
@@ -45,59 +50,26 @@ agent.run(
     name: 'LangGraph',
     language: 'python',
     description: 'Integration with LangGraph via state inspection',
-    installation: 'pip install langgraph the-red-council',
+    installation: 'pip install "the-red-council[langgraph] @ git+https://github.com/YOUR_ORG/the-red-council.git"',
     code: (sessionId, endpointUrl) => {
       const safeSessionId = sanitize(sessionId)
       const safeEndpoint = sanitize(endpointUrl)
-      return `from langgraph.graph import StateGraph
-from the_red_council import RedCouncilMonitor
+      return `from the_red_council.integrations.langgraph_adapter import LangGraphAgentWrapper
+from langgraph.graph import StateGraph
 
-# Initialize the monitor
-monitor = RedCouncilMonitor(
-    session_id="${safeSessionId}",
-    endpoint="${safeEndpoint}"
+# Wrap your StateGraph for full instrumentation
+wrapped = LangGraphAgentWrapper.from_state_graph(
+    graph,  # Your StateGraph instance
+    agent_id="my-langgraph-agent",
+    session_id="${safeSessionId}"
 )
 
-# Wrap your graph execution
-async def run_agent(inputs):
-    async with monitor.trace():
-        result = await app.ainvoke(inputs)
-        return result`
-    }
-  },
-  {
-    id: 'mcp',
-    name: 'MCP',
-    language: 'typescript',
-    description: 'Model Context Protocol integration',
-    installation: 'npm install @modelcontextprotocol/sdk @red-council/mcp',
-    code: (sessionId, endpointUrl) => {
-      const safeSessionId = sanitize(sessionId)
-      const safeEndpoint = sanitize(endpointUrl)
-      return `import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { RedCouncilInterceptor } from "@red-council/mcp";
+# All node executions and state changes are automatically captured
+result = await wrapped.invoke({"input": "test prompt"})
 
-// Initialize the interceptor
-const interceptor = new RedCouncilInterceptor({
-  sessionId: "${safeSessionId}",
-  endpoint: "${safeEndpoint}"
-});
-
-// Create your MCP server
-const server = new Server(
-  {
-    name: "my-agent",
-    version: "1.0.0",
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
-);
-
-// Attach the interceptor
-interceptor.attach(server);`
+# Or use streaming for real-time events
+async for event in wrapped.astream({"input": "test prompt"}):
+    print(event)`
     }
   },
   {
@@ -112,7 +84,7 @@ interceptor.attach(server);`
       return `curl -X POST "${safeEndpoint}/v1/events" \
   -H "Authorization: Bearer $RC_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ 
+  -d '{
     "session_id": "${safeSessionId}",
     "type": "tool_call",
     "data": {

@@ -13,7 +13,7 @@ import streamlit as st
 logger = logging.getLogger(__name__)
 
 # Constants for documentation links
-DOCS_BASE_URL = "https://github.com/sherifkozman/DeepMind"
+DOCS_BASE_URL = "https://github.com/YOUR_ORG/the-red-council"
 DOCS_AGENT_TESTING = f"{DOCS_BASE_URL}/blob/main/docs/agent-testing-guide.md"
 DOCS_API_REFERENCE = f"{DOCS_BASE_URL}/blob/main/README.md#api-endpoints"
 

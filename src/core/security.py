@@ -4,7 +4,7 @@ import time
 import nh3
 from typing import Dict, Tuple
 
-# Rate limiting storage (simple in-memory for hackathon MVP)
+# Rate limiting storage (simple in-memory)
 # Key: client_id, Value: (request_count, window_start_time)
 _RATE_LIMITS: Dict[str, Tuple[int, float]] = {}
 
