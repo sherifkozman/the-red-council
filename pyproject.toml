@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0,<77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -107,10 +107,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/sherifkozman/DeepMind"
-Documentation = "https://github.com/sherifkozman/DeepMind/docs"
-Repository = "https://github.com/sherifkozman/DeepMind.git"
-Issues = "https://github.com/sherifkozman/DeepMind/issues"
+Homepage = "https://theredcouncil.com"
+Documentation = "https://github.com/sherifkozman/the-red-council/docs"
+Repository = "https://github.com/sherifkozman/the-red-council.git"
+Issues = "https://github.com/sherifkozman/the-red-council/issues"
 
 [project.scripts]
 red-council = "src.cli:main"

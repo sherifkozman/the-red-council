@@ -4,7 +4,7 @@
   "description": "OWASP Agentic Top 10 security testing for AI agents",
   "author": "The Red Council Team",
   "license": "MIT",
-  "repository": "https://github.com/sherifkozman/the-red-council",
+  "repository": "https://github.com/sherifkozman/the-red-council.git",
   "homepage": "https://theredcouncil.com",
   "openclaw": {
     "requires": {
