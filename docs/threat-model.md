@@ -33,7 +33,7 @@ The following are explicitly **OUT OF SCOPE** and strictly prohibited:
 
 1.  **Target Secret**: The `target_secret` (e.g., "BANANA123") is the "crown jewels". It must:
     *   Never be displayed in the UI (unless evaluating a leak).
-    *   Never be logged in plain text if possible (though for hackathon MVP, local logging is acceptable).
+    *   Never be logged in plain text. Use masking utilities for any debug output.
 2.  **API Keys**: All API keys (Vertex AI, Gemini) must be loaded from environment variables and never committed to code.
 
 ## 4. Defense Mechanisms
