@@ -5,6 +5,28 @@ All notable changes to **The Red Council** project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-02-03
+
+### Added
+- **OpenClaw Integration**: Red Council skill for OpenClaw agent security testing
+  - Attack campaigns via WebSocket Gateway
+  - Response evaluation with AgentJudge
+  - Report generation (Markdown, JSON, HTML)
+- **PyPI Publication**: Package available as `pip install the-red-council`
+- **Public Website**: Landing page at [theredcouncil.com](https://theredcouncil.com)
+- **Open Graph Support**: Social media preview cards for link sharing
+- **Security Policy**: `SECURITY.md` for vulnerability reporting
+
+### Changed
+- **Repository**: Renamed to `the-red-council`
+- **Documentation**: Accuracy improvements across all docs
+- **Dependencies**: Updated protobuf, mcp, langchain-text-splitters
+
+### Security
+- GitHub secret scanning enabled
+- Push protection enabled
+- Branch protection on main
+
 ## [0.4.0] - 2025-12-31
 
 ### Added
