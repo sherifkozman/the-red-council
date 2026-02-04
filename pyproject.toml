@@ -79,7 +79,7 @@ langgraph = [
 
 # MCP (Model Context Protocol) integration
 mcp = [
-    "mcp>=0.1.0,<1.0.0",
+    "mcp>=0.1.0,<2.0.0",
 ]
 
 # All framework integrations
