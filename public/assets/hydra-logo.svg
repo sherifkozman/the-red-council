@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 350" role="img" aria-label="The Red Council Hydra logo - four serpent heads">
+  <title>The Red Council Hydra Logo</title>
+  <defs>
+    <!-- Strong red glow filter -->
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feColorMatrix type="matrix" values="1 0 0 0 0.1  0 0.1 0 0 0  0 0 0.1 0 0  0 0 0 0.8 0" result="redBlur"/>
+      <feMerge>
+        <feMergeNode in="redBlur"/>
+        <feMergeNode in="redBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Pixel block pattern for body texture -->
+    <pattern id="pixels" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="3" height="3" fill="#dc2626"/>
+      <rect x="1" y="1" width="1" height="1" fill="#ef4444"/>
+    </pattern>
+  </defs>
+
+  <!-- Main Hydra Group with glow -->
+  <g filter="url(#glow)">
+
+    <!-- Central Body - oval shape made of pixel blocks -->
+    <ellipse cx="200" cy="180" rx="55" ry="70" fill="url(#pixels)"/>
+    <ellipse cx="200" cy="180" rx="45" ry="60" fill="#dc2626"/>
+    <ellipse cx="200" cy="180" rx="35" ry="50" fill="url(#pixels)"/>
+
+    <!-- TOP HEAD (Attacker) -->
+    <g>
+      <!-- Neck -->
+      <rect x="190" y="90" width="20" height="30" fill="url(#pixels)"/>
+      <!-- Head base -->
+      <path d="M175 70 L225 70 L230 55 L220 45 L200 35 L180 45 L170 55 Z" fill="#dc2626"/>
+      <!-- Crown/horns -->
+      <rect x="178" y="30" width="6" height="15" fill="#dc2626"/>
+      <rect x="216" y="30" width="6" height="15" fill="#dc2626"/>
+      <rect x="197" y="20" width="6" height="20" fill="#dc2626"/>
+      <!-- Eyes -->
+      <circle cx="188" cy="55" r="4" fill="#0a0a0f"/>
+      <circle cx="212" cy="55" r="4" fill="#0a0a0f"/>
+      <!-- Eye glow -->
+      <circle cx="188" cy="55" r="2" fill="#ff6b6b"/>
+      <circle cx="212" cy="55" r="2" fill="#ff6b6b"/>
+    </g>
+
+    <!-- LEFT HEAD (Judge) -->
+    <g>
+      <!-- Neck -->
+      <rect x="100" y="160" width="45" height="18" fill="url(#pixels)"/>
+      <!-- Head base -->
+      <path d="M70 145 L70 195 L55 200 L45 190 L35 170 L45 150 L55 140 Z" fill="#dc2626"/>
+      <!-- Crown/horns -->
+      <rect x="30" y="148" width="15" height="6" fill="#dc2626"/>
+      <rect x="30" y="186" width="15" height="6" fill="#dc2626"/>
+      <rect x="20" y="167" width="20" height="6" fill="#dc2626"/>
+      <!-- Eyes -->
+      <circle cx="55" y="158" r="4" fill="#0a0a0f"/>
+      <circle cx="55" cy="182" r="4" fill="#0a0a0f"/>
+      <!-- Eye glow -->
+      <circle cx="55" cy="158" r="2" fill="#ff6b6b"/>
+      <circle cx="55" cy="182" r="2" fill="#ff6b6b"/>
+    </g>
+
+    <!-- RIGHT HEAD (Defender) -->
+    <g>
+      <!-- Neck -->
+      <rect x="255" y="160" width="45" height="18" fill="url(#pixels)"/>
+      <!-- Head base -->
+      <path d="M330 145 L330 195 L345 200 L355 190 L365 170 L355 150 L345 140 Z" fill="#dc2626"/>
+      <!-- Crown/horns -->
+      <rect x="355" y="148" width="15" height="6" fill="#dc2626"/>
+      <rect x="355" y="186" width="15" height="6" fill="#dc2626"/>
+      <rect x="360" y="167" width="20" height="6" fill="#dc2626"/>
+      <!-- Eyes -->
+      <circle cx="345" cy="158" r="4" fill="#0a0a0f"/>
+      <circle cx="345" cy="182" r="4" fill="#0a0a0f"/>
+      <!-- Eye glow -->
+      <circle cx="345" cy="158" r="2" fill="#ff6b6b"/>
+      <circle cx="345" cy="182" r="2" fill="#ff6b6b"/>
+    </g>
+
+    <!-- BOTTOM HEAD (Verifier) -->
+    <g>
+      <!-- Neck -->
+      <rect x="190" y="230" width="20" height="30" fill="url(#pixels)"/>
+      <!-- Head base -->
+      <path d="M175 280 L225 280 L230 295 L220 305 L200 315 L180 305 L170 295 Z" fill="#dc2626"/>
+      <!-- Crown/horns -->
+      <rect x="178" y="305" width="6" height="15" fill="#dc2626"/>
+      <rect x="216" y="305" width="6" height="15" fill="#dc2626"/>
+      <rect x="197" y="310" width="6" height="20" fill="#dc2626"/>
+      <!-- Eyes -->
+      <circle cx="188" cy="295" r="4" fill="#0a0a0f"/>
+      <circle cx="212" cy="295" r="4" fill="#0a0a0f"/>
+      <!-- Eye glow -->
+      <circle cx="188" cy="295" r="2" fill="#ff6b6b"/>
+      <circle cx="212" cy="295" r="2" fill="#ff6b6b"/>
+    </g>
+
+  </g>
+
+  <!-- Dashed border frame like original -->
+  <rect x="15" y="10" width="370" height="330" fill="none" stroke="#dc2626" stroke-width="1" stroke-dasharray="6,3" opacity="0.5"/>
+
+  <!-- Corner brackets -->
+  <g stroke="#dc2626" stroke-width="2" fill="none" opacity="0.7">
+    <path d="M25,25 L25,50 M25,25 L50,25"/>
+    <path d="M375,25 L375,50 M375,25 L350,25"/>
+    <path d="M25,325 L25,300 M25,325 L50,325"/>
+    <path d="M375,325 L375,300 M375,325 L350,325"/>
+  </g>
+</svg>

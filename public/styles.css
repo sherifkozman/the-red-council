@@ -1,0 +1,96 @@
+/* Background effects */
+body {
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(220, 38, 38, 0.15) 0%, transparent 50%),
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 100% 100%, 50px 50px, 50px 50px;
+  background-position: top center, 0 0, 0 0;
+}
+
+/* Glow pulse animation for Hydra logo */
+@keyframes glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(220, 38, 38, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 40px rgba(220, 38, 38, 0.9));
+  }
+}
+
+.hydra-logo {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Card glow on hover */
+.feature-card {
+  transition: all 0.3s ease;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.feature-card:hover {
+  border-color: rgba(220, 38, 38, 0.6);
+  box-shadow: 0 0 30px rgba(220, 38, 38, 0.2);
+  transform: translateY(-4px);
+}
+
+/* Terminal scan line */
+@keyframes scan {
+  0% { top: 0; }
+  100% { top: 100%; }
+}
+
+.terminal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.5), transparent);
+  animation: scan 3s linear infinite;
+}
+
+/* Copy button feedback */
+.copy-btn.copied {
+  background-color: rgba(34, 197, 94, 0.2);
+}
+
+/* Glass morphism for cards */
+.glass {
+  background: rgba(10, 10, 15, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+/* Text gradient */
+.text-gradient {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Responsive hero text */
+.hero-title {
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  line-height: 1.1;
+}
+
+/* Ensure terminal has proper positioning for scan line */
+.terminal {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .hydra-logo {
+    animation: none;
+  }
+  .terminal::before {
+    animation: none;
+  }
+  .feature-card {
+    transition: none;
+  }
+}
